@@ -74,7 +74,8 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Agent: backend-developer
 - Depends on: T-2
 - Description: findings 2 and 3 of the DevOps review (D-20)
-- Status: in-progress
+- Status: done
+- Verification: `npm test` 33/33 (re-run by PM); loopback bind confirmed by startup log + curl. Docs updated by PM.
 - Deliverables: `server/src/server.js`, `server/scripts/`, tests
 
 ## Future

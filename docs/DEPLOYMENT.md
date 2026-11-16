@@ -73,9 +73,10 @@ sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-The app listens on all interfaces (port 3000). The firewall must block it from the internet, because
-a client that reaches the app directly could forge its IP through `X-Forwarded-For`. Check with
-`ss -ltn` (3000 should appear) and an external port scan (3000 closed).
+The app binds to `HOST` (default `127.0.0.1`), so port 3000 is reachable only from the server itself;
+Caddy on the same host proxies to it. Keep the firewall rules anyway (defence in depth): a client that
+reached the app directly could forge its IP through `X-Forwarded-For`. Check with `ss -ltn`
+(`127.0.0.1:3000` should appear, not `0.0.0.0:3000`). Only containers set `HOST=0.0.0.0`.
 
 **Node.js 22.13 or newer.** Install the official Node 22 LTS Linux build and make sure the path used in
 the unit file exists: `command -v node` and `node -v`. If it is not `/usr/bin/node`, edit
@@ -280,18 +281,12 @@ This sets the new password and logs out all existing sessions for that admin. It
 2FA settings. Tell the owner to log in again.
 
 ### 6.2 Lost phone with 2FA (no password reset cures this)
-The app has no command to turn 2FA off. Last resort, after a backup:
+Turn 2FA off for that admin (also signs them out everywhere):
 ```bash
-sudo systemctl stop kota-restaurant
-sudo -u kota node --disable-warning=ExperimentalWarning -e '
-const { DatabaseSync } = require("node:sqlite");
-const db = new DatabaseSync(process.argv[1]);
-const r = db.prepare("UPDATE admins SET totp_secret = NULL, totp_pending_secret = NULL, updated_at = ? WHERE username = ? COLLATE NOCASE").run(Date.now(), process.argv[2]);
-console.log("rows changed:", r.changes);' /var/lib/kota-restaurant/data/kota.db OWNER_USERNAME
-sudo systemctl start kota-restaurant
+sudo -u kota bash -c 'set -a; . /etc/kota-restaurant/kota.env; set +a; cd /opt/kota-restaurant && npm run admin:disable-2fa -- --username OWNER_USERNAME'
 ```
-Then the owner logs in with the password and sets up 2FA again. Expect `rows changed: 1`. Anything else
-means the username was wrong: check it and do not repeat the step blindly.
+Expected output: `2FA disabled for "OWNER_USERNAME"; N session(s) revoked. ...`. `Admin "X" not found` means
+the username was wrong (nothing changed). The owner then logs in with the password and sets up 2FA again.
 
 ## 7. Approval checklist (the user must approve each of these)
 | # | Step | Why it needs approval |
@@ -312,7 +307,5 @@ Nothing above has been done.
 - `/admin/` (`public/admin/index.html`) and `daily-menu.html` now exist in the working tree but
   were **not** present when the local smoke run was done. Re-run `ops/smoke-check.sh` against a
   started server before any release; the smoke script does not yet check `/daily-menu` or `/admin/` content.
-- The app listens on all interfaces. Only the firewall protects port 3000 (see section 3.1).
-- There is no CLI to turn off 2FA; section 6.2 is the manual procedure.
-- The public site contains a placeholder phone number (`+1234`).
+- The reservation phone, address and opening hours are set by the owner in /admin → Настройки (no placeholder in code).
 - The server runs one process; there is no horizontal scaling. This is fine for this traffic.

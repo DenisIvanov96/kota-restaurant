@@ -33,7 +33,7 @@ server/
   src/routes/public.js
   src/routes/admin/*.js
   migrations/001_init.sql
-  scripts/create-admin.js, reset-password.js
+  scripts/create-admin.js, reset-password.js, disable-2fa.js
   test/                 backend tests (Backend Developer)
 public/                 everything served statically (nothing else is!)
   index.html, daily-menu.html, css/, js/, images/
@@ -47,6 +47,7 @@ data/                   runtime only, git-ignored: kota.db, uploads/
 | Var | Default | Purpose |
 |---|---|---|
 | `PORT` | `3000` | listen port |
+| `HOST` | `127.0.0.1` | bind address; set `0.0.0.0` only in containers (D-20) |
 | `DATA_DIR` | `./data` | SQLite file + `uploads/` |
 | `NODE_ENV` | `development` | `production` enables secure cookies and disables test hooks |
 | `COOKIE_SECURE` | `true` in production, else `false` | `Secure` flag on session cookie |
@@ -94,6 +95,7 @@ No secrets are required to run. Admin accounts are created with a CLI script, ne
 - Login rate limit: 5 failed attempts per IP per 15 min and 10 per username per 15 min → 429 with `retryAfter` seconds.
 - Passwords: min 12 characters; scrypt with per-user salt; constant-time compare.
 - Optional TOTP 2FA (RFC 6238, SHA-1, 30 s, 6 digits, ±1 step). Shown as a secret key + `otpauth://` URL for manual entry in an authenticator app.
+- 2FA recovery: `npm run admin:disable-2fa -- --username <name>` (server operator).
 - Password recovery: no e-mail service is configured, so recovery is by the server operator running `npm run admin:reset-password -- --username <name>`. E-mail recovery is a future option (needs SMTP credentials + approval).
 - No registration endpoint exists.
 
