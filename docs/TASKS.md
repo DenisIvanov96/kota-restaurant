@@ -90,7 +90,7 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 ### T-10: Frontend fixes for design review BUG-D1..D11
 - Agent: frontend-developer (isolated worktree)
 - Depends on: T-9
-- Status: in-progress
+- Status: review — done on branch `worktree-agent-ad5de0177ac2e03bd` (8ff9eef); PM spot-checked D1/D2 screenshots OK; merge after T-5 finishes, then QA retest
 - Deliverables: `public/**` changes, merged by PM after review; QA retest
 
 ## Future
