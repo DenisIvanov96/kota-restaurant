@@ -432,7 +432,8 @@ describe('security (dev mode server)', () => {
     const e = (await anon.get('/api/public/events')).data.events.find((x) => x.title === 'pub');
     assert.deepEqual(Object.keys(e).sort(), ['description', 'eventAt', 'id', 'imageUrl', 'title']);
     const s = (await anon.get('/api/public/site')).data;
-    assert.deepEqual(Object.keys(s).sort(), ['address', 'currencySymbol', 'openingHours', 'reservationPhone']);
+    assert.deepEqual(Object.keys(s).sort(), ['address', 'currencySymbol', 'lang', 'openingHours', 'reservationPhone']); // `lang` added by T-14 (documented in ARCHITECTURE.md, D-27)
+    assert.equal(s.lang, 'bg');
     await admin.del(`${EV}/${ev.data.id}`);
   });
   test('S8f admin cannot be created / modified via API: settings PUT ignores unknown keys (mass assignment)', async () => {
