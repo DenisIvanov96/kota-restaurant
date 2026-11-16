@@ -114,7 +114,7 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Agent: frontend-developer (worktree) · Status: review — branch 6470b4c (includes e091269); PM checked EN 390 screenshot OK
 - QA focus for T-17: 360/768 widths; EN for PDF/file-mode menu, lightbox, no-menu state; localStorage blocked; **rapid БГ/EN toggling on slow network (index page has no stale-response guard — possible race)**; CSP-enforcing run
 ### T-16: Admin English input fields (events, menu, settings)
-- Agent: frontend-developer (worktree) · Depends on: contract · Status: in-progress
+- Agent: frontend-developer (worktree) · Status: review — branch d4befbe (UI) / 5394049 (with backend); round-trip verified at 390/1280. QA focus: server 400 on En fields, 768, keyboard on <details> groups
 ### T-17: QA targeted i18n tests + full regression before release
 - Agent: qa-security-engineer · Depends on: T-13, T-14..T-16 · Status: todo
 
