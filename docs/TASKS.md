@@ -55,8 +55,9 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Agent: qa-security-engineer
 - Depends on: T-3, T-4
 - Description: All scenarios from the requirements (events, daily menu, regular menu, security, compatibility) as automated tests in `tests/`.
-- Status: in-progress
+- Status: done
 - Deliverables: `tests/**`, `docs/TESTING.md`
+- Verification: verdict FAIL (4 minor): API 80/80, browser 246/251; all required scenarios PASS except admin UI minor BUG-1..4 → T-11, T-12
 
 ### T-6: DevOps — deployment readiness
 - Agent: devops-engineer
@@ -90,8 +91,21 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 ### T-10: Frontend fixes for design review BUG-D1..D11
 - Agent: frontend-developer (isolated worktree)
 - Depends on: T-9
-- Status: review — done on branch `worktree-agent-ad5de0177ac2e03bd` (8ff9eef); PM spot-checked D1/D2 screenshots OK; merge after T-5 finishes, then QA retest
+- Status: review — merged (180f07d); awaiting QA retest (T-13)
 - Deliverables: `public/**` changes, merged by PM after review; QA retest
+
+### T-11: Fix BUG-4 (CRLF newlines counted twice) — attempt 1
+- Agent: backend-developer
+- Status: in-progress
+
+### T-12: Fix BUG-1..3 (admin bottom overlap, dish aria-labels, lost click) — attempt 1
+- Agent: frontend-developer
+- Status: in-progress
+
+### T-13: QA regression + retest of BUG-1..4 and D1..D11
+- Agent: qa-security-engineer
+- Depends on: T-11, T-12
+- Status: todo
 
 ## Future
 - Table management / Маси — see `docs/FUTURE-TABLES.md` (not started).
