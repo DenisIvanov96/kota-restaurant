@@ -5,16 +5,17 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
-| npm test (backend) | 0c81447 | 43/43 |
-| api security / publication / menu | 0c81447 | 42/42 · 21/21 · 17/17 |
-| api i18n (new, T-17) | 0c81447 | 13/13 |
-| e2e public | 0c81447 | 89/89 |
-| e2e a11y | 0c81447 | 47/48 (A10b = BUG-9) |
-| e2e admin | 0c81447 | 117/117 (BUG-5 verified fixed) |
-| e2e design | 0c81447 | 22/22 (BUG-6, BUG-7 verified fixed) |
-| e2e i18n (new, T-17) | 0c81447 | 231/240 (BUG-8, BUG-10) |
+| npm test (backend) | 0c81447 | 43/43 (server code unchanged since) |
+| api security / publication / menu | 0c81447 | 42/42 · 21/21 · 17/17 (server code unchanged since) |
+| api i18n (T-17) | 0c81447 | 13/13 (server code unchanged since) |
+| e2e public | c376609 | 89/89 |
+| e2e a11y | c376609 | 48/48 (A10b = BUG-9 now passes) |
+| e2e admin | c376609 | 117/117 |
+| e2e design | c376609 | 22/22 |
+| e2e i18n (T-17) | c376609 | 240/240 (BUG-8, BUG-10 now pass) |
+| e2e reflow (new, T-20) | c376609 | 84/88 (4 x `RF-target44` at 360 px = BUG-11) |
 
-Product code at the time of the runs is identical to `0c81447` (later commits touch only docs and `tests/`).
+Server code is identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`.
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
@@ -45,15 +46,26 @@ What the new tests cover (all passed unless listed under defects):
 - Admin UI at 390/768/1280: En round trip for event, category, dish, settings (save, public `lang=en`, reload prefilled and group open); keyboard Enter/Space opens `<details>`, Tab enters the field, visible focus ring on the summary; unsaved-changes guard on En-only edits (event, dish, settings) and no guard on an untouched form; server 400 on En fields opens the collapsed group, shows inline errors, `aria-invalid` and the error summary (events, menu, settings); preview BG|EN toggle shows English with per-field fallback (event and menu preview); admin stays Bulgarian with `?lang=en` and `kota_lang=en`; no horizontal scroll with all En groups open.
 
 ### Defects (new)
-BUG-8 | minor | frontend-developer | Open `/?lang=bg`. Delay `GET /api/public/{events,menu,site}?lang=bg` by 1.5 s (`page.route`). Click EN, BG, EN within ~300 ms and wait 4 s. (Mirror: delay the EN responses, click EN then BG.) | Final content in the last selected language (EN). | Buttons, `html lang`, URL and static text say EN, but events, categories and dishes are Bulgarian (RACE1: `ev:["Джаз вечер",...] cats:["Салати",...]`); mirror case shows English event/dish names under a BG page (RACE2, RACE3). Cause: `public/js/index.js` `loadAll()` / `loadEvents()` / `loadMenu()` / `loadSiteInfo()` have no sequence guard, so a late response for the old language overwrites the newer render (`daily.js` has one and passes `RACE5/6`). Self-heals on the next click. | `tests/e2e/i18n.mjs` `RACE1`, `RACE2`, `RACE3` (control `RACE4` passes); `.../qa3/i18n2.log`.
+BUG-8 [VERIFIED-FIXED @ c376609, T-20] | minor | frontend-developer | Open `/?lang=bg`. Delay `GET /api/public/{events,menu,site}?lang=bg` by 1.5 s (`page.route`). Click EN, BG, EN within ~300 ms and wait 4 s. (Mirror: delay the EN responses, click EN then BG.) | Final content in the last selected language (EN). | Buttons, `html lang`, URL and static text say EN, but events, categories and dishes are Bulgarian (RACE1: `ev:["Джаз вечер",...] cats:["Салати",...]`); mirror case shows English event/dish names under a BG page (RACE2, RACE3). Cause: `public/js/index.js` `loadAll()` / `loadEvents()` / `loadMenu()` / `loadSiteInfo()` have no sequence guard, so a late response for the old language overwrites the newer render (`daily.js` has one and passes `RACE5/6`). Self-heals on the next click. | `tests/e2e/i18n.mjs` `RACE1`, `RACE2`, `RACE3` (control `RACE4` passes); `.../qa3/i18n2.log`.
 
-BUG-9 | major | frontend-developer | Open `/` or `/daily-menu` (BG or EN) at 320x640 (WCAG 1.4.10 reflow). | No horizontal scroll (`a11y.mjs` `A10b` passed before T-15). | `scrollWidth` 334 (BG) / 331 (EN) > 320. The header row (logo 8-87, "Обедно меню" pill 93-206, new lang switch 212-302, hamburger 308-334) no longer fits: `.nav-toggle` ends at x=334. Fine at 340 and above (320 only). Regression from T-15. Fix: let the pill shrink/hide or wrap at <= 340 px, or reduce paddings. | `tests/e2e/a11y.mjs` `A10b` -> `334/320`; measurement `.../qa3/dbg/w320.mjs` (offender `BUTTON.nav-toggle right=334`).
+BUG-9 [VERIFIED-FIXED @ c376609, T-20] | major | frontend-developer | Open `/` or `/daily-menu` (BG or EN) at 320x640 (WCAG 1.4.10 reflow). | No horizontal scroll (`a11y.mjs` `A10b` passed before T-15). | `scrollWidth` 334 (BG) / 331 (EN) > 320. The header row (logo 8-87, "Обедно меню" pill 93-206, new lang switch 212-302, hamburger 308-334) no longer fits: `.nav-toggle` ends at x=334. Fine at 340 and above (320 only). Regression from T-15. Fix: let the pill shrink/hide or wrap at <= 340 px, or reduce paddings. | `tests/e2e/a11y.mjs` `A10b` -> `334/320`; measurement `.../qa3/dbg/w320.mjs` (offender `BUTTON.nav-toggle right=334`).
 
-BUG-10 | minor | frontend-developer | Admin event form (or menu "Преглед" modal): enter Bulgarian and English text, press the preview toggle "EN". | English preview looks like the English site: tag "Event", price `€4.50`, English date format. | Content is English but the public renderers still use the BG UI language (admin pins `lang=bg`): event tag "Събитие", price "4,50 €", BG date format. The owner cannot judge the real English page. | `tests/e2e/i18n.mjs` `AEV6b` -> `СъбитиеEvent 390...`, `AMN8b` -> `Soups 390Soup 3904,50 €Hot soup 390 v2` (all three viewports).
+BUG-10 [VERIFIED-FIXED @ c376609, T-20] | minor | frontend-developer | Admin event form (or menu "Преглед" modal): enter Bulgarian and English text, press the preview toggle "EN". | English preview looks like the English site: tag "Event", price `€4.50`, English date format. | Content is English but the public renderers still use the BG UI language (admin pins `lang=bg`): event tag "Събитие", price "4,50 €", BG date format. The owner cannot judge the real English page. | `tests/e2e/i18n.mjs` `AEV6b` -> `СъбитиеEvent 390...`, `AMN8b` -> `Soups 390Soup 3904,50 €Hot soup 390 v2` (all three viewports).
+
+BUG-11 | minor | frontend-developer | Open `/` or `/daily-menu` (BG or EN) at exactly 360x640 (BG also 361-363). Measure `.nav-toggle`. | Header controls keep the 48x48 size set in CSS (>= 44 px target). | `.nav-toggle` is flex-shrunk to 40x48 (BG) / 43.3x48 (EN) at 360 px; 41-43 px wide at 361-363 (BG), 44.3 at 361 (EN). Every other width (320, 340-359, 364+ BG / 361+ EN) gives 48x48. Cause: from 360 px the header row is no longer wrapped (T-19 wrap applies <= 359 px) and the logo + pill + lang switch + hamburger exceed the row, so the hamburger (no `flex: none`) shrinks. Not caused by T-19, introduced by the T-15 lang switch; found while checking BUG-9 at 360. No scroll/overlap problem. Fix: `.nav-toggle { flex: none }` and let the pill shrink/wrap, or extend the wrap breakpoint to <= 363 px. | `tests/e2e/reflow.mjs` `RF-target44` x4 (`nav-toggle:40x48`); sweep `.../qa4/sweep.mjs`.
 
 ### Observations (not defects)
 - The English-group inputs use `aria-label`s ("Заглавие на събитието на английски", "Име на английски: <dish>") that replace the visible label text (e.g. "Заглавие (английски)"); both are Bulgarian and unique, fine for screen readers, but the speech-input "label in name" rule (WCAG 2.5.3) is only loosely met. Not tested with real AT.
 - Server 400 on En fields cannot occur from the UI (inputs have `maxlength`); the UI tests use a mocked 400 in the exact shape the real server returns (field keys verified by the API test `I10`).
+
+## Retest T-20 - 2026-11-16, branch `feature/admin-cms` @ c376609 (targeted + shared-code regression)
+
+Verdict: **FAIL (minor only)** - BUG-8, BUG-9, BUG-10 **VERIFIED-FIXED**; new BUG-11 (minor). 0 blocker, 0 major open.
+
+- BUG-8: `RACE1..6` all PASS (RACE1-3 were failing; RACE4-6 controls pass). BUG-9: `a11y.mjs` `A10b` 320/320; new `tests/e2e/reflow.mjs` over `/` and `/daily-menu` x BG/EN x 320/340/360: no horizontal scroll, 5 header controls rendered inside the viewport and hit-testable, visual order = DOM order, tab order skip-link > logo > pill > БГ > EN > hamburger, nav opens without overflow, no console errors/failed requests (84/88; the 4 failures are BUG-11, 44 px width at 360). Lang switch buttons are 44x44, pill 44 px high at all widths.
+- BUG-10: `AEV6b` and `AMN8b` PASS at 390/768/1280. Additionally `reflow.mjs` `RL1..RL4` call the shared renderers with an explicit `lang` on a BG page: EN gives "Event", "Saturday, 20 June 2026, 20:00", "€4.50"; BG output and default behaviour unchanged.
+- Regression (shared code `render.js`, `format.js`, `i18n.js`, `style.css` changed): e2e public 89/89, admin 117/117, a11y 48/48, design 22/22, i18n 240/240 (XSS checks included: 0 failures).
+- NOT RUN: `npm test`, `tests/api/*` (security, publication, menu, i18n): server code unchanged since their PASS at 0c81447 (skip-if-unchanged, CLAUDE.md tier 3; the always-run XSS rule is covered by the e2e XSS checks, which ran). Real devices, Firefox, WebKit.
 
 ### NOT RUN (T-17)
 - Real devices, Firefox, WebKit, screen readers, Bulgarian/English copy review.

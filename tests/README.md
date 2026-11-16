@@ -19,6 +19,7 @@ node --disable-warning=ExperimentalWarning tests/e2e/public.mjs   # public site,
 node --disable-warning=ExperimentalWarning tests/e2e/admin.mjs    # admin SPA flows, error paths, 3 viewports, covering bars
 node --disable-warning=ExperimentalWarning tests/e2e/a11y.mjs     # keyboard focus, contrast from computed CSS, reflow
 node --disable-warning=ExperimentalWarning tests/e2e/design.mjs   # design fixes D1..D11
+node --disable-warning=ExperimentalWarning tests/e2e/reflow.mjs   # header reflow 320/340/360, tab order, renderer lang override (port 3205)
 node --disable-warning=ExperimentalWarning tests/e2e/i18n.mjs     # public БГ/EN switch, admin English fields, rapid-toggle race (ports 3209, 3208)
 ```
 
@@ -33,6 +34,6 @@ node --disable-warning=ExperimentalWarning tests/e2e/i18n.mjs     # public БГ/
 
 ## Notes
 - Google Fonts is unreachable from the sandbox: failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` are collected separately as environmental noise and ignored.
-- Open defects are documented by checks that FAIL on purpose (see `docs/TESTING.md`): `i18n.mjs` `RACE1..3` (BUG-8), `AEV6b`/`AMN8b` (BUG-10), `a11y.mjs` `A10b` (BUG-9). BUG-1..7 are fixed and their checks pass.
+- Open defects are documented by checks that FAIL on purpose (see `docs/TESTING.md`): `reflow.mjs` `RF-target44` at 360 px (BUG-11). BUG-1..10 are fixed and their checks pass.
 - `admin.mjs` dismisses persistent error toasts before pressing Save (they cover the sticky save bar at 390 px, BUG-5), as a user would.
 - Production-mode checks use `NODE_ENV=production` with default `HOST`; `KOTA_NOW` is ignored there (verified).
