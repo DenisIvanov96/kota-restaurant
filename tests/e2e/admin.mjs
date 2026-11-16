@@ -27,6 +27,8 @@ async function login(page) {
 }
 const sw = (page, name) => page.getByRole('switch', { name });
 const toast = (page) => page.locator('.a-toasts');
+// A user dismisses persistent error toasts (they have a close button) before pressing Save; at 390px they overlap the sticky save bar (BUG-5).
+const dismissToasts = async (page) => { for (let i = 0; i < 5 && (await page.locator('.a-toast__close').count()); i++) await page.locator('.a-toast__close').first().click(); };
 const go = async (page, hash) => { await page.evaluate((h) => { location.hash = h; }, hash); await page.waitForTimeout(250); };
 
 // ================= login =================
@@ -101,6 +103,16 @@ await step('E', async () => {
   await sw(page, 'Показвай „Джаз вечер“').click(); await page.waitForTimeout(600);
   R.check('EV7b network failure: switch rolls back + "Няма връзка" toast', (await sw(page, 'Показвай „Джаз вечер“').getAttribute('aria-checked')) === 'true' && (await toast(page).innerText()).includes('Няма връзка'));
   await page.unroute('**/api/admin/events/*/enabled');
+  // BUG-5 evidence: with ONE persistent error toast on screen at 390px, does it cover the sticky Save button?
+  await page.getByRole('link', { name: 'Редактирай' }).first().click();
+  await page.waitForSelector('h1:has-text("Редактиране на събитие")');
+  await page.evaluate(() => { document.querySelector('.a-toasts')?.replaceChildren(); });
+  await page.evaluate(() => import('/admin/js/ui.js').then((m) => m.toast('Тестова грешка', { type: 'err' })));
+  await page.waitForTimeout(200);
+  const cover = await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Запази'); const r = b.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { hit: el && (el.closest('.a-toast') ? 'toast' : el.closest('button') === b ? 'save' : el.className), top: r.top | 0 }; });
+  R.check('TOAST-OVERLAP[390] one persistent error toast does not cover the sticky "Запази" button (centre point hits the button)', cover.hit === 'save', JSON.stringify(cover));
+  await dismissToasts(page);
+  await page.goBack().catch(() => {}); await page.waitForTimeout(300);
   // edit: description + image
   await page.getByRole('link', { name: 'Редактирай' }).first().click();
   await page.waitForSelector('h1:has-text("Редактиране на събитие")');
@@ -273,8 +285,8 @@ await step('M', async () => {
   p = (await anon.get('/api/public/menu')).data;
   R.check('MN6 publish with unsaved edits saves then publishes: public shows new name + 750', p.structured.categories[0].items[0].name === 'Шопска салата' && p.structured.categories[0].items[0].priceCents === 750);
   // reorder via keyboard
-  const up = page.getByRole('button', { name: 'Премести ястието нагоре' });
-  const down = page.getByRole('button', { name: 'Премести ястието надолу' });
+  const up = page.locator('.a-dish').getByRole('button', { name: /^Премести „.*“ нагоре$/ });
+  const down = page.locator('.a-dish').getByRole('button', { name: /^Премести „.*“ надолу$/ });
   await down.first().focus(); await page.keyboard.press('Enter'); await page.waitForTimeout(200);
   const order = await page.getByLabel('Име на ястието').evaluateAll((els) => els.map((e) => e.value));
   R.check('MN7 keyboard: "down" button (focus + Enter) reorders dishes; focus stays on a move button', order.join() === 'Таратор,Шопска салата' && /Премести/.test(await page.evaluate(() => document.activeElement.getAttribute('aria-label') || '')), order.join() + ' / ' + (await page.evaluate(() => document.activeElement.getAttribute('aria-label'))));
