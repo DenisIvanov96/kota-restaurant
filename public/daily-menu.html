@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Обедно меню — Kota1 Restaurant</title>
+  <meta name="description" content="Обедното меню на Kota1 Restaurant за днес.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Към съдържанието</a>
+
+  <div class="top-bar" id="top-bar" hidden>Резервации: <a id="top-phone" href="tel:"></a></div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="logo" aria-label="Kota1 — начало"><span class="kota">KOTA</span><span class="one">1</span></a>
+      <a href="/daily-menu" class="btn-special-sm" aria-current="page">Обедно меню</a>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Навигация">
+        <svg class="icon-menu" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <svg class="icon-x" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    <nav class="site-nav" id="site-nav" aria-label="Основна навигация">
+      <ul>
+        <li><a href="/#menu">Меню</a></li>
+        <li class="nav-daily"><a href="/daily-menu" aria-current="page">Обедно меню</a></li>
+        <li><a href="/#about">За нас</a></li>
+        <li id="nav-contact"><a href="/#contact">Контакти</a></li>
+      </ul>
+    </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div class="page-band">
+      <h1 class="eyebrow">Обедно меню <span class="en" lang="en">/ Daily Special</span></h1>
+      <p class="daily-date" id="daily-date"></p>
+      <span class="event-tag" id="daily-tag" hidden>Само за днес</span>
+    </div>
+    <section class="section daily-main" aria-label="Меню за днес">
+      <div class="daily-view" id="daily-view"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; <span id="year"></span> Kota1 Restaurant</p>
+  </footer>
+
+  <script type="module" src="/js/daily.js"></script>
+</body>
+</html>

@@ -1,52 +1,67 @@
 <!doctype html>
-<html lang="en">
+<html lang="bg">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kota1 Restaurant</title>
-  <meta name="description" content="Kota1 Restaurant — fresh food, warm welcome.">
+  <meta name="description" content="Kota1 Restaurant — прясна храна и топло посрещане. Обедно меню, основно меню и събития.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/components.css">
 </head>
 <body>
-  <div class="top-bar">For reservation: <a href="tel:+1234">+1234</a></div>
+  <a class="skip-link" href="#main">Към съдържанието</a>
+
+  <div class="top-bar" id="top-bar" hidden>Резервации: <a id="top-phone" href="tel:"></a></div>
 
   <header class="site-header">
-    <a href="#" class="logo" aria-label="Kota1 home"><span class="kota">KOTA</span><span class="one">1</span></a>
-    <nav>
-      <a href="#menu">Menu</a>
-      <a href="#about">About</a>
-      <a href="#contact">Contact</a>
+    <div class="header-inner">
+      <a href="/" class="logo" aria-label="Kota1 — начало"><span class="kota">KOTA</span><span class="one">1</span></a>
+      <a href="/daily-menu" class="btn-special-sm">Обедно меню</a>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Навигация">
+        <svg class="icon-menu" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <svg class="icon-x" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    <nav class="site-nav" id="site-nav" aria-label="Основна навигация">
+      <ul>
+        <li><a href="/#menu">Меню</a></li>
+        <li class="nav-daily"><a href="/daily-menu">Обедно меню</a></li>
+        <li id="nav-event" hidden><a href="/#event">Събитие</a></li>
+        <li><a href="/#about">За нас</a></li>
+        <li id="nav-contact"><a href="/#contact">Контакти</a></li>
+      </ul>
     </nav>
+    </div>
   </header>
 
-  <main>
+  <main id="main" tabindex="-1">
     <section class="hero">
       <h1 class="sign" aria-label="Kota1"><span class="kota">KOTA</span><span class="one">1</span></h1>
       <p class="tagline">Restaurant</p>
       <p class="lead">Fresh food, warm welcome.</p>
-      <a href="#contact" class="btn">Book a table</a>
+      <div class="hero-actions">
+        <a href="/daily-menu" class="btn btn-special">Обедно меню <span class="en" lang="en">Daily Special</span></a>
+        <a href="#contact" class="btn" id="hero-book">Резервирай маса</a>
+      </div>
     </section>
 
-    <section id="menu" class="section">
-      <h2>Menu</h2>
-      <ul class="menu-list">
-        <li><span>Starter</span><span>—</span></li>
-        <li><span>Main</span><span>—</span></li>
-        <li><span>Dessert</span><span>—</span></li>
-      </ul>
+    <section id="menu" class="section menu-section" aria-labelledby="menu-heading">
+      <h2 id="menu-heading">Меню <span class="en" lang="en">/ Menu</span></h2>
+      <div id="menu-content" class="menu-state"></div>
     </section>
 
-    <section id="about" class="section">
-      <h2>About</h2>
-      <p>Tell the Kota1 story here.</p>
+    <section id="about" class="section about" aria-labelledby="about-heading">
+      <h2 id="about-heading">За нас</h2>
+      <p>Прясна храна и топло посрещане.</p>
     </section>
 
-    <section id="contact" class="section">
-      <h2>Contact</h2>
-      <p>Address · Phone · Opening hours</p>
+    <section id="contact" class="section" aria-labelledby="contact-heading" hidden>
+      <h2 id="contact-heading">Контакти</h2>
+      <dl class="contact-list" id="contact-list"></dl>
+      <div class="contact-actions"><a class="btn" id="contact-call" href="tel:" hidden>Резервирай маса</a></div>
     </section>
   </main>
 
@@ -54,6 +69,6 @@
     <p>&copy; <span id="year"></span> Kota1 Restaurant</p>
   </footer>
 
-  <script src="js/main.js"></script>
+  <script type="module" src="/js/index.js"></script>
 </body>
 </html>

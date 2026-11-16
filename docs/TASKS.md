@@ -39,8 +39,9 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Agent: frontend-developer
 - Depends on: T-1, T-2
 - Description: Event banner, "Обедно меню / Daily Special" button + `/daily-menu` page, dynamic "Меню / Menu" section, phone/address/hours from settings. Preserve existing look.
-- Status: in-progress
+- Status: review
 - Deliverables: `public/index.html`, `public/daily-menu.html`, `public/css/`, `public/js/`
+- Verification: developer self-test with Playwright at 390/768/1280 on 4 content scenarios: 0 console/CSP errors, no horizontal scroll. Unverified: embedded PDF `<object>` (headless has no PDF viewer), keyboard walkthrough, real fonts. Awaiting QA (T-5).
 
 ### T-4: Frontend — admin dashboard
 - Agent: frontend-developer
