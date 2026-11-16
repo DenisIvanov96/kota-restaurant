@@ -39,14 +39,14 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Agent: frontend-developer
 - Depends on: T-1, T-2
 - Description: Event banner, "Обедно меню / Daily Special" button + `/daily-menu` page, dynamic "Меню / Menu" section, phone/address/hours from settings. Preserve existing look.
-- Status: todo
+- Status: in-progress
 - Deliverables: `public/index.html`, `public/daily-menu.html`, `public/css/`, `public/js/`
 
 ### T-4: Frontend — admin dashboard
 - Agent: frontend-developer
 - Depends on: T-1, T-2
 - Description: `/admin` SPA: login (+TOTP), dashboard, events, daily menu, regular menu (visual editor + files + mode), settings (password, 2FA, site info), logout.
-- Status: todo
+- Status: in-progress
 - Deliverables: `public/admin/**`
 
 ### T-5: QA — full functional, security and responsive test pass
@@ -60,7 +60,7 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Agent: devops-engineer
 - Depends on: T-2 (can run alongside T-5)
 - Description: Hosting recommendation, production config, backups of `DATA_DIR`, rollback, run/maintenance docs; validate a production-mode start.
-- Status: todo
+- Status: in-progress
 - Deliverables: `docs/DEPLOYMENT.md`, deployment config files, `README.md` run section
 
 ### T-7: Admin user guide (Bulgarian/English)
