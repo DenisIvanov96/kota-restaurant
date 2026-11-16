@@ -386,3 +386,10 @@ button.a-steps__btn { cursor: pointer; }
 .a-login__note { color: var(--a-chrome-muted); font-size: 14px; margin-top: 16px; text-align: center; padding: 0 16px; }
 .a-overlay { position: fixed; inset: 0; z-index: 70; overflow: auto; background: var(--a-chrome); }
 .a-boot-error { padding: 16px; }
+
+/* English (optional) sub-sections */
+.a-en { border: 1px dashed var(--a-border); border-radius: 8px; padding: 0 12px; margin: 12px 0; background: var(--a-primary-tint); }
+.a-en__sum { cursor: pointer; min-height: 48px; display: flex; align-items: center; font-weight: 700; }
+.a-en[open] > .a-en__sum { border-bottom: 1px solid var(--a-line); margin-bottom: 12px; }
+.a-en__sum:focus-visible { outline: 3px solid var(--a-focus); outline-offset: 2px; }
+.a-en__body { padding-bottom: 4px; }

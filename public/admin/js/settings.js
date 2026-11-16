@@ -1,6 +1,6 @@
 import { h, icon, groupSpaces } from './util.js';
 import { get, put, post, ApiError } from './api.js';
-import { badge, alertBox, btn, skeleton, loadError, reportError, toast, confirmDialog, field, passwordField, setBusy } from './ui.js';
+import { badge, alertBox, btn, skeleton, loadError, reportError, toast, confirmDialog, field, passwordField, setBusy, enGroup, EN_HELP } from './ui.js';
 
 export function settingsView(ctx) {
   const el = h('div');
@@ -8,6 +8,7 @@ export function settingsView(ctx) {
   const body = h('div');
   el.append(body);
   let dead = false;
+  let siteDirty = () => false;
 
   async function load() {
     body.replaceChildren(skeleton(3));
@@ -23,23 +24,34 @@ export function settingsView(ctx) {
     const phone = field({ label: 'Телефон за резервации', type: 'tel', inputmode: 'tel', max: 30, value: s.reservationPhone, helper: 'Показва се най-горе на сайта и в „Контакти“. Оставете празно, за да го скриете.', autocomplete: 'off' });
     const addr = field({ label: 'Адрес', multiline: true, rows: 2, max: 200, value: s.address, helper: 'Оставете празно, за да се скрие.' });
     const hours = field({ label: 'Работно време', multiline: true, rows: 5, max: 500, value: s.openingHours, helper: 'Всеки ред се показва на нов ред на сайта. Пример: Пон–Пет 11:00–23:00' });
+    const addrEn = field({ label: 'Адрес (английски)', multiline: true, rows: 2, max: 200, value: s.addressEn || '', helper: EN_HELP });
+    const hoursEn = field({ label: 'Работно време (английски)', multiline: true, rows: 5, max: 500, value: s.openingHoursEn || '', helper: EN_HELP });
+    addrEn.input.setAttribute('aria-label', 'Адрес на английски');
+    hoursEn.input.setAttribute('aria-label', 'Работно време на английски');
+    const enBox = enGroup([addrEn, hoursEn]);
     const cur = field({ label: 'Валутен символ', max: 5, value: s.currencySymbol, cls: 'a-field--narrow', helper: 'Показва се след цената, например €.' });
+    const snap = () => JSON.stringify([phone.value, addr.value, hours.value, addrEn.value, hoursEn.value, cur.value]);
+    let base = snap();
+    siteDirty = () => snap() !== base;
     const save = btn({ label: 'Запази', variant: 'primary', type: 'submit' });
-    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Информация за сайта' }), phone.el, addr.el, hours.el, cur.el, h('div', { class: 'a-actionrow' }, save));
+    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Информация за сайта' }), phone.el, addr.el, hours.el, enBox, cur.el, h('div', { class: 'a-actionrow' }, save));
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      [phone, addr, hours, cur].forEach((f) => f.setError(''));
+      [phone, addr, hours, addrEn, hoursEn, cur].forEach((f) => f.setError(''));
       if (!/^[+0-9 ()-]*$/.test(phone.value)) { phone.setError('Само цифри, интервали, +, ( ) и -.'); phone.input.focus(); return; }
       setBusy(save, true);
       try {
-        const r = await put('/api/admin/settings', { reservationPhone: phone.value.trim(), address: addr.value.trim(), openingHours: hours.value.trim(), currencySymbol: cur.value.trim() });
+        const r = await put('/api/admin/settings', { reservationPhone: phone.value.trim(), address: addr.value.trim(), openingHours: hours.value.trim(), addressEn: addrEn.value.trim(), openingHoursEn: hoursEn.value.trim(), currencySymbol: cur.value.trim() });
         phone.value = r.reservationPhone; addr.value = r.address; hours.value = r.openingHours; cur.value = r.currencySymbol;
+        if (r.addressEn !== undefined) addrEn.value = r.addressEn;
+        if (r.openingHoursEn !== undefined) hoursEn.value = r.openingHoursEn;
+        base = snap();
         toast('Настройките са запазени.');
       } catch (err) {
         if (err.status === 400 && err.fields) {
-          const m = { reservationPhone: phone, address: addr, openingHours: hours, currencySymbol: cur };
+          const m = { reservationPhone: phone, address: addr, openingHours: hours, addressEn: addrEn, openingHoursEn: hoursEn, currencySymbol: cur };
           let first = null;
-          for (const [k, msg] of Object.entries(err.fields)) if (m[k]) { m[k].setError(msg); first = first || m[k]; }
+          for (const [k, msg] of Object.entries(err.fields)) if (m[k]) { if (m[k] === addrEn || m[k] === hoursEn) enBox.open = true; m[k].setError(msg); first = first || m[k]; }
           if (first) first.input.focus();
         } else reportError(err);
       } finally { setBusy(save, false); }
@@ -169,5 +181,5 @@ export function settingsView(ctx) {
   }
 
   load();
-  return { el, destroy() { dead = true; } };
+  return { el, dirty: () => !dead && siteDirty(), destroy() { dead = true; } };
 }
