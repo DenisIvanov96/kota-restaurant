@@ -380,6 +380,10 @@ await step('EDGE', async () => {
   await pg.locator('textarea').first().fill(('a'.repeat(98) + '\n').repeat(20) + 'b'.repeat(20)); // exactly 2000 chars with 20 line breaks (client counter 2000/2000)
   await pg.getByRole('button', { name: 'Запази', exact: true }).click(); await pg.waitForTimeout(1000);
   R.check('EDGE1 description of exactly 2000 chars incl. line breaks (the UI limit) is accepted (browsers send CRLF in multipart; server must normalise before counting)', (await api.get('/api/admin/events')).data.events.some((e) => e.title === 'Edge CRLF'), (await pg.locator('.a-error:visible').allTextContents()).join('|'));
+  const stored = (await api.get('/api/admin/events')).data.events.find((e) => e.title === 'Edge CRLF');
+  R.check('EDGE1b stored description has no \\r and is exactly 2000 chars with 20 line breaks (via admin API)', !!stored && !stored.description.includes('\r') && stored.description.length === 2000 && (stored.description.match(/\n/g) || []).length === 20, stored ? `len=${stored.description.length} cr=${stored.description.includes('\r')}` : 'not stored');
+  const pubDesc = ((await anon.get('/api/public/events')).data.events.find((e) => e.title === 'Edge CRLF') || {}).description;
+  R.check('EDGE1c public API description has no \\r', typeof pubDesc === 'string' && !pubDesc.includes('\r'));
   await c.context.close();
   const c2 = await newPage(browser, { width: 1280, height: 800 }); const pg2 = c2.page; await login(pg2);
   await api.put('/api/admin/menu/draft', { json: { categories: [] } });
@@ -388,7 +392,12 @@ await step('EDGE', async () => {
   await pg2.getByRole('button', { name: 'Добави ястие' }).click({ timeout: 5000 }); await pg2.waitForTimeout(300);
   R.check('EDGE3 add category then click "Добави ястие" ONCE (category name still empty): a dish is added (blur validation message must not shift the button and swallow the click)', (await pg2.locator('.a-dish').count()) === 1, `dishes=${await pg2.locator('.a-dish').count()}`);
   if (!(await pg2.locator('.a-dish').count())) { await pg2.locator('.a-cat__name input').first().fill('Кат'); await pg2.getByRole('button', { name: 'Добави ястие' }).click(); }
-  await pg2.getByLabel('Име на ястието').first().fill('Моето ястие');
+  await pg2.getByLabel('Име на ястието').first().pressSequentially('Моето');
+  const labMid = await pg2.locator('.a-dish').first().getByRole('button', { name: /Изтрий/ }).getAttribute('aria-label');
+  await pg2.getByLabel('Име на ястието').first().pressSequentially(' ястие');
+  await pg2.locator('.a-cat__name input').first().pressSequentially('Супи');
+  const catLabs = await pg2.locator('.a-cat__btns button[aria-label]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  R.check('EDGE2b labels update on every keystroke (dish after "Моето" = ' + labMid + '); category buttons carry category name', /Моето"?$/.test((labMid || '').replace(/[“”]/g, '')) && catLabs.some((l) => /Изтрий категорията „Супи“/.test(l)) && catLabs.some((l) => /Супи/.test(l) && /категорията „Супи“/.test(l)), JSON.stringify({ labMid, catLabs }));
   const lab = await pg2.locator('.a-dish').first().getByRole('button', { name: /Изтрий/ }).getAttribute('aria-label');
   const sw1 = await pg2.locator('.a-dish [role=switch]').first().getAttribute('aria-label');
   R.check('EDGE2 dish delete button / availability switch accessible names include the dish name AFTER it is typed (not stale from render time)', /Моето ястие/.test(lab || '') && /Моето ястие/.test(sw1 || ''), `delete="${lab}" switch="${sw1}"`);
