@@ -8,14 +8,15 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 | npm test (backend) | 0c81447 | 43/43 (server code unchanged since) |
 | api security / publication / menu | 0c81447 | 42/42 · 21/21 · 17/17 (server code unchanged since) |
 | api i18n (T-17) | 0c81447 | 13/13 (server code unchanged since) |
-| e2e public | c376609 | 89/89 |
-| e2e a11y | c376609 | 48/48 (A10b = BUG-9 now passes) |
+| e2e public | 5884ce2 | 89/89 |
+| e2e a11y | 5884ce2 | 48/48 (A10b = BUG-9 passes) |
 | e2e admin | c376609 | 117/117 |
 | e2e design | c376609 | 22/22 |
 | e2e i18n (T-17) | c376609 | 240/240 (BUG-8, BUG-10 now pass) |
-| e2e reflow (new, T-20) | c376609 | 84/88 (4 x `RF-target44` at 360 px = BUG-11) |
+| e2e reflow (T-20) | 5884ce2 | 88/88 (BUG-11 fixed) |
+| width sweep 320-420 px (T-21, ad hoc, not in repo) | 5884ce2 | 404 combos, 0 failures; old-vs-new CSS identical at 380-1280 |
 
-Server code is identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`.
+Server code is identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
@@ -52,7 +53,7 @@ BUG-9 [VERIFIED-FIXED @ c376609, T-20] | major | frontend-developer | Open `/` o
 
 BUG-10 [VERIFIED-FIXED @ c376609, T-20] | minor | frontend-developer | Admin event form (or menu "Преглед" modal): enter Bulgarian and English text, press the preview toggle "EN". | English preview looks like the English site: tag "Event", price `€4.50`, English date format. | Content is English but the public renderers still use the BG UI language (admin pins `lang=bg`): event tag "Събитие", price "4,50 €", BG date format. The owner cannot judge the real English page. | `tests/e2e/i18n.mjs` `AEV6b` -> `СъбитиеEvent 390...`, `AMN8b` -> `Soups 390Soup 3904,50 €Hot soup 390 v2` (all three viewports).
 
-BUG-11 | minor | frontend-developer | Open `/` or `/daily-menu` (BG or EN) at exactly 360x640 (BG also 361-363). Measure `.nav-toggle`. | Header controls keep the 48x48 size set in CSS (>= 44 px target). | `.nav-toggle` is flex-shrunk to 40x48 (BG) / 43.3x48 (EN) at 360 px; 41-43 px wide at 361-363 (BG), 44.3 at 361 (EN). Every other width (320, 340-359, 364+ BG / 361+ EN) gives 48x48. Cause: from 360 px the header row is no longer wrapped (T-19 wrap applies <= 359 px) and the logo + pill + lang switch + hamburger exceed the row, so the hamburger (no `flex: none`) shrinks. Not caused by T-19, introduced by the T-15 lang switch; found while checking BUG-9 at 360. No scroll/overlap problem. Fix: `.nav-toggle { flex: none }` and let the pill shrink/wrap, or extend the wrap breakpoint to <= 363 px. | `tests/e2e/reflow.mjs` `RF-target44` x4 (`nav-toggle:40x48`); sweep `.../qa4/sweep.mjs`.
+BUG-11 [VERIFIED-FIXED @ 5884ce2, T-21] | minor | frontend-developer | Open `/` or `/daily-menu` (BG or EN) at exactly 360x640 (BG also 361-363). Measure `.nav-toggle`. | Header controls keep the 48x48 size set in CSS (>= 44 px target). | `.nav-toggle` is flex-shrunk to 40x48 (BG) / 43.3x48 (EN) at 360 px; 41-43 px wide at 361-363 (BG), 44.3 at 361 (EN). Every other width (320, 340-359, 364+ BG / 361+ EN) gives 48x48. Cause: from 360 px the header row is no longer wrapped (T-19 wrap applies <= 359 px) and the logo + pill + lang switch + hamburger exceed the row, so the hamburger (no `flex: none`) shrinks. Not caused by T-19, introduced by the T-15 lang switch; found while checking BUG-9 at 360. No scroll/overlap problem. Fix: `.nav-toggle { flex: none }` and let the pill shrink/wrap, or extend the wrap breakpoint to <= 363 px. | `tests/e2e/reflow.mjs` `RF-target44` x4 (`nav-toggle:40x48`); sweep `.../qa4/sweep.mjs`.
 
 ### Observations (not defects)
 - The English-group inputs use `aria-label`s ("Заглавие на събитието на английски", "Име на английски: <dish>") that replace the visible label text (e.g. "Заглавие (английски)"); both are Bulgarian and unique, fine for screen readers, but the speech-input "label in name" rule (WCAG 2.5.3) is only loosely met. Not tested with real AT.
@@ -66,6 +67,16 @@ Verdict: **FAIL (minor only)** - BUG-8, BUG-9, BUG-10 **VERIFIED-FIXED**; new BU
 - BUG-10: `AEV6b` and `AMN8b` PASS at 390/768/1280. Additionally `reflow.mjs` `RL1..RL4` call the shared renderers with an explicit `lang` on a BG page: EN gives "Event", "Saturday, 20 June 2026, 20:00", "€4.50"; BG output and default behaviour unchanged.
 - Regression (shared code `render.js`, `format.js`, `i18n.js`, `style.css` changed): e2e public 89/89, admin 117/117, a11y 48/48, design 22/22, i18n 240/240 (XSS checks included: 0 failures).
 - NOT RUN: `npm test`, `tests/api/*` (security, publication, menu, i18n): server code unchanged since their PASS at 0c81447 (skip-if-unchanged, CLAUDE.md tier 3; the always-run XSS rule is covered by the e2e XSS checks, which ran). Real devices, Firefox, WebKit.
+
+## Retest T-21 - 2026-11-16, branch `feature/admin-cms` @ 5884ce2 (BUG-11, CSS-only change)
+
+Verdict: **PASS** - BUG-11 **VERIFIED-FIXED**; 0 defects open.
+
+- `git diff c376609..5884ce2` (product code): `public/css/style.css` only - `.nav-toggle { flex: none }`, header-wrap media query `max-width: 359px` -> `379px`.
+- `reflow.mjs` 88/88 (the 4 `RF-target44` at 360 px now pass), `a11y.mjs` 48/48, `public.mjs` 89/89.
+- Width sweep (ad hoc script, every width 320..420 px, `/` and `/daily-menu`, BG and EN = 404 combos): no horizontal scroll, hamburger exactly 48x48 (>= 44), all 5 header controls rendered, inside the viewport and hit-testable, lang buttons and pill >= 44 px, no console errors/failed requests: 0 failures. Layout switches from wrapped to one row at 369 px (BG) / 365 px (EN), so the 370-379 px wrap rule is inert there (content fits one row).
+- 380 and 390 px unchanged: header geometry (every header link/button/row, x/y/size) compared with the `c376609` stylesheet (served via request interception) at 380, 381, 390, 400, 412, 420, 768, 1280 on `/` and `/daily-menu` x BG/EN = 32 combos, 0 differences (control: 360 and 375 px differ in all 8 combos, so the comparison does detect the change). 375 px (a common phone width) now wraps to two rows by design.
+- NOT RUN (skip-if-unchanged, CSS header rules only): e2e admin, design, i18n; `npm test`, `tests/api/*` (server code unchanged). Real devices, Firefox, WebKit.
 
 ### NOT RUN (T-17)
 - Real devices, Firefox, WebKit, screen readers, Bulgarian/English copy review.

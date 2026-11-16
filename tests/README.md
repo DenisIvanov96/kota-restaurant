@@ -34,6 +34,6 @@ node --disable-warning=ExperimentalWarning tests/e2e/i18n.mjs     # public БГ/
 
 ## Notes
 - Google Fonts is unreachable from the sandbox: failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` are collected separately as environmental noise and ignored.
-- Open defects are documented by checks that FAIL on purpose (see `docs/TESTING.md`): `reflow.mjs` `RF-target44` at 360 px (BUG-11). BUG-1..10 are fixed and their checks pass.
+- No defects are open; BUG-1..11 are fixed and their checks pass.
 - `admin.mjs` dismisses persistent error toasts before pressing Save (they cover the sticky save bar at 390 px, BUG-5), as a user would.
 - Production-mode checks use `NODE_ENV=production` with default `HOST`; `KOTA_NOW` is ignored there (verified).
