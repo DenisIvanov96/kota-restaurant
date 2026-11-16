@@ -1,13 +1,22 @@
 import express from 'express';
-import { getSetting, siteSettings, latestSnapshot, publicFileInfo, fileUrlPublic, today, loc } from '../store.js';
+import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, LANGS, latestSnapshot, publicFileInfo, fileUrlPublic, today, loc } from '../store.js';
 import { kindOf, STORED_NAME_RE } from '../files.js';
 import { isPubliclyVisible } from '../store.js';
-import { HttpError } from '../http.js';
+import { HttpError, validationError } from '../http.js';
 
 export function publicApi({ db, nowMs }) {
   const r = express.Router();
 
-  r.get('/site', (req, res) => res.json(siteSettings(db)));
+  // ?lang=bg|en (default bg); anything else is a 400.
+  r.use((req, res, next) => {
+    const q = req.query.lang;
+    if (q === undefined) req.lang = 'bg';
+    else if (typeof q === 'string' && LANGS.includes(q)) req.lang = q;
+    else return next(validationError({ lang: 'Допустими стойности: bg, en.' }));
+    return next();
+  });
+
+  r.get('/site', (req, res) => res.json({ lang: req.lang, ...publicSiteSettings(db, req.lang) }));
 
   r.get('/events', (req, res) => {
     const now = nowMs();
@@ -15,8 +24,9 @@ export function publicApi({ db, nowMs }) {
       WHERE e.enabled = 1 AND (e.starts_at IS NULL OR e.starts_at <= ?) AND (e.expires_at IS NULL OR e.expires_at > ?)
       ORDER BY e.event_at IS NULL, e.event_at, e.starts_at IS NULL, e.starts_at, e.id`).all(now, now);
     res.json({
+      lang: req.lang,
       events: rows.map((e) => ({
-        id: e.id, title: e.title, description: e.description,
+        id: e.id, title: pick(req.lang, e.title, e.title_en), description: pick(req.lang, e.description, e.description_en),
         imageUrl: e.stored_name ? fileUrlPublic(e.stored_name) : null,
         eventAt: loc(e.event_at),
       })),
@@ -28,6 +38,7 @@ export function publicApi({ db, nowMs }) {
     const row = db.prepare(`SELECT d.*, f.stored_name, f.mime_type FROM daily_menus d JOIN files f ON f.id = d.file_id
       WHERE d.menu_date = ? AND d.published = 1`).get(t);
     res.json({
+      lang: req.lang,
       today: t,
       menu: row ? { date: row.menu_date, fileUrl: fileUrlPublic(row.stored_name), mimeType: row.mime_type, kind: kindOf(row.mime_type), updatedAt: loc(row.updated_at) } : null,
     });
@@ -35,10 +46,10 @@ export function publicApi({ db, nowMs }) {
 
   r.get('/menu', (req, res) => {
     const mode = getSetting(db, 'menu_mode') === 'file' ? 'file' : 'structured';
-    const out = { mode, currencySymbol: siteSettings(db).currencySymbol, structured: null, file: null };
+    const out = { lang: req.lang, mode, currencySymbol: siteSettings(db).currencySymbol, structured: null, file: null };
     if (mode === 'structured') {
       const snap = latestSnapshot(db);
-      if (snap) out.structured = { publishedAt: loc(snap.publishedAt), categories: snap.categories };
+      if (snap) out.structured = { publishedAt: loc(snap.publishedAt), categories: resolveCategories(snap.categories, req.lang) };
     } else {
       const row = db.prepare(`SELECT m.created_at, f.stored_name, f.mime_type FROM menu_files m JOIN files f ON f.id = m.file_id
         WHERE m.published = 1 LIMIT 1`).get();

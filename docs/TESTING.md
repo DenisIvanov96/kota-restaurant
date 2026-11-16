@@ -6,7 +6,57 @@ How to run everything: `tests/README.md`.
 ## Standard viewports
 390x844 (phone), 768x1024 (tablet), 1280x800 (desktop) - Playwright (Chromium, headless).
 
-## Latest results - T-5 independent QA, 2026-11-16, branch `feature/admin-cms`
+## Regression run 2 - T-13, 2026-11-16, branch `feature/admin-cms` (worktree on e091269: includes T-10, T-11, T-12 and the T-14 backend)
+
+Verdict: **FAIL (3 new minor defects BUG-5..7, 0 blocker, 0 major)**. BUG-1..4 are VERIFIED-FIXED; D1..D9, D11 verified; D10 still failing, D8 partly.
+
+| Suite | Result |
+|---|---|
+| `npm test` (backend dev suite; 35 at T-11, now includes T-14 tests) | 43/43 pass |
+| `tests/api/*.test.mjs` (security 42, publication 21, menu 17) | 80/80 pass (after updating S8e whitelist for the documented `lang` field added by T-14) |
+| `tests/e2e/public.mjs` | 89/89 pass |
+| `tests/e2e/a11y.mjs` | 48/48 pass |
+| `tests/e2e/admin.mjs` | 116/117 pass; 1 FAIL = `TOAST-OVERLAP[390]` (BUG-5, deliberate) |
+| `tests/e2e/design.mjs` (new, D1..D11) | 20/22 pass; FAIL = `D10` (BUG-6), `D8a` (BUG-7) |
+
+### Triage of admin.mjs steps E, X, M (reported failing after the T-10 merge)
+- **E ("Запази" not found, timeout): product issue exposed by a test, filed as BUG-5.** The button exists and is enabled; Playwright's call log says `<span class="a-toast__msg">Няма връзка...</span> from <div class="a-toasts"> subtree intercepts pointer events`. Error toasts are persistent by design (role=alert, close button) and `.a-toasts` sits at `bottom: 64px+12px`, exactly where the sticky save bar is. Measured at the moment of the click: T-5 code (7a64ee8) toasts 564-612 / 620-688 / 696-768 vs Save 664-712 - the Save centre (688) happened to fall in the 8 px gap between two toasts, so the old run passed by luck. After T-10 the bar is a single row, Save is at 720-768 and its centre (744) is under the third toast. So it is neither a pure test bug nor caused by T-10 alone: any toast on a form page at 390 px covers the primary Save button until dismissed. Test now dismisses toasts like a user would, and an explicit check `TOAST-OVERLAP[390]` (one error toast, is the Save centre point hit-testable) fails and documents BUG-5.
+- **X (`article:has-text("onerror")` timeout): cascade of E.** E aborted on the edit form (`#/events/1`); X then reloaded that page, so the events list never rendered. With E fixed X passes with its original assertions unchanged (payloads rendered as text, `window.__xss` undefined, no injected nodes in list, form, preview, menu editor).
+- **M (strict-mode violation, "Добави ястие" matches 2 buttons): cascade of X.** X never reached its cleanup (`PUT menu/draft {categories: []}`), so M started with the XSS category and added a second one: each category legitimately has its own "Добави ястие" button. Not caused by T-10. With the cascade fixed this failure disappeared. Separately, M then failed on `Премести ястието надолу`: T-12 intentionally renamed these labels to `Премести „<name>“ надолу` (BUG-2 fix), so the selector was updated to `.a-dish` + regex (test brittleness, product correct).
+- Accessibility note (observation, not filed): identical visible/accessible names "Добави ястие" on every category, and dish/category move buttons share the pattern `Премести „X“ нагоре` (a dish and a category with the same name are indistinguishable by name alone). Screen reader users get context from the surrounding group/heading; recommend `Добави ястие в „<категория>“` and `Премести ястието „X“` as a low-priority improvement.
+
+### BUG-1..4 retest
+| Bug | Check | Result |
+|---|---|---|
+| BUG-1 | `AV-COVER` 390/768/1280 on `#/events/new`, `#/menu`, `#/daily-menu`, `#/settings` (12 checks) | VERIFIED-FIXED (all 12 pass; e.g. events/new 390 bars `a-nav`,`a-actionbar`, last content not covered) |
+| BUG-2 | `EDGE2` + new `EDGE2b` (real keystrokes via pressSequentially; label after "Моето" = `Изтрий ястието „Моето“`, after full name switch = `Налично: Моето ястие`, delete = `Изтрий ястието „Моето ястие“`; category buttons = `Изтрий категорията „Супи“`) | VERIFIED-FIXED |
+| BUG-3 | `EDGE3` (one real mouse click on "Добави ястие" right after "Добави категория" adds a dish, `dishes=1`) | VERIFIED-FIXED |
+| BUG-4 | `EDGE1`, `EDGE1b`, `EDGE1c` (2000 chars with 20 line breaks saved from the browser; admin API and public API values have no `\r`, length 2000, 20 `\n`) | VERIFIED-FIXED |
+
+### Design fixes D1..D11 (tests/e2e/design.mjs, computed styles and geometry)
+| ID | Check | Result |
+|---|---|---|
+| D1 | Expired row at 768x1024, 1024x768, 1280x800: title column 374/570/407 px, title <=2 lines, badge one line (28 px, single line), no h-scroll | VERIFIED-FIXED |
+| D2 | 1280 viewport, "Телефон": frame 358 px, event card 1 column; "Компютър": frame 960 px (scrolls horizontally inside `.preview-scroll`), 2 columns; menu preview "Телефон": `column-count: auto`, categories share one x | VERIFIED-FIXED |
+| D3 | `body` font-family `"Source Sans 3", system-ui, sans-serif` on public (390, 1280) and admin. Google Fonts WAS reachable in this run (`document.fonts.check` true, Source Sans 3 faces `loaded`), so the real font rendered | VERIFIED-FIXED |
+| D4 | Public menu at 1280: `column-count: 2`, 5 categories, 0 split across columns (`getClientRects().length` 1, dishes share title's column) | VERIFIED-FIXED |
+| D5 | Admin action bar at 390: 2 buttons on one row (same top), bar 73 px tall (9% of screen) | VERIFIED-FIXED |
+| D6 | Logo link height: admin 44 px, public 50.1 px (390 and 1280) | VERIFIED-FIXED |
+| D7 | `.btn .en` computed font-size 12 px (1 element on index, 390 and 1280) | VERIFIED-FIXED |
+| D8 | Public header focus rings (logo, nav pill, nav toggle) fully inside viewport/no clipping ancestor; admin logo ring inside bar; admin "Изход" ring top = -1 px (1 px of the 3 px ring is off-screen) | **STILL-FAILING (partly)** -> BUG-7 |
+| D9 | Dashboard active titles: `ul.a-titles`, `list-style: disc`, padding-left 20 px, 2 `li`, no `<strong>` | VERIFIED-FIXED |
+| D10 | Spacing above "Включено" | **STILL-FAILING** -> BUG-6 (gap 0 px, computed `margin-bottom: 0px` on `.a-tznote`) |
+| D11 | `.state-title` colour on /daily-menu with no menu = `rgb(241, 230, 210)` = `var(--text)` | VERIFIED-FIXED |
+
+Screenshots: `/tmp/claude-0/-home-user-kota-restaurant/0a6b5eed-3087-545d-a04f-90c802bbd434/scratchpad/qa2/shots/` (`design-*.png`). Logs: `.../qa2/admin4.log`, `design.log`, `public.2.log`, `a11y.2.log`.
+
+### NOT RUN in regression run 2
+- Everything listed under "NOT RUN / could not be tested" below still applies (real devices, Firefox/WebKit, screen readers, deployment).
+- The БГ/EN language switch (T-14 backend, frontend task) was not tested; only the existing suites were re-run against the T-14 backend (the public `lang` field was added to the whitelist check).
+- D3 was verified with the real web font only because Google Fonts was reachable this time; the fallback behaviour was not re-measured.
+- BUG-5 was only measured at 390 px with injected/forced toasts; toasts at 768/1280 are bottom-right and do not overlap the sticky bar (not measured).
+
+## Results of run 1 - T-5 independent QA, 2026-11-16, branch `feature/admin-cms`
 
 Verdict: **FAIL (4 minor defects, 0 blocker, 0 major)** - every required scenario was executed; all server-side security and publication rules passed. The only failing checks are 4 minor admin-UI defects (BUG-1..4).
 
@@ -127,6 +177,12 @@ BUG-3 | minor | frontend-developer | `#/menu` with empty draft: click "Доба�
 
 BUG-4 | minor | backend-developer (or frontend-developer) | `#/events/new`: title "x", description of exactly 2000 characters containing 20 line breaks (counter shows 2000/2000), Save. | Saved (limit is 2000, UI allows 2000). | Browsers encode newlines as CRLF in multipart, the server counts the CR too (2020 chars) and answers 400 "Описанието е до 2000 символа". Also, stored descriptions contain `\r\n` (e.g. `"Жива музика\r\nВход свободен"`). Fix: normalise `\r\n` to `\n` before validating/storing. | `tests/e2e/admin.mjs` `EDGE1`; public API output in the failed `EV3` first run showed `\r\n`.
 
+BUG-5 | minor | frontend-developer | At 390x844 open `#/events/<id>` (edit), trigger an error toast (e.g. switch toggle fails, or a failed save), then try to tap "Запази". | The persistent error toast must not cover the sticky save bar, or the primary action must remain tappable (toasts above the bar; bar offset added to `.a-toasts` bottom when `.a-actionbar` is present). | `.a-toasts` (`bottom: 64px + 12px`, z-index 60) overlays the sticky `.a-actionbar` (bottom 64px, z-index 25): Save centre point is hit by the toast (`elementFromPoint` = `.a-toast`); Playwright: "`.a-toast__msg` from `.a-toasts` subtree intercepts pointer events", 30 s timeout. The user must first press the toast's close button. Present since T-4 (T-5 run only passed because the click point fell into the 8 px gap between 3 stacked toasts). | `tests/e2e/admin.mjs` `TOAST-OVERLAP[390]` -> `{"hit":"toast","top":720}`; `.../qa2/dbg/fail-E.png`.
+
+BUG-6 | minor | frontend-developer | Open `/admin/#/events/new` at 1280 (any width), look at the space between "Всички часове са по българско време." and the "Включено" label. | At least 16 px (D10 fix: `.a-tznote { margin-bottom: 16px }`). | Computed `margin-bottom: 0px`, measured gap 0 px: the later rule `.a-help { margin: 4px 0 0 }` (admin.css line 95, same specificity) overrides `.a-tznote` (line 84). Fix: raise specificity (`.a-help.a-tznote`) or move the rule below `.a-help`. | `tests/e2e/design.mjs` `D10` -> `{"gap":0,"tznoteMarginBottom":"0px"}`.
+
+BUG-7 | minor (cosmetic) | frontend-developer | Open `/admin/` at 390x844, focus "Изход" in the top bar with the keyboard (Tab). | Whole focus ring visible inside the 56 px bar (D8). | Ring (3 px outline + 2 px offset) spans y -1..57 on a 56 px sticky bar: the top 1 px is outside the viewport; logo ring is fine (1..55). Fix: smaller outline-offset or button height <= 50 px inside the 56 px bar. | `tests/e2e/design.mjs` `D8a` -> `.a-logout-top ringTop:-1, ringBottom:57, barTop:0, barBottom:56`; screenshot `.../qa2/shots/design-D8-admin-topbar.png`.
+
 ## Observations (not defects)
 - `GET /admin` returns 301 to `/admin/` with CSP `default-src 'none'` (Express static default); harmless.
 - The admin boot probe `GET /api/admin/me` (401 when logged out) and wrong-password `POST /login` (401) show as "Failed to load resource" lines in the browser console. Expected behaviour, filtered in the tests.
@@ -138,7 +194,7 @@ BUG-4 | minor | backend-developer (or frontend-developer) | `#/events/new`: titl
 ## NOT RUN / could not be tested
 - Real phones/tablets (touch, iOS Safari, Android Chrome), Firefox and WebKit: only headless Chromium was used.
 - PDF `<object>` embed on desktop: headless Chromium has no PDF viewer (`navigator.pdfViewerEnabled` false), so only the fallback card + "Open"/"Download" links were verified (public F2, T2).
-- Real web fonts (Oswald/Lato): Google Fonts is unreachable in the sandbox, so layout was measured with fallback fonts; font load failures were filtered as environmental noise.
+- Real web fonts: in run 1 Google Fonts was unreachable (fallback fonts measured); in run 2 it was reachable. Re-measure if the environment differs.
 - Screen reader behaviour (NVDA/VoiceOver) and Bulgarian copy review; only computed names/roles/focus were checked.
 - Rate-limit window expiry after 15 minutes (clock frozen via `KOTA_NOW`; restart resets the in-memory limiter).
 - HTTPS / Caddy / systemd / Docker deployment (`docs/DEPLOYMENT.md`), backup and restore scripts, `admin:reset-password` and `admin:disable-2fa` CLIs, reverse-proxy behaviour beyond `X-Forwarded-For` rate limiting.

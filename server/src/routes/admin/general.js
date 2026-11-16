@@ -45,6 +45,8 @@ export function generalRoutes({ db, nowMs, files }) {
       reservationPhone: { max: 30, re: /^[+0-9 ()-]*$/, msg: 'Само цифри и + ( ) - интервал, до 30 символа.' },
       address: { max: 200 },
       openingHours: { max: 500 },
+      addressEn: { max: 200 },
+      openingHoursEn: { max: 500 },
       currencySymbol: { max: 5 },
     };
     const next = { ...cur };
@@ -62,6 +64,8 @@ export function generalRoutes({ db, nowMs, files }) {
     setSetting(db, 'reservation_phone', next.reservationPhone);
     setSetting(db, 'address', next.address);
     setSetting(db, 'opening_hours', next.openingHours);
+    setSetting(db, 'address_en', next.addressEn);
+    setSetting(db, 'opening_hours_en', next.openingHoursEn);
     setSetting(db, 'currency_symbol', next.currencySymbol);
     res.json(siteSettings(db));
   });

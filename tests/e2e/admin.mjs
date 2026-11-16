@@ -397,7 +397,7 @@ await step('EDGE', async () => {
   await pg2.getByLabel('Име на ястието').first().pressSequentially(' ястие');
   await pg2.locator('.a-cat__name input').first().pressSequentially('Супи');
   const catLabs = await pg2.locator('.a-cat__btns button[aria-label]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-  R.check('EDGE2b labels update on every keystroke (dish after "Моето" = ' + labMid + '); category buttons carry category name', /Моето"?$/.test((labMid || '').replace(/[“”]/g, '')) && catLabs.some((l) => /Изтрий категорията „Супи“/.test(l)) && catLabs.some((l) => /Супи/.test(l) && /категорията „Супи“/.test(l)), JSON.stringify({ labMid, catLabs }));
+  R.check('EDGE2b labels update on every keystroke (dish after "Моето" = ' + labMid + '); category buttons carry category name', /Моето/.test(labMid || '') && !/ястие“/.test(labMid || '') && catLabs.some((l) => /Изтрий категорията „Супи“/.test(l)), JSON.stringify({ labMid, catLabs }));
   const lab = await pg2.locator('.a-dish').first().getByRole('button', { name: /Изтрий/ }).getAttribute('aria-label');
   const sw1 = await pg2.locator('.a-dish [role=switch]').first().getAttribute('aria-label');
   R.check('EDGE2 dish delete button / availability switch accessible names include the dish name AFTER it is typed (not stale from render time)', /Моето ястие/.test(lab || '') && /Моето ястие/.test(sw1 || ''), `delete="${lab}" switch="${sw1}"`);

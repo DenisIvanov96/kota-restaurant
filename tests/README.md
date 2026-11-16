@@ -30,5 +30,6 @@ node --disable-warning=ExperimentalWarning tests/e2e/a11y.mjs     # keyboard foc
 
 ## Notes
 - Google Fonts is unreachable from the sandbox: failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` are collected separately as environmental noise and ignored.
-- `e2e/admin.mjs` contains checks that currently FAIL on purpose (they document open defects, see `docs/TESTING.md`): `AV-COVER[390] #/events/new`, `EDGE1`, `EDGE2`, `EDGE3`.
+- Open defects are documented by checks that FAIL on purpose (see `docs/TESTING.md`): `admin.mjs` `TOAST-OVERLAP[390]` (BUG-5), `design.mjs` `D10` (BUG-6) and `D8a` (BUG-7). BUG-1..4 are fixed and their checks pass.
+- `admin.mjs` dismisses persistent error toasts before pressing Save (they cover the sticky save bar at 390 px, BUG-5), as a user would.
 - Production-mode checks use `NODE_ENV=production` with default `HOST`; `KOTA_NOW` is ignored there (verified).
