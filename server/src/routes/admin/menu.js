@@ -44,17 +44,24 @@ export function menuRoutes({ db, nowMs, files }) {
       if (seen.has(v)) { errors[path] = 'Повтарящ се идентификатор.'; return null; }
       seen.add(v); return v;
     };
+    const optText = (v, max, path, msg) => {
+      if (v === undefined || v === null) return '';
+      const t = typeof v === 'string' ? normText(v) : null;
+      if (t === null || t.length > max) { errors[path] = msg; return ''; }
+      return t;
+    };
     const out = cats.map((c, ci) => {
       const cp = `categories[${ci}]`;
       if (!c || typeof c !== 'object' || Array.isArray(c)) { errors[cp] = 'Невалидна категория.'; return null; }
       const id = optId(c.id, seenCat, `${cp}.id`);
       const name = typeof c.name === 'string' ? normText(c.name) : '';
       if (name.length < 1 || name.length > 100) errors[`${cp}.name`] = 'Името е задължително (1–100 символа).';
+      const nameEn = optText(c.nameEn, 100, `${cp}.nameEn`, 'Английското име е до 100 символа.');
       const items = Array.isArray(c.items) ? c.items : (c.items === undefined ? [] : null);
       if (items === null) { errors[`${cp}.items`] = 'Очаква се списък.'; return null; }
       if (items.length > 200) errors[`${cp}.items`] = 'Най-много 200 артикула в категория.';
       return {
-        id, name,
+        id, name, nameEn,
         items: items.slice(0, 200).map((it, ii) => {
           const ip = `${cp}.items[${ii}]`;
           if (!it || typeof it !== 'object' || Array.isArray(it)) { errors[ip] = 'Невалиден артикул.'; return null; }
@@ -63,10 +70,12 @@ export function menuRoutes({ db, nowMs, files }) {
           if (iname.length < 1 || iname.length > 100) errors[`${ip}.name`] = 'Името е задължително (1–100 символа).';
           const desc = it.description === undefined || it.description === null ? '' : normText(it.description);
           if (typeof desc !== 'string' || desc.length > 500) errors[`${ip}.description`] = 'Описанието е до 500 символа.';
+          const inameEn = optText(it.nameEn, 100, `${ip}.nameEn`, 'Английското име е до 100 символа.');
+          const descEn = optText(it.descriptionEn, 500, `${ip}.descriptionEn`, 'Английското описание е до 500 символа.');
           if (!Number.isInteger(it.priceCents) || it.priceCents < 0 || it.priceCents > 10000000) errors[`${ip}.priceCents`] = 'Цената трябва да е цяло число от 0 до 10 000 000 (стотинки).';
           const av = it.available === undefined ? true : parseBool(it.available);
           if (av === undefined) errors[`${ip}.available`] = 'Стойност true или false.';
-          return { id: iid, name: iname, description: typeof desc === 'string' ? desc : '', priceCents: it.priceCents, available: av };
+          return { id: iid, name: iname, nameEn: inameEn, description: typeof desc === 'string' ? desc : '', descriptionEn: descEn, priceCents: it.priceCents, available: av };
         }),
       };
     });
@@ -92,15 +101,15 @@ export function menuRoutes({ db, nowMs, files }) {
       for (const id of existingCats) if (!keepCats.includes(id)) db.prepare('DELETE FROM menu_categories WHERE id = ?').run(id);
       cats.forEach((c, ci) => {
         let cid = c.id;
-        if (cid == null) cid = Number(db.prepare('INSERT INTO menu_categories(name, position) VALUES (?,?)').run(c.name, ci).lastInsertRowid);
-        else db.prepare('UPDATE menu_categories SET name = ?, position = ? WHERE id = ?').run(c.name, ci, cid);
+        if (cid == null) cid = Number(db.prepare('INSERT INTO menu_categories(name, name_en, position) VALUES (?,?,?)').run(c.name, c.nameEn || null, ci).lastInsertRowid);
+        else db.prepare('UPDATE menu_categories SET name = ?, name_en = ?, position = ? WHERE id = ?').run(c.name, c.nameEn || null, ci, cid);
         c.items.forEach((it, ii) => {
           if (it.id == null) {
-            db.prepare('INSERT INTO menu_items(category_id, name, description, price_cents, available, position) VALUES (?,?,?,?,?,?)')
-              .run(cid, it.name, it.description, it.priceCents, it.available ? 1 : 0, ii);
+            db.prepare('INSERT INTO menu_items(category_id, name, name_en, description, description_en, price_cents, available, position) VALUES (?,?,?,?,?,?,?,?)')
+              .run(cid, it.name, it.nameEn || null, it.description, it.descriptionEn || null, it.priceCents, it.available ? 1 : 0, ii);
           } else {
-            db.prepare('UPDATE menu_items SET category_id=?, name=?, description=?, price_cents=?, available=?, position=? WHERE id=?')
-              .run(cid, it.name, it.description, it.priceCents, it.available ? 1 : 0, ii, it.id);
+            db.prepare('UPDATE menu_items SET category_id=?, name=?, name_en=?, description=?, description_en=?, price_cents=?, available=?, position=? WHERE id=?')
+              .run(cid, it.name, it.nameEn || null, it.description, it.descriptionEn || null, it.priceCents, it.available ? 1 : 0, ii, it.id);
           }
         });
       });
@@ -119,10 +128,10 @@ export function menuRoutes({ db, nowMs, files }) {
       db.prepare('DELETE FROM menu_items').run();
       db.prepare('DELETE FROM menu_categories').run();
       (snap ? snap.categories : []).forEach((c, ci) => {
-        const cid = Number(db.prepare('INSERT INTO menu_categories(name, position) VALUES (?,?)').run(c.name, ci).lastInsertRowid);
+        const cid = Number(db.prepare('INSERT INTO menu_categories(name, name_en, position) VALUES (?,?,?)').run(c.name, c.nameEn || null, ci).lastInsertRowid);
         c.items.forEach((it, ii) => {
-          db.prepare('INSERT INTO menu_items(category_id, name, description, price_cents, available, position) VALUES (?,?,?,?,?,?)')
-            .run(cid, it.name, it.description, it.priceCents, it.available ? 1 : 0, ii);
+          db.prepare('INSERT INTO menu_items(category_id, name, name_en, description, description_en, price_cents, available, position) VALUES (?,?,?,?,?,?,?,?)')
+            .run(cid, it.name, it.nameEn || null, it.description, it.descriptionEn || null, it.priceCents, it.available ? 1 : 0, ii);
         });
       });
       setSetting(db, 'draft_updated_at', String(nowMs()));
