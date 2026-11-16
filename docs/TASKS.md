@@ -69,7 +69,9 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 ### T-7: Admin user guide (Bulgarian/English)
 - Agent: PM (with designer review if needed)
 - Depends on: T-4
+- Status: review
 - Deliverables: `docs/ADMIN-GUIDE.md`
+- Verification: written from DESIGN.md + labels extracted from admin code; re-check against final UI after the fix loop
 
 ### T-8: Backend hardening — HOST binding + admin:disable-2fa CLI
 - Agent: backend-developer
