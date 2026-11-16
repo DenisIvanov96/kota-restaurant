@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kota1 Restaurant</title>
   <meta name="description" content="Kota1 Restaurant — fresh food, warm welcome.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="top-bar">For reservation: <a href="tel:+1234">+1234</a></div>
 
   <header class="site-header">
-    <a href="#" class="logo">Kota<span class="one">1</span></a>
+    <a href="#" class="logo" aria-label="Kota1 home"><span class="kota">KOTA</span><span class="one">1</span></a>
     <nav>
       <a href="#menu">Menu</a>
       <a href="#about">About</a>
@@ -21,8 +24,9 @@
 
   <main>
     <section class="hero">
-      <h1>Kota<span class="one">1</span> Restaurant</h1>
-      <p>Fresh food, warm welcome.</p>
+      <h1 class="sign" aria-label="Kota1"><span class="kota">KOTA</span><span class="one">1</span></h1>
+      <p class="tagline">Restaurant</p>
+      <p class="lead">Fresh food, warm welcome.</p>
       <a href="#contact" class="btn">Book a table</a>
     </section>
 
