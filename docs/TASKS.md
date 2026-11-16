@@ -109,9 +109,10 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 
 ## Milestone 2 — БГ / EN language switch (D-27)
 ### T-14: Backend i18n — migration 002, `*En` fields, `?lang=` on public API
-- Agent: backend-developer (worktree) · Status: in-progress
+- Agent: backend-developer (worktree) · Status: review — branch e091269, `npm test` 43/43 (PM re-run); merge after T-13
 ### T-15: Public site i18n — switch, dictionary, EN rendering
-- Agent: frontend-developer (worktree) · Depends on: contract in ARCHITECTURE.md · Status: in-progress
+- Agent: frontend-developer (worktree) · Status: review — branch 6470b4c (includes e091269); PM checked EN 390 screenshot OK
+- QA focus for T-17: 360/768 widths; EN for PDF/file-mode menu, lightbox, no-menu state; localStorage blocked; **rapid БГ/EN toggling on slow network (index page has no stale-response guard — possible race)**; CSP-enforcing run
 ### T-16: Admin English input fields (events, menu, settings)
 - Agent: frontend-developer (worktree) · Depends on: contract · Status: in-progress
 ### T-17: QA targeted i18n tests + full regression before release
