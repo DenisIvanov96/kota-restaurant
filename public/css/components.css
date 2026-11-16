@@ -17,7 +17,7 @@
 /* Buttons */
 .btn { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-height: 48px; padding: 0 24px; background: var(--accent); color: var(--paper-ink); border: 2px solid var(--accent); border-radius: var(--radius); font-family: var(--font-display); font-size: 1rem; font-weight: 400; text-transform: uppercase; letter-spacing: .1em; text-decoration: none; text-align: center; line-height: 1.2; cursor: pointer; }
 .btn:active { transform: translateY(1px); }
-.btn .en { color: inherit; }
+.btn .en { color: inherit; font-size: .75rem; }
 .btn-special { min-height: 56px; padding: 0 32px; background: var(--glow); border-color: var(--accent); font-weight: 500; font-size: 1.1rem; box-shadow: 0 0 24px rgba(243, 217, 164, .35); }
 .btn-special .en { font-weight: 700; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--paper-ink); }
 .btn-special-sm { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 12px; background: var(--glow); color: var(--paper-ink); border: 0; border-radius: var(--radius); font-family: var(--font-display); font-weight: 500; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; text-decoration: none; white-space: nowrap; }
@@ -36,6 +36,7 @@
 .state-title { font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin: var(--s-2) 0; color: var(--text); }
 .state-title .en { display: block; margin-top: 4px; font-size: .8rem; }
 .state-box p { margin: 0 auto var(--s-4); color: var(--muted); max-width: 52ch; }
+.state-box p.state-title { color: var(--text); max-width: none; margin: var(--s-2) 0; }
 .state-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 
 .skeleton { display: block; background: linear-gradient(90deg, var(--bg-3) 0%, #342c20 50%, var(--bg-3) 100%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; border-radius: var(--radius); }
@@ -91,7 +92,7 @@
 
 /* Menu categories and dishes */
 .menu-cats { margin-top: var(--s-4); }
-.cat { scroll-margin-top: 64px; margin-bottom: var(--s-5); }
+.cat { scroll-margin-top: 64px; margin-bottom: var(--s-5); break-inside: avoid; }
 .cat-title { font-family: var(--font-display); font-weight: 500; font-size: 1.4rem; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line); position: relative; break-after: avoid; overflow-wrap: anywhere; }
 .cat-title::after { content: ""; position: absolute; left: 0; bottom: -2px; width: 48px; border-bottom: 3px solid var(--accent); }
 .dish-list { list-style: none; margin: 0; padding: 0; }
@@ -142,6 +143,23 @@
 .lb-scroll { flex: 1; overflow: auto; touch-action: pan-x pan-y pinch-zoom; text-align: center; }
 .lb-img { max-width: 100%; height: auto; }
 .lb-scroll.is-zoomed .lb-img { max-width: none; width: 250%; }
+
+/* Admin previews: the frame width (not the viewport) decides the layout (D-25).
+   Inside .preview-frame the viewport @media rules above are neutralised and
+   re-applied as container queries. Public pages are unaffected (no container there). */
+.preview-frame .event-title { font-size: clamp(1.5rem, 5cqw, 2.25rem); }
+.preview-frame .event-card.has-image { grid-template-columns: 1fr; }
+.preview-frame .event-card.has-image .event-media img { min-height: 0; max-height: 360px; }
+.preview-frame .event-body { padding: 20px var(--s-4); }
+.preview-frame .menu-cats { columns: auto; column-gap: normal; }
+.preview-frame .cat-nav { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; border-bottom: 1px solid var(--line); margin: 0 calc(-1 * var(--s-4)); white-space: nowrap; }
+@container (min-width: 768px) {
+  .preview-frame .event-card.has-image { grid-template-columns: 5fr 7fr; }
+  .preview-frame .event-card.has-image .event-media img { min-height: 280px; max-height: 520px; }
+  .preview-frame .event-body { padding: var(--s-6); }
+  .preview-frame .menu-cats { columns: 2; column-gap: 48px; }
+  .preview-frame .cat-nav { flex-wrap: wrap; justify-content: center; overflow: visible; border-bottom: 0; margin: 0 0 var(--s-5); white-space: normal; }
+}
 
 /* Generic focus ring for components (public) */
 .public-theme :focus-visible, .lightbox :focus-visible, .btn:focus-visible, .zoom-btn:focus-visible, .cat-nav a:focus-visible, .btn-special-sm:focus-visible { outline: 3px solid var(--glow); outline-offset: 3px; }

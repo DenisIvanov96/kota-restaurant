@@ -14,12 +14,12 @@ h2 { font-family: var(--font-display); font-weight: 500; text-transform: upperca
 .top-bar { background: var(--accent); color: var(--paper-ink); text-align: center; padding: .25rem 1rem; font-size: .95rem; }
 .top-bar a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--paper-ink); font-weight: 700; text-decoration: none; }
 .top-bar a:hover { text-decoration: underline; }
-.top-bar :focus-visible { outline-color: var(--paper-ink); }
+.top-bar :focus-visible { outline-color: var(--paper-ink); outline-offset: -3px; }
 
 /* Header */
 .site-header { position: relative; z-index: 20; }
 .header-inner { display: flex; align-items: center; gap: 8px; padding: 1rem; max-width: var(--max); margin: 0 auto; }
-.logo { margin-right: auto; }
+.logo { margin-right: auto; padding: 10px 4px; margin-block: -10px; margin-left: -4px; min-height: 44px; }
 .nav-toggle { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 0; background: none; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; }
 .nav-toggle svg { width: 24px; height: 24px; }
 .nav-toggle .icon-x { display: none; }

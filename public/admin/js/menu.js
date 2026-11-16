@@ -1,7 +1,7 @@
 import { h, icon, clear, formatSize, kindLabel, formatStamp, centsToInput, parsePrice, nextId } from './util.js';
 import { get, post, put, patch, del, upload } from './api.js';
 import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, modal, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, filePreview, setBusy } from './ui.js';
-import { renderMenuPreview } from './preview.js';
+import { renderMenuPreview, previewScroller } from './preview.js';
 
 const MODE_LABEL = { structured: 'Структурирано меню', file: 'Файл' };
 const MAX_CATS = 50;
@@ -274,7 +274,7 @@ export function menuView() {
       } }));
     }
     frame.append(renderMenuPreview(model, symbol()));
-    modal({ title: 'Преглед за клиенти', wide: true, body: [alertBox('info', `Това е преглед на чернова.${isDirty() ? ' Съдържа незапазени промени.' : ''}`), seg, frame], buttons: [{ label: 'Затвори', focus: true }] });
+    modal({ title: 'Преглед за клиенти', wide: true, body: [alertBox('info', `Това е преглед на чернова.${isDirty() ? ' Съдържа незапазени промени.' : ''}`), seg, previewScroller(frame)], buttons: [{ label: 'Затвори', focus: true }] });
   }
 
   // ---------------------------------------------------------------- status bar
