@@ -1,0 +1,20 @@
+{
+  "name": "kota-restaurant",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kota1 restaurant site with admin CMS",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/src/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test \"server/test/*.test.js\"",
+    "admin:create": "node --disable-warning=ExperimentalWarning server/scripts/create-admin.js",
+    "admin:reset-password": "node --disable-warning=ExperimentalWarning server/scripts/reset-password.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "multer": "^2.5.0"
+  }
+}
