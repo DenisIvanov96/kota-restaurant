@@ -96,16 +96,16 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 
 ### T-11: Fix BUG-4 (CRLF newlines counted twice) — attempt 1
 - Agent: backend-developer
-- Status: in-progress
+- Status: review — `npm test` 35/35 (PM re-run); awaiting QA retest
 
 ### T-12: Fix BUG-1..3 (admin bottom overlap, dish aria-labels, lost click) — attempt 1
 - Agent: frontend-developer
-- Status: in-progress
+- Status: review — QA's checks AV-COVER/EDGE1-3 pass in dev run; BUG-1 was already fixed by T-10. Dev found admin.mjs steps E/X/M failing since the T-10 merge → triage in T-13
 
 ### T-13: QA regression + retest of BUG-1..4 and D1..D11
 - Agent: qa-security-engineer
 - Depends on: T-11, T-12
-- Status: todo
+- Status: in-progress
 
 ## Future
 - Table management / Маси — see `docs/FUTURE-TABLES.md` (not started).
