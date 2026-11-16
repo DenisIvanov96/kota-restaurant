@@ -87,5 +87,11 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Status: done — 11 findings (BUG-D1..D11, 3 major); spec updates D-22..D-26 by PM
 - Deliverables: findings in handoff report (BUG format)
 
+### T-10: Frontend fixes for design review BUG-D1..D11
+- Agent: frontend-developer (isolated worktree)
+- Depends on: T-9
+- Status: in-progress
+- Deliverables: `public/**` changes, merged by PM after review; QA retest
+
 ## Future
 - Table management / Маси — see `docs/FUTURE-TABLES.md` (not started).
