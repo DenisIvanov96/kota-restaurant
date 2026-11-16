@@ -23,3 +23,8 @@
 | D-19 | 2026-11-16 | **Proposed, awaiting user approval:** production host = small EU VPS + Caddy (auto-HTTPS) + systemd, nightly encrypted backups. Supersedes D-13 | Persistent disk, predictable low cost, no rewrite; alternatives in `docs/DEPLOYMENT.md` §2 | DevOps, PM — user to decide |
 | D-20 | 2026-11-16 | Server binds to `HOST` (default 127.0.0.1); new `admin:disable-2fa` CLI | DevOps review: don't expose app port directly; 2FA recovery without manual SQL | PM |
 | D-21 | 2026-11-16 | WIP checkpoint commits on the feature branch are kept (not rewritten) | Feature branch only; final reviewed state is what matters; rewriting history adds risk | PM |
+| D-22 | 2026-11-16 | Body font Lato → Source Sans 3 (Cyrillic) on public site and admin | Design review BUG-D3: Google's Lato has no Cyrillic, Bulgarian text fell back to random system fonts | PM (designer finding) |
+| D-23 | 2026-11-16 | Menu categories never split across CSS columns | BUG-D4 | PM |
+| D-24 | 2026-11-16 | Admin sticky action bar: buttons side by side on mobile | BUG-D5: bar took 22% of a phone screen | PM |
+| D-25 | 2026-11-16 | Admin previews use container queries (frame width), not viewport | BUG-D2: previews were wrong on desktop | PM |
+| D-26 | 2026-11-16 | Mobile nav panel omits "Обедно меню" (pill always visible) — accepted | BUG-D6 part 1 | PM |

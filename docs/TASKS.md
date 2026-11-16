@@ -84,7 +84,7 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 ### T-9: Design review of implemented public site and admin
 - Agent: ui-ux-designer
 - Depends on: T-3, T-4
-- Status: in-progress
+- Status: done — 11 findings (BUG-D1..D11, 3 major); spec updates D-22..D-26 by PM
 - Deliverables: findings in handoff report (BUG format)
 
 ## Future
