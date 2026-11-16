@@ -3,7 +3,7 @@ import { uploadSingle, IMAGE_TYPES, MB } from '../../files.js';
 import { tx } from '../../db.js';
 import { eventStatus, fileUrlAdmin, loc } from '../../store.js';
 import { sofiaLocalToUtc } from '../../time.js';
-import { validationError, notFound, parseBool, parseId, has } from '../../http.js';
+import { validationError, notFound, parseBool, parseId, has, normText } from '../../http.js';
 
 export function eventRoutes({ db, nowMs, files }) {
   const r = express.Router();
@@ -22,11 +22,11 @@ export function eventRoutes({ db, nowMs, files }) {
     const fields = {};
     const out = {};
     if (has(body, 'title')) {
-      const t = typeof body.title === 'string' ? body.title.trim() : '';
+      const t = typeof body.title === 'string' ? normText(body.title) : '';
       if (t.length < 1 || t.length > 120) fields.title = 'Заглавието е задължително (1–120 символа).'; else out.title = t;
     } else if (ex) out.title = ex.title; else fields.title = 'Заглавието е задължително.';
     if (has(body, 'description')) {
-      const d = typeof body.description === 'string' ? body.description.trim() : null;
+      const d = typeof body.description === 'string' ? normText(body.description) : null;
       if (d === null || d.length > 2000) fields.description = 'Описанието е до 2000 символа.'; else out.description = d;
     } else out.description = ex ? ex.description : '';
     for (const [k, col] of [['eventAt', 'event_at'], ['startsAt', 'starts_at'], ['expiresAt', 'expires_at']]) {

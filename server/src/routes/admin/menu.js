@@ -4,7 +4,7 @@ import { tx } from '../../db.js';
 import {
   getSetting, setSetting, siteSettings, readDraft, latestSnapshot, hasUnpublishedChanges, fileUrlAdmin, loc,
 } from '../../store.js';
-import { HttpError, validationError, notFound, parseBool, parseId } from '../../http.js';
+import { HttpError, validationError, notFound, parseBool, parseId, normText } from '../../http.js';
 
 export function menuRoutes({ db, nowMs, files }) {
   const r = express.Router();
@@ -48,7 +48,7 @@ export function menuRoutes({ db, nowMs, files }) {
       const cp = `categories[${ci}]`;
       if (!c || typeof c !== 'object' || Array.isArray(c)) { errors[cp] = 'Невалидна категория.'; return null; }
       const id = optId(c.id, seenCat, `${cp}.id`);
-      const name = typeof c.name === 'string' ? c.name.trim() : '';
+      const name = typeof c.name === 'string' ? normText(c.name) : '';
       if (name.length < 1 || name.length > 100) errors[`${cp}.name`] = 'Името е задължително (1–100 символа).';
       const items = Array.isArray(c.items) ? c.items : (c.items === undefined ? [] : null);
       if (items === null) { errors[`${cp}.items`] = 'Очаква се списък.'; return null; }
@@ -59,14 +59,14 @@ export function menuRoutes({ db, nowMs, files }) {
           const ip = `${cp}.items[${ii}]`;
           if (!it || typeof it !== 'object' || Array.isArray(it)) { errors[ip] = 'Невалиден артикул.'; return null; }
           const iid = optId(it.id, seenItem, `${ip}.id`);
-          const iname = typeof it.name === 'string' ? it.name.trim() : '';
+          const iname = typeof it.name === 'string' ? normText(it.name) : '';
           if (iname.length < 1 || iname.length > 100) errors[`${ip}.name`] = 'Името е задължително (1–100 символа).';
-          const desc = it.description === undefined || it.description === null ? '' : it.description;
-          if (typeof desc !== 'string' || desc.trim().length > 500) errors[`${ip}.description`] = 'Описанието е до 500 символа.';
+          const desc = it.description === undefined || it.description === null ? '' : normText(it.description);
+          if (typeof desc !== 'string' || desc.length > 500) errors[`${ip}.description`] = 'Описанието е до 500 символа.';
           if (!Number.isInteger(it.priceCents) || it.priceCents < 0 || it.priceCents > 10000000) errors[`${ip}.priceCents`] = 'Цената трябва да е цяло число от 0 до 10 000 000 (стотинки).';
           const av = it.available === undefined ? true : parseBool(it.available);
           if (av === undefined) errors[`${ip}.available`] = 'Стойност true или false.';
-          return { id: iid, name: iname, description: typeof desc === 'string' ? desc.trim() : '', priceCents: it.priceCents, available: av };
+          return { id: iid, name: iname, description: typeof desc === 'string' ? desc : '', priceCents: it.priceCents, available: av };
         }),
       };
     });

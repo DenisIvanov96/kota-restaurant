@@ -25,6 +25,9 @@ export function parseId(v) {
   return n;
 }
 
+// Browsers send newlines in multipart as CRLF; normalise to LF before trim/length checks/storage.
+export const normText = (s) => (typeof s === 'string' ? s.replace(/\r\n?/g, '\n').trim() : s);
+
 export const has = (body, k) => body != null && Object.hasOwn(body, k) && body[k] !== undefined;
 
 export function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars

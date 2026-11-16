@@ -157,3 +157,24 @@ test('media routes: traversal and bad names are 404; unknown valid names 404', a
     assert.doesNotMatch(await r.text(), /express/);
   } finally { await s.close(); }
 });
+
+test('CRLF newlines count as one char and are stored as LF (BUG-4)', async () => {
+  const s = await loggedIn();
+  try {
+    const mk = (n) => { const line = 'a'.repeat(Math.floor((n - 20) / 21)); return Array(21).fill(line).join('\n'); };
+    const ok = mk(2000).padEnd(2000, 'b').slice(0, 2000);
+    assert.equal(ok.length, 2000);
+    const crlf = ok.replace(/\n/g, '\r\n');
+    assert.ok(crlf.length > 2000);
+    const r = await create(s, { title: 't', description: crlf });
+    assert.equal(r.status, 201);
+    const got = (await s.api.get('/api/admin/events')).data.events[0];
+    assert.equal(got.description, ok);
+    assert.ok(!got.description.includes('\r'));
+    const bad = await create(s, { title: 't', description: (ok + 'x').replace(/\n/g, '\r\n') });
+    assert.equal(bad.status, 400);
+    const lone = await create(s, { title: 't\r\nx', description: 'a\rb' });
+    assert.equal(lone.status, 201);
+    assert.equal(lone.data.description ?? (await s.api.get('/api/admin/events')).data.events[0].description, 'a\nb');
+  } finally { await s.close(); }
+});

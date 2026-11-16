@@ -1,7 +1,7 @@
 import express from 'express';
 import { getSetting, setSetting, siteSettings, eventStatus, today, latestSnapshot, hasUnpublishedChanges, loc } from '../../store.js';
 import { addDays } from '../../time.js';
-import { HttpError, validationError, has } from '../../http.js';
+import { HttpError, validationError, has, normText } from '../../http.js';
 import { STORED_NAME_RE } from '../../files.js';
 
 export function generalRoutes({ db, nowMs, files }) {
@@ -52,7 +52,7 @@ export function generalRoutes({ db, nowMs, files }) {
     for (const [k, s] of Object.entries(spec)) {
       if (!has(b, k)) continue;
       if (typeof b[k] !== 'string') { fields[k] = 'Невалидна стойност.'; continue; }
-      const v = b[k].trim();
+      const v = normText(b[k]);
       if (v.length > s.max) fields[k] = `Най-много ${s.max} символа.`;
       else if (s.re && !s.re.test(v)) fields[k] = s.msg;
       else if (k === 'currencySymbol' && v === '') fields[k] = 'Въведете символ.';

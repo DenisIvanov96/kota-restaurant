@@ -342,9 +342,13 @@ export function menuView() {
 
   function catCard(c, ci) {
     const bodyId = nextId('catbody');
+    let touched = !!c.name;
+    const catLabel = () => (c.name || '').trim() || 'Без име';
+    const labelled = [];
+    const relabel = () => labelled.forEach(([el, fn]) => el.setAttribute('aria-label', fn()));
     const nameF = field({ label: 'Име на категория', hideLabel: true, required: true, max: 100, value: c.name, placeholder: 'Име на категория, напр. Салати', cls: 'a-cat__name',
-      onInput: () => { c.name = nameF.value; if (errors[`c${c.k}.name`]) { const m = vName(c.name); errors[`c${c.k}.name`] = m; nameF.setError(m); } changed(); },
-      onBlur: () => { const m = vName(nameF.value); if (m) errors[`c${c.k}.name`] = m; else delete errors[`c${c.k}.name`]; nameF.setError(m); } });
+      onInput: () => { touched = true; c.name = nameF.value; relabel(); if (errors[`c${c.k}.name`]) { const m = vName(c.name); errors[`c${c.k}.name`] = m; nameF.setError(m); } changed(); },
+      onBlur: () => { if (!touched && !errors[`c${c.k}.name`]) return; const m = vName(nameF.value); if (m) errors[`c${c.k}.name`] = m; else delete errors[`c${c.k}.name`]; nameF.setError(m); } });
     nameF.input.dataset.fk = `cat-${c.k}-name`;
     ids[`c${c.k}.name`] = nameF.id;
     if (errors[`c${c.k}.name`]) nameF.setError(errors[`c${c.k}.name`]);
@@ -352,12 +356,13 @@ export function menuView() {
     const bodyEl = h('div', { class: 'a-cat__body', id: bodyId, hidden: !c.open });
     toggle.addEventListener('click', () => {
       c.open = !c.open; bodyEl.hidden = !c.open; toggle.setAttribute('aria-expanded', String(c.open));
-      toggle.setAttribute('aria-label', `${c.open ? 'Свий' : 'Разгъни'} категорията`); toggle.classList.toggle('is-open', c.open);
+      relabel(); toggle.classList.toggle('is-open', c.open);
     });
     toggle.classList.toggle('is-open', c.open);
     const up = iconBtn({ ic: 'arrow-up', aria: 'Премести категорията нагоре', onClick: () => move(cats, cats.indexOf(c), -1, 'cat', c.k) });
     const down = iconBtn({ ic: 'arrow-down', aria: 'Премести категорията надолу', onClick: () => move(cats, cats.indexOf(c), 1, 'cat', c.k) });
     up.dataset.fk = `cat-${c.k}-up`; down.dataset.fk = `cat-${c.k}-down`;
+    labelled.push([up, () => `Премести „${catLabel()}“ нагоре`], [down, () => `Премести „${catLabel()}“ надолу`]);
     up.disabled = ci === 0; down.disabled = ci === cats.length - 1;
     const delBtn = iconBtn({ ic: 'trash', aria: 'Изтрий категорията', cls: 'a-btn--icon-danger', onClick: async () => {
       const untouched = !c.id && !c.name.trim() && !c.items.length;
@@ -368,6 +373,8 @@ export function menuView() {
       cats.splice(cats.indexOf(c), 1);
       renderEditor(cats.length ? 'cat-' + cats[Math.min(ci, cats.length - 1)].k + '-name' : null); changed();
     } });
+    labelled.push([delBtn, () => `Изтрий категорията „${catLabel()}“`], [toggle, () => `${c.open ? 'Свий' : 'Разгъни'} категорията „${catLabel()}“`]);
+    relabel();
     const count = h('span', { class: 'a-help a-cat__count', text: `(${c.items.length} ${c.items.length === 1 ? 'ястие' : 'ястия'})` });
     const head = h('div', { class: 'a-cat__head' }, nameF.el, h('div', { class: 'a-cat__btns' }, toggle, count, up, down, delBtn));
     c.items.forEach((it, ii) => bodyEl.append(dishCard(c, it, ii)));
@@ -381,12 +388,17 @@ export function menuView() {
 
   function dishCard(c, it, ii) {
     const ek = (f) => `i${it.k}.${f}`;
+    let relabelDish = () => {};
+    const dishLabel = () => (it.name || '').trim() || 'Без име';
     const mk = (f, fn, setter) => (a) => {
+      touched[f] = true;
       setter(a.value);
+      if (f === 'name') relabelDish();
       if (errors[ek(f)]) { const m = fn(a.value); if (m) errors[ek(f)] = m; else delete errors[ek(f)]; a.setError(m); }
       changed();
     };
-    const blur = (f, fn) => (a) => { const m = fn(a.value); if (m) errors[ek(f)] = m; else delete errors[ek(f)]; a.setError(m); };
+    const touched = {}; for (const f of ['name', 'price', 'description']) touched[f] = !!it[f];
+    const blur = (f, fn) => (a) => { if (!touched[f] && !errors[ek(f)]) return; const m = fn(a.value); if (m) errors[ek(f)] = m; else delete errors[ek(f)]; a.setError(m); };
     const nameF = field({ label: 'Име на ястието', required: true, max: 100, value: it.name, onInput: mk('name', vName, (v) => { it.name = v; }), onBlur: blur('name', vName) });
     nameF.input.dataset.fk = `dish-${it.k}-name`;
     const priceF = field({ label: 'Цена', inputmode: 'decimal', value: it.price, suffix: symbol(), helper: '0 или празно = без цена', cls: 'a-price', onInput: mk('price', vPrice, (v) => { it.price = v; }), onBlur: blur('price', vPrice) });
@@ -394,13 +406,14 @@ export function menuView() {
     ids[ek('name')] = nameF.id; ids[ek('price')] = priceF.id; ids[ek('description')] = descF.id;
     for (const [f, a] of [['name', nameF], ['price', priceF], ['description', descF]]) if (errors[ek(f)]) a.setError(errors[ek(f)]);
     const offHelp = h('p', { class: 'a-help', hidden: it.available, text: 'Показва се като „Няма в наличност“' });
-    const sw = makeSwitch({ label: `Налично: ${it.name || 'ястие'}`, checked: it.available });
+    const sw = makeSwitch({ label: `Налично: ${dishLabel()}`, checked: it.available });
     sw.addEventListener('click', () => { it.available = sw.isChecked(); offHelp.hidden = it.available; changed(); });
     const up = iconBtn({ ic: 'arrow-up', aria: 'Премести ястието нагоре', onClick: () => move(c.items, c.items.indexOf(it), -1, 'dish', it.k) });
     const down = iconBtn({ ic: 'arrow-down', aria: 'Премести ястието надолу', onClick: () => move(c.items, c.items.indexOf(it), 1, 'dish', it.k) });
     up.dataset.fk = `dish-${it.k}-up`; down.dataset.fk = `dish-${it.k}-down`;
+    up.setAttribute('aria-label', `Премести „${dishLabel()}“ нагоре`); down.setAttribute('aria-label', `Премести „${dishLabel()}“ надолу`);
     up.disabled = ii === 0; down.disabled = ii === c.items.length - 1;
-    const del2 = btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий ястието ${it.name || ''}`.trim(), onClick: async () => {
+    const del2 = btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий ястието „${dishLabel()}“`, onClick: async () => {
       const untouched = !it.id && !it.name.trim() && !it.price.trim() && !it.description.trim();
       if (!untouched) {
         const ok = await confirmDialog({ title: 'Изтриване на ястие', body: para('Изтриване на „', [it.name.trim() || 'Без име'], '“?'), confirmLabel: 'Изтрий ястието', danger: true });
@@ -408,6 +421,11 @@ export function menuView() {
       }
       c.items.splice(c.items.indexOf(it), 1); renderEditor(`cat-${c.k}-toggle`); changed();
     } });
+    relabelDish = () => {
+      const n = dishLabel();
+      sw.setAttribute('aria-label', `Налично: ${n}`); up.setAttribute('aria-label', `Премести „${n}“ нагоре`);
+      down.setAttribute('aria-label', `Премести „${n}“ надолу`); del2.setAttribute('aria-label', `Изтрий ястието „${n}“`);
+    };
     return h('div', { class: 'a-dish' }, h('div', { class: 'a-dish__top' }, nameF.el, priceF.el), descF.el, h('div', { class: 'a-dish__bottom' }, h('div', null, sw, offHelp), h('div', { class: 'a-dish__act' }, up, down, del2)));
   }
 
