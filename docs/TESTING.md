@@ -8,13 +8,13 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 | npm test (backend) | 0c81447 | 43/43 (server code unchanged since) |
 | api security / publication / menu | 0c81447 | 42/42 · 21/21 · 17/17 (server code unchanged since) |
 | api i18n (T-17) | 0c81447 | 13/13 (server code unchanged since) |
-| e2e public | 5884ce2 | 89/89 |
-| e2e a11y | 5884ce2 | 48/48 (A10b = BUG-9 passes) |
+| e2e public | 5884ce2 | 89/89 (not re-run at 2ef9c11: header media-query change only) |
+| e2e a11y | 2ef9c11 | 48/48 (A10b = BUG-9 passes) |
 | e2e admin | c376609 | 117/117 |
 | e2e design | c376609 | 22/22 |
 | e2e i18n (T-17) | c376609 | 240/240 (BUG-8, BUG-10 now pass) |
-| e2e reflow (T-20) | 5884ce2 | 88/88 (BUG-11 fixed) |
-| width sweep 320-420 px (T-21, ad hoc, not in repo) | 5884ce2 | 404 combos, 0 failures; old-vs-new CSS identical at 380-1280 |
+| e2e reflow (T-20) | 2ef9c11 | 88/88 (BUG-11 fixed) |
+| width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures; one row from 369 px (BG) / 365 px (EN), wrapped below |
 
 Server code is identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
 
@@ -77,6 +77,15 @@ Verdict: **PASS** - BUG-11 **VERIFIED-FIXED**; 0 defects open.
 - Width sweep (ad hoc script, every width 320..420 px, `/` and `/daily-menu`, BG and EN = 404 combos): no horizontal scroll, hamburger exactly 48x48 (>= 44), all 5 header controls rendered, inside the viewport and hit-testable, lang buttons and pill >= 44 px, no console errors/failed requests: 0 failures. Layout switches from wrapped to one row at 369 px (BG) / 365 px (EN), so the 370-379 px wrap rule is inert there (content fits one row).
 - 380 and 390 px unchanged: header geometry (every header link/button/row, x/y/size) compared with the `c376609` stylesheet (served via request interception) at 380, 381, 390, 400, 412, 420, 768, 1280 on `/` and `/daily-menu` x BG/EN = 32 combos, 0 differences (control: 360 and 375 px differ in all 8 combos, so the comparison does detect the change). 375 px (a common phone width) now wraps to two rows by design.
 - NOT RUN (skip-if-unchanged, CSS header rules only): e2e admin, design, i18n; `npm test`, `tests/api/*` (server code unchanged). Real devices, Firefox, WebKit.
+
+## Retest T-22 - 2026-11-16, branch `feature/admin-cms` @ 2ef9c11 (header wrap breakpoint 379 -> 368 px, CSS-only)
+
+Verdict: **PASS** - 0 defects open.
+
+- `git diff 5884ce2..2ef9c11` (product code): `public/css/style.css` only - header-wrap media query `max-width: 379px` -> `368px` (`.nav-toggle { flex: none }` kept).
+- `reflow.mjs` 88/88, `a11y.mjs` 48/48, width sweep 320..420 px (`/`, `/daily-menu`, BG, EN = 404 combos) 0 failures (no scroll, hamburger exactly 48x48, 5 controls visible/in viewport/hit-testable, targets >= 44, no console errors/failed requests).
+- Edge check (`/`, BG and EN at 320, 360, 364, 365, 368, 369, 370, 375, 390, 414, 420): computed `flex-wrap` is `wrap` at <= 368 and `nowrap` at >= 369; BG header is one row (80 px) at every width 369-420 and two rows (126 px) at <= 368; EN is one row at 369-420 and also at 365-368 (content fits, wrap rule inert), two rows at <= 364. No horizontal overflow at any checked width; hamburger 48x48 everywhere. 375 px is a one-row header again (supersedes the T-21 remark that 375 wrapped).
+- NOT RUN (skip-if-unchanged, CSS header media query only): e2e public (last 89/89 at 5884ce2), admin, design, i18n; `npm test`, `tests/api/*` (server code unchanged). Real devices, Firefox, WebKit.
 
 ### NOT RUN (T-17)
 - Real devices, Firefox, WebKit, screen readers, Bulgarian/English copy review.

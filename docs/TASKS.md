@@ -116,13 +116,17 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 ### T-16: Admin English input fields (events, menu, settings)
 - Agent: frontend-developer (worktree) · Status: merged — awaiting QA T-17. QA focus: server 400 on En fields, 768, keyboard on <details> groups
 ### T-17: QA targeted i18n tests + full regression before release
-- Agent: qa-security-engineer · Status: in-progress (targeted i18n + BUG-5..7 retest + release regression)
+- Agent: qa-security-engineer · Status: done — BUG-5..7 verified; found BUG-8..10 (169,994 tokens)
 
 ### T-13: QA regression run 2 — done: BUG-1..4 verified fixed, D1..D11 9/11 verified, BUG-5..7 found (108,187 tokens)
 ### T-18: Fix BUG-5..7 (admin CSS) — done, dev ran QA checks: design 22/22, TOAST-OVERLAP pass (18,355 tokens); awaiting QA retest
 
+### T-19: Fix BUG-8..10 — done (43,560 tokens) · T-20 QA retest: verified, found BUG-11 (48,779)
+### BUG-11 fix by PM (one-line CSS) · T-21 QA: verified (32,662) · breakpoint refined by PM · T-22 QA: PASS, 0 open defects
+**Release candidate: feature/admin-cms. Awaiting user approval for hosting + production deploy.**
+
 ## Measured agent usage (from task notifications; tokens = runtime `subagent_tokens`, cost not reported per agent)
-T-1 77,568 · T-2 91,126 · T-3 107,662 · T-4 192,926 · T-5 265,260 · T-6 106,051 · T-8 18,626 · T-9 135,887 · T-10 77,562 · T-11 24,438 · T-12 35,570 · T-13 108,187 (two segments, rate-limit pause) · T-14 55,482 · T-15 91,850 · T-16 82,018 · T-18 18,355
+T-1 77,568 · T-2 91,126 · T-3 107,662 · T-4 192,926 · T-5 265,260 · T-6 106,051 · T-8 18,626 · T-9 135,887 · T-10 77,562 · T-11 24,438 · T-12 35,570 · T-13 108,187 (two segments, rate-limit pause) · T-14 55,482 · T-15 91,850 · T-16 82,018 · T-17 169,994 · T-18 18,355 · T-19 43,560 · T-20 48,779 · T-21 32,662 · T-22 (see notification)
 
 ## Future
 - Table management / Маси — see `docs/FUTURE-TABLES.md` (not started).
