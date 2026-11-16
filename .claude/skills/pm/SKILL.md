@@ -32,6 +32,14 @@ Each Agent call gets `subagent_type` = the agent name and a self-contained promp
 - "End with the handoff report from CLAUDE.md."
 Subagents start without this conversation's context, so include everything they need.
 
+## 4b. Token efficiency
+- Briefs name exact files and doc sections; never "read the docs". Point to `tests/lib/` harness for seeding.
+- Pass `effort` only as configured in agent files (they carry it); don't override.
+- Fix tasks: small, one owner, targeted tests only. Batch related small bugs into one task.
+- Ask QA for: targeted retest per fix; full regression only at release / architectural change / shared-code change (CLAUDE.md "Testing tiers").
+- Use worktrees (`isolation: "worktree"`) only when an agent would otherwise disturb a running QA pass; tell it to `git reset --hard feature/<branch>` first.
+- Record per-agent token usage from task notifications in `docs/TASKS.md` (measured), and mark any cost figure as an estimate.
+
 ## 5. After each handoff
 - Check the report against the acceptance criteria; spot-check claimed changes (`git diff`).
 - Update the task's status and verification in `docs/TASKS.md`.

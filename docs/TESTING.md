@@ -1,5 +1,18 @@
 # Testing
 
+## Test policy
+Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` → "Testing tiers". For each suite QA records the last run as `suite | commit | result` in the table below so unchanged suites are not re-run.
+
+| Suite | Last commit | Result |
+|---|---|---|
+| npm test (backend) | bc1121e | 43/43 (PM) |
+| api security / publication / menu | e091269 | 42/42 · 21/21 · 17/17 |
+| e2e public | e091269 | 89/89 (pre-i18n UI) |
+| e2e a11y | e091269 | 48/48 (pre-i18n UI) |
+| e2e admin | e091269 | 116/117 (BUG-5) |
+| e2e design | e091269 | 20/22 (BUG-6, BUG-7) |
+
+
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
 

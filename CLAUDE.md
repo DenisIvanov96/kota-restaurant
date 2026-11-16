@@ -2,14 +2,14 @@
 
 This repository is built by a coordinated AI team. The **main Claude session is the Project Manager (PM)**; it loads its playbook with the `/pm` skill (`.claude/skills/pm/SKILL.md`). Five specialists are Claude Code subagents in `.claude/agents/`:
 
-| Agent | File | Model | Active when |
+| Agent | File | Model · effort | Active when |
 |---|---|---|---|
-| Project Manager / Orchestrator | main session + `/pm` skill | session model | always |
-| UI/UX Designer | `ui-ux-designer` | sonnet | new pages, visual changes, design review |
-| Frontend Developer | `frontend-developer` | sonnet | any UI code change |
-| Backend Developer | `backend-developer` | sonnet | only if server-side features are required |
-| QA / Security Engineer | `qa-security-engineer` | sonnet | verification of every deliverable |
-| DevOps / Deployment | `devops-engineer` | haiku | hosting, CI, release prep |
+| Project Manager / Orchestrator | main session + `/pm` skill | Opus · medium (session setting) | always |
+| UI/UX Designer | `ui-ux-designer` | Sonnet · medium | new pages, visual changes, design review |
+| Frontend Developer | `frontend-developer` | Sonnet · medium | any UI code change |
+| Backend Developer | `backend-developer` | Sonnet · high | only if server-side features are required |
+| QA / Security Engineer | `qa-security-engineer` | Sonnet · high | verification of every deliverable |
+| DevOps / Deployment | `devops-engineer` | Haiku · low | hosting, CI, release prep |
 
 Subagents cannot spawn other agents; all delegation and all communication goes through the PM.
 
@@ -55,3 +55,16 @@ Assumptions: <choices made without explicit instruction>
 Blockers / needs approval: <or none>
 Handoff to: <next agent and what they need>
 ```
+
+## Efficiency rules (all agents)
+- **Read only what the brief names.** Briefs list the files and doc *sections* to read. Don't re-read whole docs or sweep the repository; use Grep/targeted reads.
+- **Reuse the test harness** in `tests/lib/` (server start, admin login, seeding) instead of writing one-off seed scripts.
+- **Use git, not memory:** `git diff <base>..HEAD --stat` tells you what changed; touch and test only that.
+- **Concise reports:** handoff report only. Full evidence (steps, command, output excerpt, screenshot path) is required for failures; passes need only the count and the command.
+
+## Testing tiers (see `docs/TESTING.md` → "Test policy")
+1. **Targeted** (during development, by the developer and for QA retests): tests for the changed functionality, the integrations it touches, and the security checks relevant to the change.
+2. **Full regression** (by QA): before any production release, after architectural changes (DB schema, auth, routing, build/runtime), or when a change touches shared code (`public/js/render.js`, `format.js`, `i18n.js`, `public/css/tokens.css`/`components.css`, `server/src/http.js`, `auth.js`, `files.js`, `store.js`).
+3. **Skip-if-unchanged:** don't re-run a suite whose covered code and test environment are unchanged since its last recorded PASS (QA records the commit hash per suite in `docs/TESTING.md`).
+4. **Never skipped when their area changes:** the security suites for authentication, authorisation, CSRF, file uploads and XSS (`tests/api/security.test.mjs` + the XSS checks in e2e) run on every change to `server/**`, to upload handling, or to any code that renders user content.
+5. **Bug fixes are always re-verified independently by QA** (not by the developer who fixed them). Max 3 fix attempts per bug, then escalate.
