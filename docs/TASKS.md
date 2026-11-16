@@ -16,9 +16,9 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
   - AC2 Exact tokens, breakpoints and component specs; preserves current KOTA 1 identity
   - AC3 Accessibility notes incl. computed contrast for new colour pairs
   - AC4 Complete Bulgarian (+ English where public) label list
-- Status: in-progress
+- Status: done
 - Deliverables: `docs/DESIGN.md`
-- Verification: PM review
+- Verification: PM review OK. Open points resolved as D-15..D-18. Layout widths computed, not rendered → design review after T-3/T-4. Bulgarian copy not native-reviewed.
 
 ### T-2: Backend — server, DB, auth, APIs, uploads
 - Agent: backend-developer

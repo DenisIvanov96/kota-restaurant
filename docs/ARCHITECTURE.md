@@ -156,7 +156,7 @@ Daily menu object: `{ id, date, fileUrl, mimeType, kind, originalName, sizeBytes
 | `POST /api/admin/menu/draft/discard` | — | 200 draft (draft reset to the latest published snapshot; empty if never published) |
 | `POST /api/admin/menu/publish` | — | 200 `{ publishedAt }` — snapshot of the current saved draft becomes public (if mode is `structured`) |
 | `POST /api/admin/menu/files` | multipart: `file` (pdf/jpg/jpeg/png/webp ≤ 15 MB) | 201 file object (unpublished) |
-| `PATCH /api/admin/menu/files/:id/published` | JSON `{ published }` | 200 — publishing one unpublishes all others |
+| `PATCH /api/admin/menu/files/:id/published` | JSON `{ published }` | 200 — publishing one unpublishes all others · 409 `in_use` when unpublishing the live file while mode is `file` (D-16) |
 | `DELETE /api/admin/menu/files/:id` | — | 204 · 409 `in_use` if it is the published file and mode is `file` |
 | `PUT /api/admin/menu/mode` | JSON `{ mode }` | 200 `{ mode }` · 409 `nothing_published` if the target mode has nothing published |
 

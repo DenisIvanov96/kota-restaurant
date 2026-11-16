@@ -16,3 +16,7 @@
 | D-12 | 2026-11-16 | Prices stored as integer cents; currency symbol is a setting (default `€`, Bulgaria uses the euro since 2026-01-01) | Exact money maths; easy to change | PM |
 | D-13 | 2026-11-16 | GitHub Pages can no longer host the site (needs a server). Hosting choice deferred to DevOps recommendation + user approval | Paid/external service changes need approval | PM |
 | D-14 | 2026-11-16 | Work on branch `feature/admin-cms`; `main` unchanged until the user approves | No production change without approval | PM |
+| D-15 | 2026-11-16 | All API date-time fields use Sofia-local `YYYY-MM-DDTHH:mm`, including created/updated/published timestamps | Designer T-1 open point 1; one format for the frontend | PM |
+| D-16 | 2026-11-16 | Unpublishing the live menu file while mode=`file` → 409 `in_use` (same as delete) | Designer T-1 open point 2; customers must never lose the menu by accident | PM |
+| D-17 | 2026-11-16 | 2FA setup is manual (secret key + `otpauth://` link), no QR library | Designer T-1 open point 3; avoids a dependency; QR can be added later | PM |
+| D-18 | 2026-11-16 | Admin uses a light theme with dark brand chrome; public site stays dark | Designer T-1; legibility on phones in daylight | Designer, accepted by PM |
