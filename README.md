@@ -1,6 +1,6 @@
-# Kota Restaurant
+# Kota1 Restaurant
 
-Website for Kota Restaurant.
+Website for Kota1 Restaurant.
 
 ## Structure
 
