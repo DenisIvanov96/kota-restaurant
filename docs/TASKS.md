@@ -109,14 +109,20 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 
 ## Milestone 2 — БГ / EN language switch (D-27)
 ### T-14: Backend i18n — migration 002, `*En` fields, `?lang=` on public API
-- Agent: backend-developer (worktree) · Status: review — branch e091269, `npm test` 43/43 (PM re-run); merge after T-13
+- Agent: backend-developer (worktree) · Status: merged (f0f7cd5) — awaiting QA T-17
 ### T-15: Public site i18n — switch, dictionary, EN rendering
-- Agent: frontend-developer (worktree) · Status: review — branch 6470b4c (includes e091269); PM checked EN 390 screenshot OK
+- Agent: frontend-developer (worktree) · Status: merged — awaiting QA T-17
 - QA focus for T-17: 360/768 widths; EN for PDF/file-mode menu, lightbox, no-menu state; localStorage blocked; **rapid БГ/EN toggling on slow network (index page has no stale-response guard — possible race)**; CSP-enforcing run
 ### T-16: Admin English input fields (events, menu, settings)
-- Agent: frontend-developer (worktree) · Status: review — branch d4befbe (UI) / 5394049 (with backend); round-trip verified at 390/1280. QA focus: server 400 on En fields, 768, keyboard on <details> groups
+- Agent: frontend-developer (worktree) · Status: merged — awaiting QA T-17. QA focus: server 400 on En fields, 768, keyboard on <details> groups
 ### T-17: QA targeted i18n tests + full regression before release
-- Agent: qa-security-engineer · Depends on: T-13, T-14..T-16 · Status: todo
+- Agent: qa-security-engineer · Status: in-progress (targeted i18n + BUG-5..7 retest + release regression)
+
+### T-13: QA regression run 2 — done: BUG-1..4 verified fixed, D1..D11 9/11 verified, BUG-5..7 found (108,187 tokens)
+### T-18: Fix BUG-5..7 (admin CSS) — done, dev ran QA checks: design 22/22, TOAST-OVERLAP pass (18,355 tokens); awaiting QA retest
+
+## Measured agent usage (from task notifications; tokens = runtime `subagent_tokens`, cost not reported per agent)
+T-1 77,568 · T-2 91,126 · T-3 107,662 · T-4 192,926 · T-5 265,260 · T-6 106,051 · T-8 18,626 · T-9 135,887 · T-10 77,562 · T-11 24,438 · T-12 35,570 · T-13 108,187 (two segments, rate-limit pause) · T-14 55,482 · T-15 91,850 · T-16 82,018 · T-18 18,355
 
 ## Future
 - Table management / Маси — see `docs/FUTURE-TABLES.md` (not started).
