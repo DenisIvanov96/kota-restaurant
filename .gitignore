@@ -9,3 +9,9 @@ data/
 *.db-wal
 *.db-shm
 test-results/
+
+# Operations: backups and real environment files (never commit)
+backups/
+*.env
+*.tar.gz
+*.age

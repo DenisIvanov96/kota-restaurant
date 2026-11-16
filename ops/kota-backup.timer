@@ -1,0 +1,11 @@
+# Runs the backup every night at 03:15 Sofia time (Europe/Sofia).
+[Unit]
+Description=Nightly Kota1 backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Europe/Sofia
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

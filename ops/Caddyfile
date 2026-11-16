@@ -1,0 +1,25 @@
+# Caddy reverse proxy with automatic HTTPS (Let's Encrypt).
+# Replace kota.example.com with the real domain. DNS A/AAAA record must point to this server
+# before Caddy starts, otherwise certificate issuance fails.
+kota.example.com {
+	encode zstd gzip
+
+	# Upload limit at the proxy. The app's own limits are 5-15 MB per file; keep this above 16 MB.
+	request_body {
+		max_size 20MB
+	}
+
+	# The app runs on localhost only (see firewall rules in docs/DEPLOYMENT.md).
+	# Caddy sends X-Forwarded-For, which the app trusts because TRUST_PROXY=1.
+	reverse_proxy 127.0.0.1:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/kota-access.log
+		format json
+	}
+}
