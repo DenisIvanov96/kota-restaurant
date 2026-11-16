@@ -31,3 +31,15 @@ export function renderMenuPreview(categories, symbol) {
   root.append(cats);
   return root;
 }
+
+// "БГ | EN" toggle for previews. onChange(lang) is called with 'bg' or 'en'.
+export function langToggle(onChange) {
+  const seg = h('div', { class: 'a-seg', role: 'group', 'aria-label': 'Език на прегледа' });
+  for (const [lang, label, aria] of [['bg', 'БГ', 'Преглед на български'], ['en', 'EN', 'Преглед на английски']]) {
+    seg.append(h('button', { type: 'button', class: 'a-seg__btn', lang, 'aria-pressed': String(lang === 'bg'), 'aria-label': aria, text: label, onclick: (e) => {
+      seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
+      onChange(lang);
+    } }));
+  }
+  return seg;
+}

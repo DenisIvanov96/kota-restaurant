@@ -1,7 +1,7 @@
 import { h, icon, clear, formatDateTime, debounce } from './util.js';
 import { get, post, put, patch, del, upload } from './api.js';
-import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, setBusy } from './ui.js';
-import { renderEventCard, previewScroller } from './preview.js';
+import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, setBusy, enGroup, EN_HELP } from './ui.js';
+import { renderEventCard, previewScroller, langToggle } from './preview.js';
 
 const STATUS = {
   active: ['Активно', 'ok'], scheduled: ['Предстоящо', 'info'], disabled: ['Изключено', 'neutral'], expired: ['Изтекло', 'warn'],
@@ -131,6 +131,12 @@ export function eventFormView(ctx) {
 
     const title = field({ label: 'Заглавие', required: true, max: 120, value: ev ? ev.title : '', onInput: () => { if (title.error) vTitle(); refresh(); }, onBlur: () => vTitle() });
     const desc = field({ label: 'Описание', multiline: true, rows: 6, max: 2000, value: ev ? ev.description : '', helper: 'Обикновен текст. Новите редове се запазват.', onInput: refreshD, onBlur: () => vDesc() });
+    const titleEn = field({ label: 'Заглавие (английски)', max: 120, value: ev ? ev.titleEn || '' : '', helper: EN_HELP, onInput: refreshD });
+    const descEn = field({ label: 'Описание (английски)', multiline: true, rows: 5, max: 2000, value: ev ? ev.descriptionEn || '' : '', helper: EN_HELP, onInput: refreshD });
+    titleEn.input.setAttribute('aria-label', 'Заглавие на събитието на английски');
+    descEn.input.setAttribute('aria-label', 'Описание на събитието на английски');
+    const enBox = enGroup([titleEn, descEn]);
+    let pvLang = 'bg';
     const mkDt = (label, key, helper, val) => {
       const f = field({ label, type: 'datetime-local', value: val || '', helper, onInput: () => { checkRange(true); refresh(); }, onBlur: () => checkRange(true) });
       f.input.addEventListener('change', () => { checkRange(true); refresh(); });
@@ -177,13 +183,18 @@ export function eventFormView(ctx) {
         previewSeg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
       } }));
     }
-    const previewCard = h('section', { class: 'a-card a-previewcard' }, h('h2', { text: 'Така ще изглежда на сайта' }), previewSeg, previewScroller(frame),
+    const langSeg = langToggle((l) => { pvLang = l; drawPreview(); });
+    const previewCard = h('section', { class: 'a-card a-previewcard' }, h('h2', { text: 'Така ще изглежда на сайта' }), previewSeg, langSeg, previewScroller(frame),
       h('p', { class: 'a-help', text: 'Дали е видимо сега зависи от превключвателя и датите.' }));
     let blobKey = null;
     function drawPreview() {
       const imageUrl = upl.file ? upl.url : (ev && ev.imageUrl && !removeImage ? ev.imageUrl : null);
       blobKey = imageUrl;
-      frame.replaceChildren(renderEventCard({ title: title.value.trim(), description: desc.value, imageUrl, eventAt: eventAt.value }));
+      const en = pvLang === 'en';
+      const pt = (en && titleEn.value.trim()) || title.value.trim();
+      const pd = (en && descEn.value.trim()) || desc.value;
+      frame.setAttribute('lang', en ? 'en' : 'bg');
+      frame.replaceChildren(renderEventCard({ title: pt, description: pd, imageUrl, eventAt: eventAt.value }));
     }
     const drawDebounced = debounce(drawPreview, 120);
     function refreshD() { drawDebounced(); refresh(); }
@@ -208,7 +219,7 @@ export function eventFormView(ctx) {
       return ok;
     }
 
-    const snapshot = () => JSON.stringify([title.value, desc.value, eventAt.value, startsAt.value, expiresAt.value, enabledSw.isChecked(), !!upl.file, removeImage]);
+    const snapshot = () => JSON.stringify([title.value, desc.value, titleEn.value, descEn.value, eventAt.value, startsAt.value, expiresAt.value, enabledSw.isChecked(), !!upl.file, removeImage]);
     const initial = snapshot();
     function refresh() { drawDebounced(); }
     view.dirty = () => !saved && !saving && snapshot() !== initial;
@@ -217,7 +228,7 @@ export function eventFormView(ctx) {
     const cancelLink = h('a', { href: '#/events', class: 'a-btn a-btn--secondary' }, h('span', { text: 'Отказ' }));
     const form = h('form', { novalidate: true, class: 'a-card a-formcard' },
       h('p', { class: 'a-help', text: '* задължително' }), summary.el,
-      title.el, desc.el, imgBlock, eventAt.el, startsAt.el, expiresAt.el,
+      title.el, desc.el, enBox, imgBlock, eventAt.el, startsAt.el, expiresAt.el,
       h('p', { class: 'a-help a-tznote', text: 'Всички часове са по българско време.' }), warnBox,
       h('div', { class: 'a-field' }, h('span', { class: 'a-label', text: 'Включено' }), enabledSw, h('p', { class: 'a-help', text: 'Когато е изключено, събитието не се показва на сайта, независимо от датите.' })),
       ev && h('div', { class: 'a-actions' }, btn({ label: 'Изтрий събитието', variant: 'ghost-danger', icon: 'trash', onClick: async () => {
@@ -230,6 +241,8 @@ export function eventFormView(ctx) {
       if (saving) return;
       const errs = [];
       if (!vTitle()) errs.push({ id: title.id, label: 'Заглавие', msg: title.error });
+      if (titleEn.value.trim().length > 120) { titleEn.setError('Заглавието е твърде дълго (макс. 120 знака).'); errs.push({ id: titleEn.id, label: 'Заглавие (английски)', msg: titleEn.error }); enBox.open = true; } else titleEn.setError('');
+      if (descEn.value.length > 2000) { descEn.setError('Описанието е твърде дълго (макс. 2000 знака).'); errs.push({ id: descEn.id, label: 'Описание (английски)', msg: descEn.error }); enBox.open = true; } else descEn.setError('');
       if (!vDesc()) errs.push({ id: desc.id, label: 'Описание', msg: desc.error });
       if (!checkRange()) errs.push({ id: expiresAt.id, label: 'Скрий след', msg: expiresAt.error });
       if (errs.length) { summary.show(errs); return; }
@@ -237,6 +250,8 @@ export function eventFormView(ctx) {
       const fd = new FormData();
       fd.append('title', title.value.trim());
       fd.append('description', desc.value);
+      fd.append('titleEn', titleEn.value.trim());
+      fd.append('descriptionEn', descEn.value);
       fd.append('eventAt', eventAt.value);
       fd.append('startsAt', startsAt.value);
       fd.append('expiresAt', expiresAt.value);
@@ -273,10 +288,10 @@ export function eventFormView(ctx) {
       if (err.status === 401) return;
       const items = [];
       if (err.status === 400 && err.fields) {
-        const map = { title: [title, 'Заглавие'], description: [desc, 'Описание'], eventAt: [eventAt, 'Дата на събитието'], startsAt: [startsAt, 'Показвай от'], expiresAt: [expiresAt, 'Скрий след'] };
+        const map = { title: [title, 'Заглавие'], description: [desc, 'Описание'], titleEn: [titleEn, 'Заглавие (английски)'], descriptionEn: [descEn, 'Описание (английски)'], eventAt: [eventAt, 'Дата на събитието'], startsAt: [startsAt, 'Показвай от'], expiresAt: [expiresAt, 'Скрий след'] };
         for (const [k, msg] of Object.entries(err.fields)) {
           const m = map[k];
-          if (m) { m[0].setError(msg); items.push({ id: m[0].id, label: m[1], msg }); } else items.push({ id: title.id, msg });
+          if (m) { if (m[0] === titleEn || m[0] === descEn) enBox.open = true; m[0].setError(msg); items.push({ id: m[0].id, label: m[1], msg }); } else items.push({ id: title.id, msg });
         }
         summary.show(items);
       } else if (err.status === 413 || err.status === 415) {

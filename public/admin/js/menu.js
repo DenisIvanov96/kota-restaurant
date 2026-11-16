@@ -1,7 +1,7 @@
 import { h, icon, clear, formatSize, kindLabel, formatStamp, centsToInput, parsePrice, nextId } from './util.js';
 import { get, post, put, patch, del, upload } from './api.js';
-import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, modal, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, filePreview, setBusy } from './ui.js';
-import { renderMenuPreview, previewScroller } from './preview.js';
+import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, modal, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, filePreview, setBusy, enGroup, EN_HELP } from './ui.js';
+import { renderMenuPreview, previewScroller, langToggle } from './preview.js';
 
 const MODE_LABEL = { structured: 'Структурирано меню', file: 'Файл' };
 const MAX_CATS = 50;
@@ -24,11 +24,11 @@ export function menuView() {
   const view = { dirty: () => false };
   const symbol = () => (data ? data.currencySymbol : '€');
 
-  const mkItem = (it) => ({ k: ++seq, id: it.id, name: it.name || '', description: it.description || '', price: centsToInput(it.priceCents), available: it.available !== false });
-  const mkCat = (c, open) => ({ k: ++seq, id: c.id, name: c.name || '', open, items: (c.items || []).map(mkItem) });
+  const mkItem = (it) => ({ k: ++seq, id: it.id, name: it.name || '', nameEn: it.nameEn || '', description: it.description || '', descriptionEn: it.descriptionEn || '', price: centsToInput(it.priceCents), available: it.available !== false });
+  const mkCat = (c, open) => ({ k: ++seq, id: c.id, name: c.name || '', nameEn: c.nameEn || '', open, items: (c.items || []).map(mkItem) });
   const wide = () => window.matchMedia('(min-width: 1024px)').matches;
   const fromDraft = (draft) => draft.categories.map((c, i) => mkCat(c, wide() || i === 0));
-  const serialize = () => JSON.stringify(cats.map((c) => [c.name, c.items.map((i) => [i.name, i.description, i.price.trim(), i.available])]));
+  const serialize = () => JSON.stringify(cats.map((c) => [c.name, c.nameEn, c.items.map((i) => [i.name, i.nameEn, i.description, i.descriptionEn, i.price.trim(), i.available])]));
   const isDirty = () => serialize() !== saved;
 
   async function load(first) {
@@ -136,6 +136,7 @@ export function menuView() {
   // ---------------------------------------------------------------- validation
   const vName = (s) => { const t = s.trim(); return !t ? 'Въведете име.' : t.length > 100 ? 'Максимум 100 знака.' : ''; };
   const vPrice = (s) => { const c = parsePrice(s); return c === null ? 'Въведете цена, например 12,50.' : c > 10000000 ? 'Цената е твърде висока.' : ''; };
+  const vNameEn = (s) => (s.trim().length > 100 ? 'Максимум 100 знака.' : '');
   const vDesc = (s) => (s.length > 500 ? 'Максимум 500 знака.' : '');
 
   function validateAll() {
@@ -145,8 +146,10 @@ export function menuView() {
       let bad = false;
       const m = vName(c.name);
       if (m) { errors[`c${c.k}.name`] = m; list.push({ cat: c, key: `c${c.k}.name`, label: `Категория ${ci + 1}`, msg: m }); bad = true; }
+      const me = vNameEn(c.nameEn);
+      if (me) { errors[`c${c.k}.nameEn`] = me; list.push({ cat: c, key: `c${c.k}.nameEn`, label: `Категория ${ci + 1} — Име (английски)`, msg: me }); bad = true; }
       c.items.forEach((it, ii) => {
-        for (const [f, fn, val, lab] of [['name', vName, it.name, 'Име'], ['price', vPrice, it.price, 'Цена'], ['description', vDesc, it.description, 'Описание']]) {
+        for (const [f, fn, val, lab] of [['name', vName, it.name, 'Име'], ['price', vPrice, it.price, 'Цена'], ['description', vDesc, it.description, 'Описание'], ['nameEn', vNameEn, it.nameEn, 'Име (английски)'], ['descriptionEn', vDesc, it.descriptionEn, 'Описание (английски)']]) {
           const mm = fn(val);
           if (mm) { errors[`i${it.k}.${f}`] = mm; list.push({ cat: c, key: `i${it.k}.${f}`, label: `${c.name.trim() || `Категория ${ci + 1}`}, ястие ${ii + 1} — ${lab}`, msg: mm }); bad = true; }
         }
@@ -169,8 +172,8 @@ export function menuView() {
   function payload() {
     return {
       categories: cats.map((c) => ({
-        ...(c.id ? { id: c.id } : {}), name: c.name.trim(),
-        items: c.items.map((i) => ({ ...(i.id ? { id: i.id } : {}), name: i.name.trim(), description: i.description, priceCents: parsePrice(i.price), available: i.available })),
+        ...(c.id ? { id: c.id } : {}), name: c.name.trim(), nameEn: c.nameEn.trim(),
+        items: c.items.map((i) => ({ ...(i.id ? { id: i.id } : {}), name: i.name.trim(), nameEn: i.nameEn.trim(), description: i.description, descriptionEn: i.descriptionEn, priceCents: parsePrice(i.price), available: i.available })),
       })),
     };
   }
@@ -264,7 +267,7 @@ export function menuView() {
   }
 
   function previewClick() {
-    const model = cats.map((c) => ({ name: c.name.trim(), items: c.items.map((i) => ({ name: i.name.trim(), description: i.description, priceCents: parsePrice(i.price) || 0, available: i.available })) }));
+    const model = (en) => cats.map((c) => ({ name: (en && c.nameEn.trim()) || c.name.trim(), items: c.items.map((i) => ({ name: (en && i.nameEn.trim()) || i.name.trim(), description: (en && i.descriptionEn.trim()) || i.description, priceCents: parsePrice(i.price) || 0, available: i.available })) }));
     const frame = h('div', { class: 'preview-frame public-theme w-390' });
     const seg = h('div', { class: 'a-seg', role: 'group', 'aria-label': 'Ширина на прегледа' });
     for (const [wc, label] of [['w-390', 'Телефон'], ['w-960', 'Компютър']]) {
@@ -273,8 +276,10 @@ export function menuView() {
         seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
       } }));
     }
-    frame.append(renderMenuPreview(model, symbol()));
-    modal({ title: 'Преглед за клиенти', wide: true, body: [alertBox('info', `Това е преглед на чернова.${isDirty() ? ' Съдържа незапазени промени.' : ''}`), seg, previewScroller(frame)], buttons: [{ label: 'Затвори', focus: true }] });
+    const draw = (l) => { frame.setAttribute('lang', l); frame.replaceChildren(renderMenuPreview(model(l === 'en'), symbol())); };
+    draw('bg');
+    const langSeg = langToggle(draw);
+    modal({ title: 'Преглед за клиенти', wide: true, body: [alertBox('info', `Това е преглед на чернова.${isDirty() ? ' Съдържа незапазени промени.' : ''}`), seg, langSeg, previewScroller(frame)], buttons: [{ label: 'Затвори', focus: true }] });
   }
 
   // ---------------------------------------------------------------- status bar
@@ -351,6 +356,13 @@ export function menuView() {
       onBlur: () => { if (!touched && !errors[`c${c.k}.name`]) return; const m = vName(nameF.value); if (m) errors[`c${c.k}.name`] = m; else delete errors[`c${c.k}.name`]; nameF.setError(m); } });
     nameF.input.dataset.fk = `cat-${c.k}-name`;
     ids[`c${c.k}.name`] = nameF.id;
+    const nameEnF = field({ label: 'Име на категорията (английски)', max: 100, value: c.nameEn, helper: EN_HELP,
+      onInput: (a) => { c.nameEn = a.value; if (errors[`c${c.k}.nameEn`]) { const m = vNameEn(c.nameEn); if (m) errors[`c${c.k}.nameEn`] = m; else delete errors[`c${c.k}.nameEn`]; a.setError(m); } changed(); } });
+    nameEnF.input.setAttribute('aria-label', 'Име на категорията на английски');
+    ids[`c${c.k}.nameEn`] = nameEnF.id;
+    if (errors[`c${c.k}.nameEn`]) nameEnF.setError(errors[`c${c.k}.nameEn`]);
+    const catEn = enGroup([nameEnF]);
+    if (errors[`c${c.k}.nameEn`]) catEn.open = true;
     if (errors[`c${c.k}.name`]) nameF.setError(errors[`c${c.k}.name`]);
     const toggle = h('button', { type: 'button', class: 'a-btn a-btn--icon a-chev', 'aria-expanded': String(c.open), 'aria-controls': bodyId, 'aria-label': `${c.open ? 'Свий' : 'Разгъни'} категорията`, 'data-fk': `cat-${c.k}-toggle` }, icon('chevron'));
     const bodyEl = h('div', { class: 'a-cat__body', id: bodyId, hidden: !c.open });
@@ -365,7 +377,7 @@ export function menuView() {
     labelled.push([up, () => `Премести „${catLabel()}“ нагоре`], [down, () => `Премести „${catLabel()}“ надолу`]);
     up.disabled = ci === 0; down.disabled = ci === cats.length - 1;
     const delBtn = iconBtn({ ic: 'trash', aria: 'Изтрий категорията', cls: 'a-btn--icon-danger', onClick: async () => {
-      const untouched = !c.id && !c.name.trim() && !c.items.length;
+      const untouched = !c.id && !c.name.trim() && !c.nameEn.trim() && !c.items.length;
       if (!untouched) {
         const ok = await confirmDialog({ title: 'Изтриване на категория', body: c.items.length ? para('Изтриване на „', [c.name.trim() || 'Без име'], `“ и всичките му ${c.items.length} ястия?`) : para('Изтриване на „', [c.name.trim() || 'Без име'], '“?'), confirmLabel: 'Изтрий категорията', danger: true });
         if (!ok) return;
@@ -377,6 +389,7 @@ export function menuView() {
     relabel();
     const count = h('span', { class: 'a-help a-cat__count', text: `(${c.items.length} ${c.items.length === 1 ? 'ястие' : 'ястия'})` });
     const head = h('div', { class: 'a-cat__head' }, nameF.el, h('div', { class: 'a-cat__btns' }, toggle, count, up, down, delBtn));
+    bodyEl.append(catEn);
     c.items.forEach((it, ii) => bodyEl.append(dishCard(c, it, ii)));
     const addDish = btn({ label: 'Добави ястие', variant: 'secondary', icon: 'plus', cls: 'a-btn--block', onClick: () => {
       const it = mkItem({ name: '', description: '', priceCents: 0, available: true });
@@ -397,14 +410,20 @@ export function menuView() {
       if (errors[ek(f)]) { const m = fn(a.value); if (m) errors[ek(f)] = m; else delete errors[ek(f)]; a.setError(m); }
       changed();
     };
-    const touched = {}; for (const f of ['name', 'price', 'description']) touched[f] = !!it[f];
+    const touched = {}; for (const f of ['name', 'price', 'description', 'nameEn', 'descriptionEn']) touched[f] = !!it[f];
     const blur = (f, fn) => (a) => { if (!touched[f] && !errors[ek(f)]) return; const m = fn(a.value); if (m) errors[ek(f)] = m; else delete errors[ek(f)]; a.setError(m); };
     const nameF = field({ label: 'Име на ястието', required: true, max: 100, value: it.name, onInput: mk('name', vName, (v) => { it.name = v; }), onBlur: blur('name', vName) });
     nameF.input.dataset.fk = `dish-${it.k}-name`;
     const priceF = field({ label: 'Цена', inputmode: 'decimal', value: it.price, suffix: symbol(), helper: '0 или празно = без цена', cls: 'a-price', onInput: mk('price', vPrice, (v) => { it.price = v; }), onBlur: blur('price', vPrice) });
     const descF = field({ label: 'Описание', multiline: true, rows: 2, max: 500, value: it.description, onInput: mk('description', vDesc, (v) => { it.description = v; }), onBlur: blur('description', vDesc) });
+    const nameEnF = field({ label: 'Име (английски)', max: 100, value: it.nameEn, helper: EN_HELP, onInput: mk('nameEn', vNameEn, (v) => { it.nameEn = v; }), onBlur: blur('nameEn', vNameEn) });
+    const descEnF = field({ label: 'Описание (английски)', multiline: true, rows: 2, max: 500, value: it.descriptionEn, helper: EN_HELP, onInput: mk('descriptionEn', vDesc, (v) => { it.descriptionEn = v; }), onBlur: blur('descriptionEn', vDesc) });
+    const enAria = () => { const n = dishLabel(); nameEnF.input.setAttribute('aria-label', `Име на английски: ${n}`); descEnF.input.setAttribute('aria-label', `Описание на английски: ${n}`); };
+    enAria();
+    ids[ek('nameEn')] = nameEnF.id; ids[ek('descriptionEn')] = descEnF.id;
+    const dishEn = enGroup([nameEnF, descEnF]);
     ids[ek('name')] = nameF.id; ids[ek('price')] = priceF.id; ids[ek('description')] = descF.id;
-    for (const [f, a] of [['name', nameF], ['price', priceF], ['description', descF]]) if (errors[ek(f)]) a.setError(errors[ek(f)]);
+    for (const [f, a] of [['name', nameF], ['price', priceF], ['description', descF], ['nameEn', nameEnF], ['descriptionEn', descEnF]]) if (errors[ek(f)]) { a.setError(errors[ek(f)]); if (f.endsWith('En')) dishEn.open = true; }
     const offHelp = h('p', { class: 'a-help', hidden: it.available, text: 'Показва се като „Няма в наличност“' });
     const sw = makeSwitch({ label: `Налично: ${dishLabel()}`, checked: it.available });
     sw.addEventListener('click', () => { it.available = sw.isChecked(); offHelp.hidden = it.available; changed(); });
@@ -414,7 +433,7 @@ export function menuView() {
     up.setAttribute('aria-label', `Премести „${dishLabel()}“ нагоре`); down.setAttribute('aria-label', `Премести „${dishLabel()}“ надолу`);
     up.disabled = ii === 0; down.disabled = ii === c.items.length - 1;
     const del2 = btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий ястието „${dishLabel()}“`, onClick: async () => {
-      const untouched = !it.id && !it.name.trim() && !it.price.trim() && !it.description.trim();
+      const untouched = !it.id && !it.name.trim() && !it.price.trim() && !it.description.trim() && !it.nameEn.trim() && !it.descriptionEn.trim();
       if (!untouched) {
         const ok = await confirmDialog({ title: 'Изтриване на ястие', body: para('Изтриване на „', [it.name.trim() || 'Без име'], '“?'), confirmLabel: 'Изтрий ястието', danger: true });
         if (!ok) return;
@@ -422,11 +441,11 @@ export function menuView() {
       c.items.splice(c.items.indexOf(it), 1); renderEditor(`cat-${c.k}-toggle`); changed();
     } });
     relabelDish = () => {
-      const n = dishLabel();
+      const n = dishLabel(); enAria();
       sw.setAttribute('aria-label', `Налично: ${n}`); up.setAttribute('aria-label', `Премести „${n}“ нагоре`);
       down.setAttribute('aria-label', `Премести „${n}“ надолу`); del2.setAttribute('aria-label', `Изтрий ястието „${n}“`);
     };
-    return h('div', { class: 'a-dish' }, h('div', { class: 'a-dish__top' }, nameF.el, priceF.el), descF.el, h('div', { class: 'a-dish__bottom' }, h('div', null, sw, offHelp), h('div', { class: 'a-dish__act' }, up, down, del2)));
+    return h('div', { class: 'a-dish' }, h('div', { class: 'a-dish__top' }, nameF.el, priceF.el), descF.el, dishEn, h('div', { class: 'a-dish__bottom' }, h('div', null, sw, offHelp), h('div', { class: 'a-dish__act' }, up, down, del2)));
   }
 
   // ---------------------------------------------------------------- files

@@ -432,3 +432,12 @@ export function filePreview(upl) {
   }
   return wrap;
 }
+
+// ---- English (optional) sub-section: collapsible, open when any field already has text.
+export const EN_HELP = 'По избор. Ако е празно, на английската версия се показва българският текст.';
+export function enGroup(fields, title = 'English / Английски') {
+  const det = h('details', { class: 'a-en' });
+  det.open = fields.some((f) => f.value);
+  det.append(h('summary', { class: 'a-en__sum', text: title }), h('div', { class: 'a-en__body' }, ...fields.map((f) => f.el)));
+  return det;
+}
