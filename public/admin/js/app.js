@@ -83,8 +83,8 @@ function logo(small) {
 
 async function doLogout(button) {
   if (!(await guardLeave())) return;
-  setBusy(button, true, 'Изход…');
-  try { await post('/api/admin/logout'); } catch (e) { if (e.status !== 401) { setBusy(button, false); reportError(e); return; } }
+  if (button) setBusy(button, true, 'Изход…');
+  try { await post('/api/admin/logout'); } catch (e) { if (e.status !== 401) { if (button) setBusy(button, false); reportError(e); return; } }
   current && current.view.destroy && current.view.destroy();
   current = null;
   location.hash = '#/';
@@ -168,6 +168,7 @@ function showExpired() {
 }
 
 onUnauthorized(showExpired);
+document.addEventListener('admin:logout', () => doLogout(null));
 
 async function boot() {
   try {

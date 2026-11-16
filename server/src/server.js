@@ -5,6 +5,7 @@ const env = process.env;
 const production = env.NODE_ENV === 'production';
 const dataDir = path.resolve(env.DATA_DIR || './data');
 const port = Number(env.PORT || 3000);
+const host = env.HOST || '127.0.0.1'; // set HOST=0.0.0.0 explicitly for containers
 
 let now = () => Date.now();
 if (!production && env.KOTA_NOW) {
@@ -18,7 +19,7 @@ const tp = env.TRUST_PROXY;
 const trustProxy = tp === undefined || tp === '' || tp === 'false' ? false : (/^\d+$/.test(tp) ? Number(tp) : tp === 'true' ? 1 : tp);
 
 const app = createApp({ dataDir, now, cookieSecure, trustProxy });
-const server = app.listen(port, () => console.log(`Kota1 server listening on http://localhost:${port} (data: ${dataDir})`));
+const server = app.listen(port, host, () => console.log(`Kota1 server listening on http://${host}:${port} (data: ${dataDir})`));
 
 function shutdown(signal) {
   console.log(`${signal} received, shutting down`);
