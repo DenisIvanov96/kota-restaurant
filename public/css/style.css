@@ -20,7 +20,7 @@ h2 { font-family: var(--font-display); font-weight: 500; text-transform: upperca
 .site-header { position: relative; z-index: 20; }
 .header-inner { display: flex; align-items: center; gap: 8px; padding: 1rem; max-width: var(--max); margin: 0 auto; }
 .logo { margin-right: auto; padding: 10px 4px; margin-block: -10px; margin-left: -4px; min-height: 44px; }
-.nav-toggle { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 0; background: none; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.nav-toggle { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 0; background: none; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; flex: none; }
 .nav-toggle svg { width: 24px; height: 24px; }
 .nav-toggle .icon-x { display: none; }
 .nav-toggle[aria-expanded="true"] .icon-x { display: block; }
@@ -42,7 +42,7 @@ h2 { font-family: var(--font-display); font-weight: 500; text-transform: upperca
   .header-inner { padding: 1rem 12px; gap: 6px; }
   .btn-special-sm { padding: 0 8px; font-size: .75rem; }
 }
-@media (max-width: 359px) {
+@media (max-width: 379px) {
   /* WCAG reflow at 320px: logo + pill + switch share row 1, hamburger wraps to the right of row 2 (DOM/tab order kept). */
   .header-inner { flex-wrap: wrap; row-gap: 0; }
   .header-inner .nav-toggle { margin-left: auto; }
