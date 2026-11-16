@@ -18,7 +18,7 @@ img { max-width: 100%; }
 a { color: var(--a-primary); }
 button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--a-focus); outline-offset: 2px; }
-.a-topbar :focus-visible { outline-offset: -3px; }
+.a-topbar :focus-visible { outline-offset: 0; }
 .a-topbar :focus-visible, .a-nav :focus-visible, .a-login :focus-visible { outline-color: var(--glow, #f3d9a4); }
 .a-vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; }
 .a-boot { padding: 24px; }
