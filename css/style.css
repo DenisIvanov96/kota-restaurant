@@ -20,3 +20,5 @@ nav a { margin-left: 1rem; text-decoration: none; color: var(--text); }
 .menu-list li { display: flex; justify-content: space-between; border-bottom: 1px dotted var(--muted); padding: .5rem 0; }
 .site-footer { text-align: center; padding: 2rem 1rem; color: var(--muted); }
 .one { font-size: 1.35em; line-height: 0; }
+.top-bar { background: var(--text); color: var(--bg); text-align: center; padding: .5rem 1rem; font-size: .95rem; }
+.top-bar a { color: #fff; font-weight: bold; text-decoration: none; }
