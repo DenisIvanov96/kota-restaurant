@@ -5,19 +5,64 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
-| npm test (backend) | bc1121e | 43/43 (PM) |
-| api security / publication / menu | e091269 | 42/42 · 21/21 · 17/17 |
-| e2e public | e091269 | 89/89 (pre-i18n UI) |
-| e2e a11y | e091269 | 48/48 (pre-i18n UI) |
-| e2e admin | e091269 | 116/117 (BUG-5) |
-| e2e design | e091269 | 20/22 (BUG-6, BUG-7) |
+| npm test (backend) | 0c81447 | 43/43 |
+| api security / publication / menu | 0c81447 | 42/42 · 21/21 · 17/17 |
+| api i18n (new, T-17) | 0c81447 | 13/13 |
+| e2e public | 0c81447 | 89/89 |
+| e2e a11y | 0c81447 | 47/48 (A10b = BUG-9) |
+| e2e admin | 0c81447 | 117/117 (BUG-5 verified fixed) |
+| e2e design | 0c81447 | 22/22 (BUG-6, BUG-7 verified fixed) |
+| e2e i18n (new, T-17) | 0c81447 | 231/240 (BUG-8, BUG-10) |
 
+Product code at the time of the runs is identical to `0c81447` (later commits touch only docs and `tests/`).
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
 
 ## Standard viewports
 390x844 (phone), 768x1024 (tablet), 1280x800 (desktop) - Playwright (Chromium, headless).
+
+## Release regression (T-17) - 2026-11-16, branch `feature/admin-cms` @ 0c81447 (full tier: shared code changed)
+
+Verdict: **FAIL** - 0 blocker, 1 major (BUG-9), 2 minor (BUG-8, BUG-10). BUG-5, BUG-6, BUG-7 are **VERIFIED-FIXED**.
+
+| Suite | Result | Command |
+|---|---|---|
+| `npm test` | 43/43 | `npm test` |
+| api security / publication / menu | 42/42, 21/21, 17/17 | `node --test --test-concurrency=1 tests/api/*.test.mjs` (93/93 incl. i18n) |
+| api i18n (new) | 13/13 | `tests/api/i18n.test.mjs` (port 3209) |
+| e2e public | 89/89 | `tests/e2e/public.mjs` |
+| e2e a11y | 47/48 | FAIL `A10b` public index at 320 px: scrollWidth 334 > 320 (BUG-9) |
+| e2e admin | 117/117 | `tests/e2e/admin.mjs` (ST locator made exact; `TOAST-OVERLAP[390]` now passes) |
+| e2e design | 22/22 | `tests/e2e/design.mjs` (`D10`, `D8a` now pass) |
+| e2e i18n (new) | 231/240 | `tests/e2e/i18n.mjs` (ports 3209, 3208); FAIL `RACE1..3` (BUG-8), `AEV6b`/`AMN8b` x3 viewports (BUG-10) |
+
+Retests: BUG-5 **VERIFIED-FIXED** (`TOAST-OVERLAP` with 1 and 3 persistent error toasts at 390/768/1280: Save centre hit-testable and no toast rectangle intersects Save; at 390 the toast bottom is 696 vs Save top 720). BUG-6 **VERIFIED-FIXED** (`D10`). BUG-7 **VERIFIED-FIXED** (`D8a`).
+
+What the new tests cover (all passed unless listed under defects):
+- API (`i18n.test.mjs`): `?lang` default/bg/en on site, events, menu, daily-menu with per-field fallback (empty and whitespace-only En fall back to BG, per field); invalid lang (`fr`, empty, `EN`, `bg,en`, repeated, markup/SQL-ish) is 400 `validation` on all four endpoints and not reflected; no `*En`/snake_case En key and no En text in any BG/default public response; En fields need session (401), CSRF header and Origin (403), nothing changes on rejection; limits at boundary/+1 for every En field (titleEn 120, descriptionEn 2000 incl. CRLF normalisation, category/item nameEn 100, item descriptionEn 500, addressEn 200, openingHoursEn 500) plus type confusion (number/object/array); trimmed plain text; En-only draft edit counts as `hasUnpublishedChanges`; migration 002 on a DB built from `001_init.sql` only (with events, categories, items, an old snapshot without `*En` keys, settings): server start applies 002, data and prices intact, En columns NULL, fallback works, second start idempotent, no phantom "unpublished changes", En can be set afterwards.
+- Public UI at 360/390/768/1280: switch visible, inside viewport, each button >= 44x44; BG->EN->BG on `/` and `/daily-menu` (EN content, `html lang`, title, meta description, `aria-pressed`, URL param, localStorage; EN->BG text identical to the initial BG render); no Cyrillic in text/aria-label/alt/title/meta in EN except deliberate BG fallbacks; `?lang=en` deep links; internal links keep `lang=en`; persistence across pages; URL param beats storage; invalid/malicious `?lang` ignored; localStorage that throws on access or on `setItem`; EN price/date formats; EN for PDF and image file-mode menu, daily PDF, lightbox (open/zoom/close labels, BG again after switch), no-menu-today (links keep lang), empty-menu state, load-error + retry; XSS payloads in every En field (event title/description, category, dish name/description, address, hours) render as literal text, `window.__xss` stays undefined, no injected elements, no CSP violation; no console/page/CSP/failed-request/4xx noise; no horizontal scroll (BG and EN).
+- Admin UI at 390/768/1280: En round trip for event, category, dish, settings (save, public `lang=en`, reload prefilled and group open); keyboard Enter/Space opens `<details>`, Tab enters the field, visible focus ring on the summary; unsaved-changes guard on En-only edits (event, dish, settings) and no guard on an untouched form; server 400 on En fields opens the collapsed group, shows inline errors, `aria-invalid` and the error summary (events, menu, settings); preview BG|EN toggle shows English with per-field fallback (event and menu preview); admin stays Bulgarian with `?lang=en` and `kota_lang=en`; no horizontal scroll with all En groups open.
+
+### Defects (new)
+BUG-8 | minor | frontend-developer | Open `/?lang=bg`. Delay `GET /api/public/{events,menu,site}?lang=bg` by 1.5 s (`page.route`). Click EN, BG, EN within ~300 ms and wait 4 s. (Mirror: delay the EN responses, click EN then BG.) | Final content in the last selected language (EN). | Buttons, `html lang`, URL and static text say EN, but events, categories and dishes are Bulgarian (RACE1: `ev:["Джаз вечер",...] cats:["Салати",...]`); mirror case shows English event/dish names under a BG page (RACE2, RACE3). Cause: `public/js/index.js` `loadAll()` / `loadEvents()` / `loadMenu()` / `loadSiteInfo()` have no sequence guard, so a late response for the old language overwrites the newer render (`daily.js` has one and passes `RACE5/6`). Self-heals on the next click. | `tests/e2e/i18n.mjs` `RACE1`, `RACE2`, `RACE3` (control `RACE4` passes); `.../qa3/i18n2.log`.
+
+BUG-9 | major | frontend-developer | Open `/` or `/daily-menu` (BG or EN) at 320x640 (WCAG 1.4.10 reflow). | No horizontal scroll (`a11y.mjs` `A10b` passed before T-15). | `scrollWidth` 334 (BG) / 331 (EN) > 320. The header row (logo 8-87, "Обедно меню" pill 93-206, new lang switch 212-302, hamburger 308-334) no longer fits: `.nav-toggle` ends at x=334. Fine at 340 and above (320 only). Regression from T-15. Fix: let the pill shrink/hide or wrap at <= 340 px, or reduce paddings. | `tests/e2e/a11y.mjs` `A10b` -> `334/320`; measurement `.../qa3/dbg/w320.mjs` (offender `BUTTON.nav-toggle right=334`).
+
+BUG-10 | minor | frontend-developer | Admin event form (or menu "Преглед" modal): enter Bulgarian and English text, press the preview toggle "EN". | English preview looks like the English site: tag "Event", price `€4.50`, English date format. | Content is English but the public renderers still use the BG UI language (admin pins `lang=bg`): event tag "Събитие", price "4,50 €", BG date format. The owner cannot judge the real English page. | `tests/e2e/i18n.mjs` `AEV6b` -> `СъбитиеEvent 390...`, `AMN8b` -> `Soups 390Soup 3904,50 €Hot soup 390 v2` (all three viewports).
+
+### Observations (not defects)
+- The English-group inputs use `aria-label`s ("Заглавие на събитието на английски", "Име на английски: <dish>") that replace the visible label text (e.g. "Заглавие (английски)"); both are Bulgarian and unique, fine for screen readers, but the speech-input "label in name" rule (WCAG 2.5.3) is only loosely met. Not tested with real AT.
+- Server 400 on En fields cannot occur from the UI (inputs have `maxlength`); the UI tests use a mocked 400 in the exact shape the real server returns (field keys verified by the API test `I10`).
+
+### NOT RUN (T-17)
+- Real devices, Firefox, WebKit, screen readers, Bulgarian/English copy review.
+- Embedded PDF viewer path on desktop (headless Chromium: card path only; `FM5` only checks the page has no Cyrillic UI and no overflow).
+- Migration 002 against a copy of a real production database (a hand-built pre-i18n DB from `001_init.sql` was used; admin created via the CLI after the first migrating start).
+- A real server 400 on an En field through the UI (see observation).
+- Deployment/HTTPS config, backups (unchanged by T-14..T-16).
+
+Logs and screenshots: `/tmp/claude-0/-home-user-kota-restaurant/0a6b5eed-3087-545d-a04f-90c802bbd434/scratchpad/qa3/` (`*.log`, `shots/i18n-*.png`).
 
 ## Regression run 2 - T-13, 2026-11-16, branch `feature/admin-cms` (worktree on e091269: includes T-10, T-11, T-12 and the T-14 backend)
 
@@ -190,11 +235,11 @@ BUG-3 | minor | frontend-developer | `#/menu` with empty draft: click "Доба�
 
 BUG-4 | minor | backend-developer (or frontend-developer) | `#/events/new`: title "x", description of exactly 2000 characters containing 20 line breaks (counter shows 2000/2000), Save. | Saved (limit is 2000, UI allows 2000). | Browsers encode newlines as CRLF in multipart, the server counts the CR too (2020 chars) and answers 400 "Описанието е до 2000 символа". Also, stored descriptions contain `\r\n` (e.g. `"Жива музика\r\nВход свободен"`). Fix: normalise `\r\n` to `\n` before validating/storing. | `tests/e2e/admin.mjs` `EDGE1`; public API output in the failed `EV3` first run showed `\r\n`.
 
-BUG-5 | minor | frontend-developer | At 390x844 open `#/events/<id>` (edit), trigger an error toast (e.g. switch toggle fails, or a failed save), then try to tap "Запази". | The persistent error toast must not cover the sticky save bar, or the primary action must remain tappable (toasts above the bar; bar offset added to `.a-toasts` bottom when `.a-actionbar` is present). | `.a-toasts` (`bottom: 64px + 12px`, z-index 60) overlays the sticky `.a-actionbar` (bottom 64px, z-index 25): Save centre point is hit by the toast (`elementFromPoint` = `.a-toast`); Playwright: "`.a-toast__msg` from `.a-toasts` subtree intercepts pointer events", 30 s timeout. The user must first press the toast's close button. Present since T-4 (T-5 run only passed because the click point fell into the 8 px gap between 3 stacked toasts). | `tests/e2e/admin.mjs` `TOAST-OVERLAP[390]` -> `{"hit":"toast","top":720}`; `.../qa2/dbg/fail-E.png`.
+BUG-5 | minor | frontend-developer | At 390x844 open `#/events/<id>` (edit), trigger an error toast (e.g. switch toggle fails, or a failed save), then try to tap "Запази". | The persistent error toast must not cover the sticky save bar, or the primary action must remain tappable (toasts above the bar; bar offset added to `.a-toasts` bottom when `.a-actionbar` is present). | `.a-toasts` (`bottom: 64px + 12px`, z-index 60) overlays the sticky `.a-actionbar` (bottom 64px, z-index 25): Save centre point is hit by the toast (`elementFromPoint` = `.a-toast`); Playwright: "`.a-toast__msg` from `.a-toasts` subtree intercepts pointer events", 30 s timeout. The user must first press the toast's close button. Present since T-4 (T-5 run only passed because the click point fell into the 8 px gap between 3 stacked toasts). | `tests/e2e/admin.mjs` `TOAST-OVERLAP[390]` -> `{"hit":"toast","top":720}`; `.../qa2/dbg/fail-E.png`. | **VERIFIED-FIXED (T-17, 0c81447)**
 
-BUG-6 | minor | frontend-developer | Open `/admin/#/events/new` at 1280 (any width), look at the space between "Всички часове са по българско време." and the "Включено" label. | At least 16 px (D10 fix: `.a-tznote { margin-bottom: 16px }`). | Computed `margin-bottom: 0px`, measured gap 0 px: the later rule `.a-help { margin: 4px 0 0 }` (admin.css line 95, same specificity) overrides `.a-tznote` (line 84). Fix: raise specificity (`.a-help.a-tznote`) or move the rule below `.a-help`. | `tests/e2e/design.mjs` `D10` -> `{"gap":0,"tznoteMarginBottom":"0px"}`.
+BUG-6 | minor | frontend-developer | Open `/admin/#/events/new` at 1280 (any width), look at the space between "Всички часове са по българско време." and the "Включено" label. | At least 16 px (D10 fix: `.a-tznote { margin-bottom: 16px }`). | Computed `margin-bottom: 0px`, measured gap 0 px: the later rule `.a-help { margin: 4px 0 0 }` (admin.css line 95, same specificity) overrides `.a-tznote` (line 84). Fix: raise specificity (`.a-help.a-tznote`) or move the rule below `.a-help`. | `tests/e2e/design.mjs` `D10` -> `{"gap":0,"tznoteMarginBottom":"0px"}`. | **VERIFIED-FIXED (T-17, 0c81447)**
 
-BUG-7 | minor (cosmetic) | frontend-developer | Open `/admin/` at 390x844, focus "Изход" in the top bar with the keyboard (Tab). | Whole focus ring visible inside the 56 px bar (D8). | Ring (3 px outline + 2 px offset) spans y -1..57 on a 56 px sticky bar: the top 1 px is outside the viewport; logo ring is fine (1..55). Fix: smaller outline-offset or button height <= 50 px inside the 56 px bar. | `tests/e2e/design.mjs` `D8a` -> `.a-logout-top ringTop:-1, ringBottom:57, barTop:0, barBottom:56`; screenshot `.../qa2/shots/design-D8-admin-topbar.png`.
+BUG-7 | minor (cosmetic) | frontend-developer | Open `/admin/` at 390x844, focus "Изход" in the top bar with the keyboard (Tab). | Whole focus ring visible inside the 56 px bar (D8). | Ring (3 px outline + 2 px offset) spans y -1..57 on a 56 px sticky bar: the top 1 px is outside the viewport; logo ring is fine (1..55). Fix: smaller outline-offset or button height <= 50 px inside the 56 px bar. | `tests/e2e/design.mjs` `D8a` -> `.a-logout-top ringTop:-1, ringBottom:57, barTop:0, barBottom:56`; screenshot `.../qa2/shots/design-D8-admin-topbar.png`. | **VERIFIED-FIXED (T-17, 0c81447)**
 
 ## Observations (not defects)
 - `GET /admin` returns 301 to `/admin/` with CSP `default-src 'none'` (Express static default); harmless.

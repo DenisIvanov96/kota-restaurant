@@ -6,7 +6,7 @@ and talk to it over HTTP or Playwright. They never import server code. The clock
 
 ## Requirements
 - Node >= 22.13, `npm ci` done. Playwright must be resolvable (`require('playwright')`, pre-installed globally in the QA environment; it is NOT a project dependency).
-- Free ports 3201-3208. Do not run two suites at the same time (they reuse ports).
+- Free ports 3201-3209. Do not run two suites at the same time (they reuse ports).
 - Optional: `QA_SCRATCH=/some/dir` (temp data dirs + `shots/` screenshots + `*-results.json`; default `$TMPDIR/kota-qa`).
 
 ## Run
@@ -18,6 +18,8 @@ node --disable-warning=ExperimentalWarning --test --test-concurrency=1 tests/api
 node --disable-warning=ExperimentalWarning tests/e2e/public.mjs   # public site, 3 viewports, NY timezone, XSS, time travel
 node --disable-warning=ExperimentalWarning tests/e2e/admin.mjs    # admin SPA flows, error paths, 3 viewports, covering bars
 node --disable-warning=ExperimentalWarning tests/e2e/a11y.mjs     # keyboard focus, contrast from computed CSS, reflow
+node --disable-warning=ExperimentalWarning tests/e2e/design.mjs   # design fixes D1..D11
+node --disable-warning=ExperimentalWarning tests/e2e/i18n.mjs     # public БГ/EN switch, admin English fields, rapid-toggle race (ports 3209, 3208)
 ```
 
 ## Files
@@ -26,10 +28,11 @@ node --disable-warning=ExperimentalWarning tests/e2e/a11y.mjs     # keyboard foc
 - `api/security.test.mjs` - auth on every admin endpoint, CSRF/Origin/CORS, cookies, sessions (logout, password change, idle 12h, absolute 7d), rate limiting, uploads, traversal, headers, validation, secrets, production mode.
 - `api/publication.test.mjs` - events (enable/disable/expiry/future/images) and daily menus (today/tomorrow/yesterday, Sofia midnight, DST, replace) with clock advance.
 - `api/menu.test.mjs` - structured draft/publish/discard, file mode, mode switch, live-file protection, restart persistence.
+- `api/i18n.test.mjs` - `?lang` resolution/fallback, En-field leakage, admin En auth/CSRF/limits, migration 002 on a pre-i18n DB (port 3209).
 - `e2e/*.mjs` - see above.
 
 ## Notes
 - Google Fonts is unreachable from the sandbox: failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` are collected separately as environmental noise and ignored.
-- Open defects are documented by checks that FAIL on purpose (see `docs/TESTING.md`): `admin.mjs` `TOAST-OVERLAP[390]` (BUG-5), `design.mjs` `D10` (BUG-6) and `D8a` (BUG-7). BUG-1..4 are fixed and their checks pass.
+- Open defects are documented by checks that FAIL on purpose (see `docs/TESTING.md`): `i18n.mjs` `RACE1..3` (BUG-8), `AEV6b`/`AMN8b` (BUG-10), `a11y.mjs` `A10b` (BUG-9). BUG-1..7 are fixed and their checks pass.
 - `admin.mjs` dismisses persistent error toasts before pressing Save (they cover the sticky save bar at 390 px, BUG-5), as a user would.
 - Production-mode checks use `NODE_ENV=production` with default `HOST`; `KOTA_NOW` is ignored there (verified).
