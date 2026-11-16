@@ -35,7 +35,7 @@ export function renderLogin({ expired, onSuccess }) {
       pass.value = '';
       [user, pass].forEach((f) => f.setDisabled(true));
       submit.disabled = true;
-      alertSlot.replaceChildren(alertBox('error', `Твърде много опити. Опитайте отново след ${fmtWait(secs)}.`, { role: 'alert' }));
+      alertSlot.replaceChildren(alertBox('error', `Твърде много опити. Опитайте отново след ${fmtWait(secs)}`, { role: 'alert' }));
       timer = setTimeout(() => {
         [user, pass].forEach((f) => f.setDisabled(false));
         submit.disabled = false;

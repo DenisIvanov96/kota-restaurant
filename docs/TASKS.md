@@ -47,14 +47,15 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Agent: frontend-developer
 - Depends on: T-1, T-2
 - Description: `/admin` SPA: login (+TOTP), dashboard, events, daily menu, regular menu (visual editor + files + mode), settings (password, 2FA, site info), logout.
-- Status: in-progress
+- Status: review
 - Deliverables: `public/admin/**`
+- Verification: developer Playwright run of all flows at 390 (+768/1280 spot checks), 0 CSP/page errors, 2 layout bugs self-fixed. Unverified: server-side 400 `fields` mapping, toggle rollback, `nothing_published`, PDF `<object>`, keyboard/screen reader. Awaiting QA (T-5) + design review (T-9).
 
 ### T-5: QA — full functional, security and responsive test pass
 - Agent: qa-security-engineer
 - Depends on: T-3, T-4
 - Description: All scenarios from the requirements (events, daily menu, regular menu, security, compatibility) as automated tests in `tests/`.
-- Status: todo
+- Status: in-progress
 - Deliverables: `tests/**`, `docs/TESTING.md`
 
 ### T-6: DevOps — deployment readiness
@@ -77,6 +78,12 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Status: done
 - Verification: `npm test` 33/33 (re-run by PM); loopback bind confirmed by startup log + curl. Docs updated by PM.
 - Deliverables: `server/src/server.js`, `server/scripts/`, tests
+
+### T-9: Design review of implemented public site and admin
+- Agent: ui-ux-designer
+- Depends on: T-3, T-4
+- Status: in-progress
+- Deliverables: findings in handoff report (BUG format)
 
 ## Future
 - Table management / Маси — see `docs/FUTURE-TABLES.md` (not started).

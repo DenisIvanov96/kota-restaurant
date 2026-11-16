@@ -270,13 +270,13 @@ export function field({ label, required, helper, type = 'text', multiline, rows 
 /** Password field with "Покажи / Скрий". */
 export function passwordField(opts) {
   const f = field({ ...opts, type: 'password', autocapitalize: 'none' });
-  const toggle = h('button', { type: 'button', class: 'a-btn a-btn--ghost a-pw-toggle', 'aria-pressed': 'false', text: 'Покажи', 'aria-label': `Покажи ${opts.label.toLowerCase()}` });
+  const toggle = h('button', { type: 'button', class: 'a-btn a-btn--ghost a-pw-toggle', 'aria-pressed': 'false', text: 'Покажи', 'aria-label': 'Покажи паролата' });
   toggle.addEventListener('click', () => {
     const show = f.input.type === 'password';
     f.input.type = show ? 'text' : 'password';
     toggle.textContent = show ? 'Скрий' : 'Покажи';
     toggle.setAttribute('aria-pressed', String(show));
-    toggle.setAttribute('aria-label', `${show ? 'Скрий' : 'Покажи'} ${opts.label.toLowerCase()}`);
+    toggle.setAttribute('aria-label', show ? 'Скрий паролата' : 'Покажи паролата');
   });
   const wrap = h('div', { class: 'a-input-wrap a-input-wrap--pw' });
   f.input.replaceWith(wrap);
