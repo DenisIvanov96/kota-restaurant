@@ -417,7 +417,7 @@ const totp = (b32, t = Date.parse(T0)) => { // server clock is frozen at T0
 await step('ST', async () => {
   const c = await newPage(browser, { width: 390, height: 844 });
   const pg = c.page; await login(pg); await go(pg, '#/settings'); await pg.waitForSelector('h1:has-text("Настройки")');
-  await pg.getByLabel('Телефон за резервации').fill('+359 88 111 2222'); await pg.getByLabel('Адрес').fill('ул. Тест 5');
+  await pg.getByLabel('Телефон за резервации').fill('+359 88 111 2222'); await pg.getByLabel('Адрес', { exact: true }).fill('ул. Тест 5');
   await pg.getByRole('button', { name: 'Запази', exact: true }).click(); await pg.waitForTimeout(600);
   const site = (await anon.get('/api/public/site')).data;
   R.check('ST1 site info saved via UI shows in public API without restart', site.reservationPhone === '+359 88 111 2222' && site.address === 'ул. Тест 5', JSON.stringify(site));
