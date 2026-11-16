@@ -8,6 +8,9 @@ initI18n();
 initNav();
 initYear();
 
+/* Stale-response guard: bumped on every (re)load; only the newest generation may render. */
+let gen = 0;
+
 /* ---------- Site info: top bar + contact ---------- */
 function renderContact(site) {
   const section = document.getElementById('contact');
@@ -44,8 +47,9 @@ function renderContact(site) {
   section.hidden = false;
 }
 
-function loadSiteInfo() {
+function loadSiteInfo(mine) {
   return loadSite().then((site) => {
+    if (mine !== gen) return;
     applyTopBar(site);
     renderContact(site);
     realignHash();
@@ -53,11 +57,12 @@ function loadSiteInfo() {
 }
 
 /* ---------- Events ---------- */
-async function loadEvents() {
+async function loadEvents(mine) {
   let events;
   try {
     events = (await getJSON(apiUrl('/api/public/events'))).events;
   } catch { events = null; }
+  if (mine !== gen) return;
   const old = document.getElementById('event');
   if (old) old.remove();
   const li = document.getElementById('nav-event');
@@ -91,18 +96,20 @@ function menuEmpty() {
   }));
 }
 
-async function loadMenu() {
+async function loadMenu(mine) {
   let data;
   try {
     data = await getJSON(apiUrl('/api/public/menu'));
   } catch {
+    if (mine !== gen) return;
     showMenuState(stateBox({
       title: t('err.menu'), role: 'alert', isError: true,
       body: t('err.body'),
-      actions: [{ label: t('retry'), onClick: () => { menuBox.replaceChildren(skeleton()); loadMenu(); } }],
+      actions: [{ label: t('retry'), onClick: () => { menuBox.replaceChildren(skeleton()); loadMenu(gen); } }],
     }));
     return;
   }
+  if (mine !== gen) return;
   if (data.mode === 'file') {
     if (!data.file) return menuEmpty();
     const viewer = renderFileViewer(data.file, {
@@ -142,9 +149,10 @@ function skeleton() {
 
 function loadAll() {
   menuBox.replaceChildren(skeleton());
-  loadSiteInfo();
-  loadEvents().then(() => localizeLinks());
-  loadMenu().then(() => localizeLinks());
+  const mine = ++gen;
+  loadSiteInfo(mine);
+  loadEvents(mine).then(() => localizeLinks());
+  loadMenu(mine).then(() => localizeLinks());
 }
 
 onLangChange(loadAll);

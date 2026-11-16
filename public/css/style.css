@@ -42,6 +42,11 @@ h2 { font-family: var(--font-display); font-weight: 500; text-transform: upperca
   .header-inner { padding: 1rem 12px; gap: 6px; }
   .btn-special-sm { padding: 0 8px; font-size: .75rem; }
 }
+@media (max-width: 359px) {
+  /* WCAG reflow at 320px: logo + pill + switch share row 1, hamburger wraps to the right of row 2 (DOM/tab order kept). */
+  .header-inner { flex-wrap: wrap; row-gap: 0; }
+  .header-inner .nav-toggle { margin-left: auto; }
+}
 @media (min-width: 768px) {
   .site-header .btn-special-sm, .site-header .nav-toggle { display: none; }
   .site-nav { display: block; position: static; background: none; border: 0; }

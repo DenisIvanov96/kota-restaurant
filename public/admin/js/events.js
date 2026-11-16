@@ -194,7 +194,7 @@ export function eventFormView(ctx) {
       const pt = (en && titleEn.value.trim()) || title.value.trim();
       const pd = (en && descEn.value.trim()) || desc.value;
       frame.setAttribute('lang', en ? 'en' : 'bg');
-      frame.replaceChildren(renderEventCard({ title: pt, description: pd, imageUrl, eventAt: eventAt.value }));
+      frame.replaceChildren(renderEventCard({ title: pt, description: pd, imageUrl, eventAt: eventAt.value }, en ? 'en' : 'bg'));
     }
     const drawDebounced = debounce(drawPreview, 120);
     function refreshD() { drawDebounced(); refresh(); }

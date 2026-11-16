@@ -1,12 +1,13 @@
 // Pure DOM builders shared by the public pages (and importable by the admin previews).
 // All API text is set via textContent; line breaks are preserved by CSS (white-space: pre-line).
 import { el, icon } from './dom.js';
-import { t } from './i18n.js';
+import { t as tr, getLang } from './i18n.js';
 import { formatDateTime, formatPrice } from './format.js';
 import { openLightbox } from './lightbox.js';
 
-/** Event card (DESIGN A4). ev: { title, description, imageUrl, eventAt } */
-export function renderEventCard(ev) {
+/** Event card (DESIGN A4). ev: { title, description, imageUrl, eventAt }. lang defaults to the page language. */
+export function renderEventCard(ev, lang = getLang()) {
+  const t = (k, v) => tr(k, v, lang);
   const card = el('article', 'event-card' + (ev.imageUrl ? ' has-image' : ''));
   if (ev.imageUrl) {
     const media = el('div', 'event-media');
@@ -25,12 +26,12 @@ export function renderEventCard(ev) {
   const body = el('div', 'event-body');
   body.append(el('span', 'event-tag', t('event.tag')));
   body.append(el('h3', 'event-title', ev.title));
-  const when = ev.eventAt ? formatDateTime(ev.eventAt) : '';
+  const when = ev.eventAt ? formatDateTime(ev.eventAt, lang) : '';
   if (when) {
     const p = el('p', 'event-date');
-    const t = el('time', '', when);
-    t.dateTime = ev.eventAt;
-    p.append(t);
+    const tm = el('time', '', when);
+    tm.dateTime = ev.eventAt;
+    p.append(tm);
     body.append(p);
   }
   if (ev.description && ev.description.trim()) body.append(el('p', 'event-desc', ev.description));
@@ -39,12 +40,13 @@ export function renderEventCard(ev) {
 }
 
 /** Dish list item (DESIGN A6) */
-export function renderDish(item, symbol) {
+export function renderDish(item, symbol, lang = getLang()) {
+  const t = (k, v) => tr(k, v, lang);
   const li = el('li', 'dish' + (item.available ? '' : ' is-unavail'));
   const top = el('div', 'dish-top');
   top.append(el('span', 'dish-name', item.name));
   if (!item.available) top.append(el('span', 'tag-unavail', t('menu.unavail')));
-  const price = formatPrice(item.priceCents, symbol);
+  const price = formatPrice(item.priceCents, symbol, lang);
   if (price) {
     top.append(el('span', 'dish-leader'));
     top.append(el('span', 'dish-price', price));
@@ -55,7 +57,7 @@ export function renderDish(item, symbol) {
 }
 
 /** Structured menu: returns { nav (or null), cats }. Category ids are prefixed with idPrefix. */
-export function renderStructuredMenu(structured, symbol, idPrefix = 'cat-') {
+export function renderStructuredMenu(structured, symbol, idPrefix = 'cat-', lang = getLang()) {
   const cats = el('div', 'menu-cats');
   const categories = structured.categories || [];
   for (const c of categories) {
@@ -66,14 +68,14 @@ export function renderStructuredMenu(structured, symbol, idPrefix = 'cat-') {
     sec.setAttribute('aria-labelledby', h.id);
     sec.append(h);
     const ul = el('ul', 'dish-list');
-    for (const it of c.items || []) ul.append(renderDish(it, symbol));
+    for (const it of c.items || []) ul.append(renderDish(it, symbol, lang));
     sec.append(ul);
     cats.append(sec);
   }
   let nav = null;
   if (categories.length >= 2) {
     nav = el('nav', 'cat-nav');
-    nav.setAttribute('aria-label', t('menu.categories'));
+    nav.setAttribute('aria-label', tr('menu.categories', undefined, lang));
     for (const c of categories) {
       const a = el('a', '', c.name);
       a.href = '#' + idPrefix + c.id;
@@ -105,6 +107,7 @@ export function observeCategories(nav, cats) {
  * opts: { frameClass: 'paper'|'menu-file', imageAlt, zoomLabel, pdf: { open, openEn, download } , image: { open, download } }
  */
 export function renderFileViewer(file, opts) {
+  const t = (k, v) => tr(k, v);
   const isPdf = file.kind === 'pdf';
   const wrap = el('div', 'viewer ' + (isPdf ? 'viewer-pdf' : 'viewer-image'));
   const frame = el('div', 'viewer-frame ' + opts.frameClass);

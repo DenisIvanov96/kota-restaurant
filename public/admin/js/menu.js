@@ -276,7 +276,7 @@ export function menuView() {
         seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
       } }));
     }
-    const draw = (l) => { frame.setAttribute('lang', l); frame.replaceChildren(renderMenuPreview(model(l === 'en'), symbol())); };
+    const draw = (l) => { frame.setAttribute('lang', l); frame.replaceChildren(renderMenuPreview(model(l === 'en'), symbol(), l)); };
     draw('bg');
     const langSeg = langToggle(draw);
     modal({ title: 'Преглед за клиенти', wide: true, body: [alertBox('info', `Това е преглед на чернова.${isDirty() ? ' Съдържа незапазени промени.' : ''}`), seg, langSeg, previewScroller(frame)], buttons: [{ label: 'Затвори', focus: true }] });

@@ -12,34 +12,34 @@ function parts(str) {
   return { y, mo, d, h: m[4] === undefined ? null : +m[4], mi: m[5] === undefined ? null : +m[5] };
 }
 
-function weekday(p) {
-  return DATE_NAMES[getLang()].weekdays[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
+function weekday(p, lang) {
+  return DATE_NAMES[lang].weekdays[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
 }
 
 /** 'YYYY-MM-DD' -> 'понеделник, 16 ноември 2026' / 'Monday, 16 November 2026' ('' if invalid) */
-export function formatDateLong(str) {
+export function formatDateLong(str, lang = getLang()) {
   const p = parts(str);
-  return p ? `${weekday(p)}, ${p.d} ${DATE_NAMES[getLang()].months[p.mo - 1]} ${p.y}` : '';
+  return p ? `${weekday(p, lang)}, ${p.d} ${DATE_NAMES[lang].months[p.mo - 1]} ${p.y}` : '';
 }
 
 /** Same, first letter uppercase: 'Понеделник, 16 ноември 2026' */
-export function formatDateLongCap(str) {
-  const s = formatDateLong(str);
+export function formatDateLongCap(str, lang = getLang()) {
+  const s = formatDateLong(str, lang);
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
 
 /** 'YYYY-MM-DDTHH:mm' -> 'петък, 20 ноември 2026, 20:00' (date only if no time part) */
-export function formatDateTime(str) {
+export function formatDateTime(str, lang = getLang()) {
   const p = parts(str);
   if (!p) return '';
-  const base = formatDateLong(str);
+  const base = formatDateLong(str, lang);
   return p.h === null ? base : `${base}, ${pad(p.h)}:${pad(p.mi)}`;
 }
 
 /** priceCents + symbol -> BG '12,50 €' (NBSP) / EN '€12.50'; '' when 0/invalid */
-export function formatPrice(cents, symbol) {
+export function formatPrice(cents, symbol, lang = getLang()) {
   if (!Number.isInteger(cents) || cents <= 0) return '';
-  const en = getLang() === 'en';
+  const en = lang === 'en';
   const whole = String(Math.floor(cents / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, en ? ',' : ' ');
   const text = `${whole}${en ? '.' : ','}${pad(cents % 100)}`;
   if (!symbol) return text;

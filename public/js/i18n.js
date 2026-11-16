@@ -168,8 +168,9 @@ export function getLang() {
   return current;
 }
 
-export function t(key, vars) {
-  let s = STRINGS[getLang()][key];
+export function t(key, vars, lang) {
+  const L = lang === 'bg' || lang === 'en' ? lang : getLang();
+  let s = STRINGS[L][key];
   if (s === undefined) s = STRINGS.bg[key] !== undefined ? STRINGS.bg[key] : key;
   if (vars) for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(vars[k]);
   return s;

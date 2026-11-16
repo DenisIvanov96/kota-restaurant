@@ -8,13 +8,13 @@ export function previewScroller(frame) {
   return s;
 }
 
-export function renderEventCard({ title, description, imageUrl, eventAt }) {
-  const card = publicEventCard({ title: title || 'Заглавие на събитието', description, imageUrl, eventAt });
+export function renderEventCard({ title, description, imageUrl, eventAt }, lang = 'bg') {
+  const card = publicEventCard({ title: title || (lang === 'en' ? 'Event title' : 'Заглавие на събитието'), description, imageUrl, eventAt }, lang);
   if (!title) card.classList.add('is-placeholder');
   return card;
 }
 
-export function renderMenuPreview(categories, symbol) {
+export function renderMenuPreview(categories, symbol, lang = 'bg') {
   const root = h('div', { class: 'menu-preview' });
   if (!categories.length) {
     root.append(h('div', { class: 'state-box' }, h('p', { text: 'Менюто е празно.' })));
@@ -26,7 +26,7 @@ export function renderMenuPreview(categories, symbol) {
       items: c.items.map((it) => ({ ...it, name: it.name || 'Без име' })),
     })),
   };
-  const { nav, cats } = renderStructuredMenu(structured, symbol, 'adm-prev-');
+  const { nav, cats } = renderStructuredMenu(structured, symbol, 'adm-prev-', lang);
   if (nav) root.append(nav);
   root.append(cats);
   return root;
