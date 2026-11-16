@@ -28,3 +28,5 @@
 | D-24 | 2026-11-16 | Admin sticky action bar: buttons side by side on mobile | BUG-D5: bar took 22% of a phone screen | PM |
 | D-25 | 2026-11-16 | Admin previews use container queries (frame width), not viewport | BUG-D2: previews were wrong on desktop | PM |
 | D-26 | 2026-11-16 | Mobile nav panel omits "Обедно меню" (pill always visible) — accepted | BUG-D6 part 1 | PM |
+| D-27 | 2026-11-16 | Public site gets a БГ / EN language switch covering UI text and content; content has optional English fields with Bulgarian fallback; admin stays Bulgarian | User request after preview ("Everything", "Admin stays Bulgarian") | User |
+| D-28 | 2026-11-16 | Language fallback resolved server-side via `?lang=`; choice persisted in URL + localStorage | Keeps public JS simple; shareable English links | PM |

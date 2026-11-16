@@ -107,5 +107,15 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Depends on: T-11, T-12
 - Status: in-progress
 
+## Milestone 2 — БГ / EN language switch (D-27)
+### T-14: Backend i18n — migration 002, `*En` fields, `?lang=` on public API
+- Agent: backend-developer (worktree) · Status: in-progress
+### T-15: Public site i18n — switch, dictionary, EN rendering
+- Agent: frontend-developer (worktree) · Depends on: contract in ARCHITECTURE.md · Status: in-progress
+### T-16: Admin English input fields (events, menu, settings)
+- Agent: frontend-developer (worktree) · Depends on: contract · Status: in-progress
+### T-17: QA targeted i18n tests + full regression before release
+- Agent: qa-security-engineer · Depends on: T-13, T-14..T-16 · Status: todo
+
 ## Future
 - Table management / Маси — see `docs/FUTURE-TABLES.md` (not started).

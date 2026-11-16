@@ -182,3 +182,23 @@ Daily menu object: `{ id, date, fileUrl, mimeType, kind, originalName, sizeBytes
 - Usernames: case-insensitive, 3–50 chars `[A-Za-z0-9._-]`.
 - Unknown routes return the JSON 404 (no HTML 404 page yet). Static files: `Cache-Control: no-cache`.
 - Test helpers for QA: `server/test/helpers.js` → `startApp({ iso, trustProxy })`, `loggedIn`, `formData`.
+
+## Bilingual public site — БГ / EN (D-27, added after user request)
+Public site has a БГ / EN switch; **admin stays Bulgarian only**. Everything public switches: UI strings AND restaurant content. Content has optional English fields; **an empty English field falls back to the Bulgarian text**.
+
+### Language selection (frontend)
+- Default `bg`. Choice comes from, in order: URL query `?lang=en|bg` → `localStorage['kota_lang']` → `bg`.
+- Switching: two buttons "БГ" and "EN" in the top-right of the header on every public page (`aria-pressed` on the active one, `lang` attribute on each button). Click → set `localStorage`, update URL with `history.replaceState` (`?lang=en`, no param for bg), re-render text in place (no full reload needed, reload acceptable), set `<html lang>`, update `<title>` and meta description. Internal links (`/`, `/daily-menu`) keep the `?lang=en` param.
+- All UI strings come from one dictionary module (`public/js/i18n.js`: `{ bg: {...}, en: {...} }`), no hard-coded visible text in HTML except a BG fallback. Dates: Bulgarian vs English long format (e.g. "Friday, 20 November 2026, 20:00"); prices keep `12,50 €` in BG and `€12.50` in EN.
+- In EN mode the old "Bulgarian / English" double labels become single English labels (and vice versa for BG) — no more mixed "Меню / Menu" headings.
+
+### Data model (migration `002_i18n.sql`)
+Add nullable TEXT columns: `events.title_en`, `events.description_en`, `menu_categories.name_en`, `menu_items.name_en`, `menu_items.description_en`. Settings keys: `address_en`, `opening_hours_en`. Published menu snapshots include the `*En` fields; older snapshots without them simply fall back.
+
+### API changes
+- **Public endpoints accept `?lang=bg|en`** (default `bg`, anything else → 400 `validation`). The server resolves fallback: with `lang=en`, `title` = `title_en` if non-empty else `title`, same for every translated field. Response shapes are unchanged, plus a top-level `"lang"` field. Affects `GET /api/public/site`, `/events`, `/menu`. `/daily-menu` accepts `lang` too (no text fields; returns `lang`).
+- **Admin endpoints carry both languages:**
+  - Event object + POST/PUT multipart fields: `titleEn` (0–120), `descriptionEn` (0–2000).
+  - Draft menu: category `nameEn` (0–100), item `nameEn` (0–100), `descriptionEn` (0–500); `GET /api/admin/menu` returns them in `draft` and `published`. `hasUnpublishedChanges` must consider them.
+  - Settings: `addressEn` (≤200), `openingHoursEn` (≤500).
+  - Same validation rules as the BG fields (CRLF normalised, trimmed, plain text). English fields are always optional.
