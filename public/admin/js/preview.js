@@ -2,6 +2,12 @@
 import { h } from './util.js';
 import { renderEventCard as publicEventCard, renderStructuredMenu } from '/js/render.js';
 
+export function previewScroller(frame) {
+  const s = h('div', { class: 'preview-scroll', role: 'region', 'aria-label': 'Преглед (може да се превърта хоризонтално)', tabindex: '0' });
+  s.append(frame);
+  return s;
+}
+
 export function renderEventCard({ title, description, imageUrl, eventAt }) {
   const card = publicEventCard({ title: title || 'Заглавие на събитието', description, imageUrl, eventAt });
   if (!title) card.classList.add('is-placeholder');

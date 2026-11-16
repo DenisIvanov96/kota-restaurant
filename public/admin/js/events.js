@@ -1,7 +1,7 @@
 import { h, icon, clear, formatDateTime, debounce } from './util.js';
 import { get, post, put, patch, del, upload } from './api.js';
 import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, setBusy } from './ui.js';
-import { renderEventCard } from './preview.js';
+import { renderEventCard, previewScroller } from './preview.js';
 
 const STATUS = {
   active: ['Активно', 'ok'], scheduled: ['Предстоящо', 'info'], disabled: ['Изключено', 'neutral'], expired: ['Изтекло', 'warn'],
@@ -77,8 +77,9 @@ export function eventsView() {
       },
     });
     const swWrap = h('div', { class: 'a-event__sw' }, sw);
-    if (ev.status === 'expired') swWrap.append(h('p', { class: 'a-warn-text', text: 'Изтекъл срок — променете „Скрий след“, за да се покаже отново.' }));
-    if (ev.status === 'scheduled' && ev.startsAt) swWrap.append(h('p', { class: 'a-help', text: `Ще се покаже от ${formatDateTime(ev.startsAt)}.` }));
+    const note = h('div', { class: 'a-event__note' });
+    if (ev.status === 'expired') note.append(h('p', { class: 'a-warn-text', text: 'Изтекъл срок — променете „Скрий след“, за да се покаже отново.' }));
+    if (ev.status === 'scheduled' && ev.startsAt) note.append(h('p', { class: 'a-help', text: `Ще се покаже от ${formatDateTime(ev.startsAt)}.` }));
     const info = h('div', { class: 'a-event__info' },
       h('h2', { class: 'a-event__title', text: ev.title }), statusBadge(ev.status),
       h('p', { class: 'a-help', text: ev.eventAt ? `Събитие: ${formatDateTime(ev.eventAt)}` : 'Без дата на събитието' }),
@@ -88,7 +89,7 @@ export function eventsView() {
       btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий „${ev.title}“`, onClick: async () => {
         if (await deleteEvent(ev)) { toast('Събитието е изтрито.'); events = events.filter((x) => x.id !== ev.id); render(); }
       } }));
-    return h('article', { class: `a-card a-event${ev.status === 'expired' ? ' is-expired' : ''}`, role: 'listitem' }, thumb, info, swWrap, actions);
+    return h('article', { class: `a-card a-event${ev.status === 'expired' ? ' is-expired' : ''}`, role: 'listitem' }, thumb, info, swWrap, actions, note);
   }
 
   load();
@@ -176,7 +177,7 @@ export function eventFormView(ctx) {
         previewSeg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
       } }));
     }
-    const previewCard = h('section', { class: 'a-card a-previewcard' }, h('h2', { text: 'Така ще изглежда на сайта' }), previewSeg, frame,
+    const previewCard = h('section', { class: 'a-card a-previewcard' }, h('h2', { text: 'Така ще изглежда на сайта' }), previewSeg, previewScroller(frame),
       h('p', { class: 'a-help', text: 'Дали е видимо сега зависи от превключвателя и датите.' }));
     let blobKey = null;
     function drawPreview() {
@@ -217,7 +218,7 @@ export function eventFormView(ctx) {
     const form = h('form', { novalidate: true, class: 'a-card a-formcard' },
       h('p', { class: 'a-help', text: '* задължително' }), summary.el,
       title.el, desc.el, imgBlock, eventAt.el, startsAt.el, expiresAt.el,
-      h('p', { class: 'a-help', text: 'Всички часове са по българско време.' }), warnBox,
+      h('p', { class: 'a-help a-tznote', text: 'Всички часове са по българско време.' }), warnBox,
       h('div', { class: 'a-field' }, h('span', { class: 'a-label', text: 'Включено' }), enabledSw, h('p', { class: 'a-help', text: 'Когато е изключено, събитието не се показва на сайта, независимо от датите.' })),
       ev && h('div', { class: 'a-actions' }, btn({ label: 'Изтрий събитието', variant: 'ghost-danger', icon: 'trash', onClick: async () => {
         if (await deleteEvent(ev)) { saved = true; toast('Събитието е изтрито.'); location.hash = '#/events'; }

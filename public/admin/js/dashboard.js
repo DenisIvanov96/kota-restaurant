@@ -61,8 +61,8 @@ export function dashboardView(ctx) {
     const evCard = h('section', { class: 'a-card a-dash-card' }, h('h2', { text: 'Събитие' }));
     if (ev.active > 0) {
       evCard.append(h('p', null, badge('Активно', 'ok')));
-      const ul = h('ul', { class: 'a-plain' });
-      (ev.activeTitles || []).slice(0, 3).forEach((t) => ul.append(h('li', null, h('strong', { text: t }))));
+      const ul = h('ul', { class: 'a-titles' });
+      (ev.activeTitles || []).slice(0, 3).forEach((t) => ul.append(h('li', { text: t })));
       if (ev.activeTitles.length > 3) ul.append(h('li', { class: 'a-muted', text: `+ още ${ev.activeTitles.length - 3}` }));
       evCard.append(ul);
     } else evCard.append(h('p', null, badge('Няма активно събитие', 'neutral')));
