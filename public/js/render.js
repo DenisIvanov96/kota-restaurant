@@ -1,6 +1,7 @@
 // Pure DOM builders shared by the public pages (and importable by the admin previews).
 // All API text is set via textContent; line breaks are preserved by CSS (white-space: pre-line).
-import { el, icon, bilingual } from './dom.js';
+import { el, icon } from './dom.js';
+import { t } from './i18n.js';
 import { formatDateTime, formatPrice } from './format.js';
 import { openLightbox } from './lightbox.js';
 
@@ -11,7 +12,7 @@ export function renderEventCard(ev) {
     const media = el('div', 'event-media');
     const btn = el('button', 'zoom-btn');
     btn.type = 'button';
-    btn.setAttribute('aria-label', 'Увеличи снимката: ' + ev.title);
+    btn.setAttribute('aria-label', t('event.zoom', { title: ev.title }));
     const img = el('img');
     img.src = ev.imageUrl;
     img.alt = ev.title;
@@ -22,7 +23,7 @@ export function renderEventCard(ev) {
     card.append(media);
   }
   const body = el('div', 'event-body');
-  body.append(el('span', 'event-tag', 'Събитие'));
+  body.append(el('span', 'event-tag', t('event.tag')));
   body.append(el('h3', 'event-title', ev.title));
   const when = ev.eventAt ? formatDateTime(ev.eventAt) : '';
   if (when) {
@@ -42,7 +43,7 @@ export function renderDish(item, symbol) {
   const li = el('li', 'dish' + (item.available ? '' : ' is-unavail'));
   const top = el('div', 'dish-top');
   top.append(el('span', 'dish-name', item.name));
-  if (!item.available) top.append(el('span', 'tag-unavail', 'Няма в наличност'));
+  if (!item.available) top.append(el('span', 'tag-unavail', t('menu.unavail')));
   const price = formatPrice(item.priceCents, symbol);
   if (price) {
     top.append(el('span', 'dish-leader'));
@@ -72,7 +73,7 @@ export function renderStructuredMenu(structured, symbol, idPrefix = 'cat-') {
   let nav = null;
   if (categories.length >= 2) {
     nav = el('nav', 'cat-nav');
-    nav.setAttribute('aria-label', 'Категории');
+    nav.setAttribute('aria-label', t('menu.categories'));
     for (const c of categories) {
       const a = el('a', '', c.name);
       a.href = '#' + idPrefix + c.id;
@@ -113,8 +114,8 @@ export function renderFileViewer(file, opts) {
     const card = () => {
       const c = el('div', 'pdf-card');
       c.append(icon('file-pdf'));
-      c.append(el('p', '', 'Менюто е във формат PDF.'));
-      c.append(el('p', 'pdf-sub', 'Натиснете „' + opts.pdf.openShort + '“, за да го прочетете на целия екран.'));
+      c.append(el('p', '', t('pdf.card')));
+      c.append(el('p', 'pdf-sub', t('pdf.cardBody', { open: opts.pdf.openShort })));
       return c;
     };
     const canEmbed = navigator.pdfViewerEnabled === true && window.matchMedia('(min-width: 768px)').matches;
@@ -130,7 +131,7 @@ export function renderFileViewer(file, opts) {
     }
     const open = el('a', 'btn');
     open.href = file.fileUrl; open.target = '_blank'; open.rel = 'noopener';
-    bilingual(open, opts.pdf.open, opts.pdf.openEn);
+    open.textContent = opts.pdf.open;
     const dl = el('a', 'btn btn-ghost-dark', opts.pdf.download);
     dl.href = file.fileUrl; dl.setAttribute('download', '');
     actions.append(open, dl);
@@ -141,12 +142,12 @@ export function renderFileViewer(file, opts) {
     const img = el('img');
     img.src = file.fileUrl;
     img.alt = opts.imageAlt;
-    btn.append(img, el('span', 'zoom-hint', 'Докосни за увеличение'));
+    btn.append(img, el('span', 'zoom-hint', t('zoom.hint')));
     btn.addEventListener('click', () => openLightbox(file.fileUrl, opts.imageAlt, btn));
     frame.append(btn);
-    const open = el('a', 'btn btn-ghost-dark', 'Отвори в нов раздел');
+    const open = el('a', 'btn btn-ghost-dark', t('file.openTab'));
     open.href = file.fileUrl; open.target = '_blank'; open.rel = 'noopener';
-    const dl = el('a', 'btn btn-ghost-dark', 'Изтегли');
+    const dl = el('a', 'btn btn-ghost-dark', t('file.download'));
     dl.href = file.fileUrl; dl.setAttribute('download', '');
     actions.append(open, dl);
   }

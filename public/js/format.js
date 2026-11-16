@@ -1,6 +1,5 @@
-// Bulgarian date / price formatting. No Intl, no Date objects in the browser time zone.
-export const WEEKDAYS = ['неделя', 'понеделник', 'вторник', 'сряда', 'четвъртък', 'петък', 'събота'];
-export const MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+// Bulgarian / English date and price formatting. No Intl, no Date objects in the browser time zone.
+import { getLang, DATE_NAMES } from './i18n.js';
 
 const RE = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/;
 const pad = (n) => String(n).padStart(2, '0');
@@ -14,13 +13,13 @@ function parts(str) {
 }
 
 function weekday(p) {
-  return WEEKDAYS[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
+  return DATE_NAMES[getLang()].weekdays[new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()];
 }
 
-/** 'YYYY-MM-DD' -> 'понеделник, 16 ноември 2026' ('' if invalid) */
+/** 'YYYY-MM-DD' -> 'понеделник, 16 ноември 2026' / 'Monday, 16 November 2026' ('' if invalid) */
 export function formatDateLong(str) {
   const p = parts(str);
-  return p ? `${weekday(p)}, ${p.d} ${MONTHS[p.mo - 1]} ${p.y}` : '';
+  return p ? `${weekday(p)}, ${p.d} ${DATE_NAMES[getLang()].months[p.mo - 1]} ${p.y}` : '';
 }
 
 /** Same, first letter uppercase: 'Понеделник, 16 ноември 2026' */
@@ -37,12 +36,14 @@ export function formatDateTime(str) {
   return p.h === null ? base : `${base}, ${pad(p.h)}:${pad(p.mi)}`;
 }
 
-/** priceCents + symbol -> '12,50 €' (NBSP before symbol and as thousands separator); '' when 0/invalid */
+/** priceCents + symbol -> BG '12,50 €' (NBSP) / EN '€12.50'; '' when 0/invalid */
 export function formatPrice(cents, symbol) {
   if (!Number.isInteger(cents) || cents <= 0) return '';
-  const whole = String(Math.floor(cents / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  const text = `${whole},${pad(cents % 100)}`;
-  return symbol ? `${text} ${symbol}` : text;
+  const en = getLang() === 'en';
+  const whole = String(Math.floor(cents / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, en ? ',' : ' ');
+  const text = `${whole}${en ? '.' : ','}${pad(cents % 100)}`;
+  if (!symbol) return text;
+  return en ? `${symbol}${text}` : `${text} ${symbol}`;
 }
 
 /** Phone as stored -> tel: href with spaces, brackets and dashes stripped */

@@ -1,12 +1,14 @@
 // Shared by all public pages: skip link target, nav, top bar, site info.
 import { getJSON } from './dom.js';
 import { telHref } from './format.js';
+import { getLang, apiUrl } from './i18n.js';
 
-let sitePromise;
-/** Resolves to the /api/public/site object, or null when it cannot be loaded. */
+const sitePromises = {};
+/** Resolves to the /api/public/site object in the current language, or null when it cannot be loaded. */
 export function loadSite() {
-  if (!sitePromise) sitePromise = getJSON('/api/public/site').catch(() => null);
-  return sitePromise;
+  const lang = getLang();
+  if (!sitePromises[lang]) sitePromises[lang] = getJSON(apiUrl('/api/public/site')).catch(() => { delete sitePromises[lang]; return null; });
+  return sitePromises[lang];
 }
 
 export function initNav() {

@@ -12,26 +12,30 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/components.css">
 </head>
-<body>
-  <a class="skip-link" href="#main">Към съдържанието</a>
+<body data-page="index">
+  <a class="skip-link" href="#main" data-i18n="skip">Към съдържанието</a>
 
-  <div class="top-bar" id="top-bar" hidden>Резервации: <a id="top-phone" href="tel:"></a></div>
+  <div class="top-bar" id="top-bar" hidden><span data-i18n="topbar.label">Резервации:</span> <a id="top-phone" href="tel:"></a></div>
 
   <header class="site-header">
     <div class="header-inner">
-      <a href="/" class="logo" aria-label="Kota1 — начало"><span class="kota">KOTA</span><span class="one">1</span></a>
-      <a href="/daily-menu" class="btn-special-sm">Обедно меню</a>
-      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Навигация">
+      <a href="/" class="logo" aria-label="Kota1 — начало" data-i18n-aria="logo.aria"><span class="kota">KOTA</span><span class="one">1</span></a>
+      <a href="/daily-menu" class="btn-special-sm" data-i18n="nav.daily">Обедно меню</a>
+      <div class="lang-switch" role="group" aria-label="Език" data-i18n-aria="lang.group">
+        <button type="button" class="lang-btn" data-lang="bg" lang="bg" aria-pressed="true">БГ</button>
+        <button type="button" class="lang-btn" data-lang="en" lang="en" aria-pressed="false">EN</button>
+      </div>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Навигация" data-i18n-aria="nav.toggle">
         <svg class="icon-menu" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         <svg class="icon-x" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
-    <nav class="site-nav" id="site-nav" aria-label="Основна навигация">
+    <nav class="site-nav" id="site-nav" aria-label="Основна навигация" data-i18n-aria="nav.aria">
       <ul>
-        <li><a href="/#menu">Меню</a></li>
-        <li class="nav-daily"><a href="/daily-menu">Обедно меню</a></li>
-        <li id="nav-event" hidden><a href="/#event">Събитие</a></li>
-        <li><a href="/#about">За нас</a></li>
-        <li id="nav-contact"><a href="/#contact">Контакти</a></li>
+        <li><a href="/#menu" data-i18n="nav.menu">Меню</a></li>
+        <li class="nav-daily"><a href="/daily-menu" data-i18n="nav.daily">Обедно меню</a></li>
+        <li id="nav-event" hidden><a href="/#event" data-i18n="nav.event">Събитие</a></li>
+        <li><a href="/#about" data-i18n="nav.about">За нас</a></li>
+        <li id="nav-contact"><a href="/#contact" data-i18n="nav.contact">Контакти</a></li>
       </ul>
     </nav>
     </div>
@@ -40,28 +44,28 @@
   <main id="main" tabindex="-1">
     <section class="hero">
       <h1 class="sign" aria-label="Kota1"><span class="kota">KOTA</span><span class="one">1</span></h1>
-      <p class="tagline">Restaurant</p>
-      <p class="lead">Fresh food, warm welcome.</p>
+      <p class="tagline" data-i18n="hero.tagline">Ресторант</p>
+      <p class="lead" data-i18n="hero.lead">Прясна храна, топло посрещане.</p>
       <div class="hero-actions">
-        <a href="/daily-menu" class="btn btn-special">Обедно меню <span class="en" lang="en">Daily Special</span></a>
-        <a href="#contact" class="btn" id="hero-book">Резервирай маса</a>
+        <a href="/daily-menu" class="btn btn-special" data-i18n="hero.daily">Обедно меню</a>
+        <a href="#contact" class="btn" id="hero-book" data-i18n="hero.book">Резервирай маса</a>
       </div>
     </section>
 
     <section id="menu" class="section menu-section" aria-labelledby="menu-heading">
-      <h2 id="menu-heading">Меню <span class="en" lang="en">/ Menu</span></h2>
+      <h2 id="menu-heading" data-i18n="menu.heading">Меню</h2>
       <div id="menu-content" class="menu-state"></div>
     </section>
 
     <section id="about" class="section about" aria-labelledby="about-heading">
-      <h2 id="about-heading">За нас</h2>
-      <p>Прясна храна и топло посрещане.</p>
+      <h2 id="about-heading" data-i18n="about.heading">За нас</h2>
+      <p data-i18n="about.text">Прясна храна и топло посрещане.</p>
     </section>
 
     <section id="contact" class="section" aria-labelledby="contact-heading" hidden>
-      <h2 id="contact-heading">Контакти</h2>
+      <h2 id="contact-heading" data-i18n="contact.heading">Контакти</h2>
       <dl class="contact-list" id="contact-list"></dl>
-      <div class="contact-actions"><a class="btn" id="contact-call" href="tel:" hidden>Резервирай маса</a></div>
+      <div class="contact-actions"><a class="btn" id="contact-call" href="tel:" hidden data-i18n="hero.book">Резервирай маса</a></div>
     </section>
   </main>
 

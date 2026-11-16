@@ -1,19 +1,21 @@
 import { el, icon } from './dom.js';
+import { t } from './i18n.js';
 
-let dlg, scroll, img, zoomBtn, lastTrigger;
+let dlg, scroll, img, zoomBtn, closeBtn, closeText, lastTrigger;
 
 function build() {
   dlg = el('dialog', 'lightbox');
-  dlg.setAttribute('aria-label', 'Увеличена снимка');
+
   const bar = el('div', 'lb-bar');
-  zoomBtn = el('button', 'lb-btn', 'Увеличи');
+  zoomBtn = el('button', 'lb-btn');
   zoomBtn.type = 'button';
   zoomBtn.setAttribute('aria-pressed', 'false');
-  const close = el('button', 'lb-btn');
+  const close = closeBtn = el('button', 'lb-btn');
   close.type = 'button';
-  close.setAttribute('aria-label', 'Затвори');
+
   close.append(icon('x'));
-  close.append(el('span', 'visually-hidden', 'Затвори'));
+  closeText = el('span', 'visually-hidden');
+  close.append(closeText);
   bar.append(zoomBtn, close);
   scroll = el('div', 'lb-scroll');
   img = el('img', 'lb-img');
@@ -23,7 +25,7 @@ function build() {
 
   zoomBtn.addEventListener('click', () => {
     const zoomed = scroll.classList.toggle('is-zoomed');
-    zoomBtn.textContent = zoomed ? 'Намали' : 'Увеличи';
+    zoomBtn.textContent = zoomed ? t('lb.zoomOut') : t('lb.zoomIn');
     zoomBtn.setAttribute('aria-pressed', String(zoomed));
   });
   close.addEventListener('click', () => dlg.close());
@@ -39,7 +41,10 @@ export function openLightbox(src, alt, trigger) {
   if (!dlg) build();
   lastTrigger = trigger || document.activeElement;
   scroll.classList.remove('is-zoomed');
-  zoomBtn.textContent = 'Увеличи';
+  zoomBtn.textContent = t('lb.zoomIn');
+  dlg.setAttribute('aria-label', t('lb.aria'));
+  closeBtn.setAttribute('aria-label', t('lb.close'));
+  closeText.textContent = t('lb.close');
   zoomBtn.setAttribute('aria-pressed', 'false');
   img.alt = alt || '';
   img.src = src;
