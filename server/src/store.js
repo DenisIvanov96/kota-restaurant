@@ -17,8 +17,38 @@ export function siteSettings(db) {
     reservationPhone: getSetting(db, 'reservation_phone') ?? '',
     address: getSetting(db, 'address') ?? '',
     openingHours: getSetting(db, 'opening_hours') ?? '',
+    addressEn: getSetting(db, 'address_en') ?? '',
+    openingHoursEn: getSetting(db, 'opening_hours_en') ?? '',
     currencySymbol: getSetting(db, 'currency_symbol') ?? '€',
   };
+}
+
+// ----- languages (public site) -----
+export const LANGS = ['bg', 'en'];
+/** English text if non-empty (lang=en), otherwise the Bulgarian text. */
+export const pick = (lang, bg, en) => (lang === 'en' && typeof en === 'string' && en.trim() !== '' ? en : bg);
+
+/** Public (language-resolved) site settings; same shape as before. */
+export function publicSiteSettings(db, lang) {
+  const s = siteSettings(db);
+  return {
+    reservationPhone: s.reservationPhone,
+    address: pick(lang, s.address, s.addressEn),
+    openingHours: pick(lang, s.openingHours, s.openingHoursEn),
+    currencySymbol: s.currencySymbol,
+  };
+}
+
+/** Resolves a (draft or snapshot) category list to one language, dropping the *En fields. */
+export function resolveCategories(cats, lang) {
+  return cats.map((c) => ({
+    id: c.id,
+    name: pick(lang, c.name, c.nameEn),
+    items: c.items.map((i) => ({
+      id: i.id, name: pick(lang, i.name, i.nameEn), description: pick(lang, i.description, i.descriptionEn),
+      priceCents: i.priceCents, available: i.available,
+    })),
+  }));
 }
 
 // ----- events -----
@@ -34,13 +64,14 @@ export const today = (now) => sofiaDate(now);
 
 // ----- regular menu (draft + snapshots) -----
 export function readDraft(db) {
-  const cats = db.prepare('SELECT id, name FROM menu_categories ORDER BY position, id').all();
-  const items = db.prepare('SELECT id, category_id, name, description, price_cents, available FROM menu_items ORDER BY position, id').all();
+  const cats = db.prepare('SELECT id, name, name_en FROM menu_categories ORDER BY position, id').all();
+  const items = db.prepare('SELECT id, category_id, name, name_en, description, description_en, price_cents, available FROM menu_items ORDER BY position, id').all();
   return cats.map((c) => ({
     id: c.id,
     name: c.name,
+    nameEn: c.name_en ?? '',
     items: items.filter((i) => i.category_id === c.id).map((i) => ({
-      id: i.id, name: i.name, description: i.description, priceCents: i.price_cents, available: !!i.available,
+      id: i.id, name: i.name, nameEn: i.name_en ?? '', description: i.description, descriptionEn: i.description_en ?? '', priceCents: i.price_cents, available: !!i.available,
     })),
   }));
 }
@@ -51,7 +82,7 @@ export function latestSnapshot(db) {
   return { publishedAt: r.published_at, categories: JSON.parse(r.snapshot_json) };
 }
 
-const canon = (cats) => JSON.stringify(cats.map((c) => [c.name, c.items.map((i) => [i.name, i.description, i.priceCents, !!i.available])]));
+const canon = (cats) => JSON.stringify(cats.map((c) => [c.name, c.nameEn ?? '', c.items.map((i) => [i.name, i.nameEn ?? '', i.description, i.descriptionEn ?? '', i.priceCents, !!i.available])]));
 
 export function hasUnpublishedChanges(db) {
   const draft = readDraft(db);

@@ -183,14 +183,17 @@ test('no registration route; unknown api routes are JSON 404 without stack trace
 test('settings: validation and round trip, public site mirrors it', async () => {
   const s = await loggedIn();
   try {
-    assert.deepEqual((await s.api.get('/api/admin/settings')).data, { reservationPhone: '', address: '', openingHours: '', currencySymbol: '€' });
+    assert.deepEqual((await s.api.get('/api/admin/settings')).data, { reservationPhone: '', address: '', openingHours: '', addressEn: '', openingHoursEn: '', currencySymbol: '€' });
     const bad = await s.api.put('/api/admin/settings', { reservationPhone: 'call me <b>', address: 'x'.repeat(201), currencySymbol: '123456' });
     assert.equal(bad.status, 400);
     assert.deepEqual(Object.keys(bad.data.fields).sort(), ['address', 'currencySymbol', 'reservationPhone']);
     const ok = await s.api.put('/api/admin/settings', { reservationPhone: '+359 88 123-4567', address: 'ул. Тест 1', openingHours: 'Пон-Нед 10-22', currencySymbol: 'лв' });
     assert.equal(ok.status, 200);
     const pub = await s.client().get('/api/public/site');
-    assert.deepEqual(pub.data, ok.data);
+    const { addressEn, openingHoursEn, ...bgShape } = ok.data; // public site: resolved text + lang, no *En fields
+    assert.deepEqual(pub.data, { lang: 'bg', ...bgShape });
+    assert.equal(addressEn, '');
+    assert.equal(openingHoursEn, '');
     assert.equal(pub.data.reservationPhone, '+359 88 123-4567');
   } finally { await s.close(); }
 });
