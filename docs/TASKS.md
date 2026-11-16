@@ -16,7 +16,7 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
   - AC2 Exact tokens, breakpoints and component specs; preserves current KOTA 1 identity
   - AC3 Accessibility notes incl. computed contrast for new colour pairs
   - AC4 Complete Bulgarian (+ English where public) label list
-- Status: todo
+- Status: in-progress
 - Deliverables: `docs/DESIGN.md`
 - Verification: PM review
 
@@ -31,7 +31,7 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
   - AC4 Upload validation by magic bytes + size limits; safe names; old files deleted
   - AC5 Data persists across restart; migrations idempotent
   - AC6 `npm test` passes, covering auth, authorisation of every admin route, time rules incl. DST, uploads
-- Status: todo
+- Status: in-progress
 - Deliverables: `package.json`, `package-lock.json`, `server/**`, `.env.example`
 - Verification: not yet verified
 
