@@ -165,3 +165,18 @@ Daily menu object: `{ id, date, fileUrl, mimeType, kind, originalName, sizeBytes
 - Size limits enforced while streaming (413). Stored as `<random 32 hex>.<ext>` in `DATA_DIR/uploads/`; original name kept only as metadata (sanitised, ≤ 200 chars).
 - Served with the stored MIME type, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline; filename="<safe name>"`.
 - Replaced/deleted files are removed from disk; failed uploads leave no orphan files.
+
+## Implementation notes from T-2 (binding for frontend and QA)
+- Stack as built: ESM (`"type": "module"`), Express 5, multer 2 (memory storage, validated before writing to disk).
+- **CSRF is checked before auth**: a non-GET `/api/admin/*` request without `X-Requested-With: kota-admin` gets **403 `csrf`** even when not logged in.
+- Error codes: `validation`, `unauthorized`, `csrf`, `not_found`, `date_exists`, `in_use`, `nothing_published`, `file_too_large` (413), `unsupported_type` (415), `rate_limited` (+ `Retry-After` header), `invalid_json`, `server_error`, `totp_already_enabled`, `totp_not_pending`, `totp_not_enabled` (409).
+- Login: wrong TOTP code → 401 `invalid_credentials`; correct password without code → 401 `totp_required` (not counted as a failure).
+- Re-auth inside a session (wrong `currentPassword`, wrong password/code for TOTP enable/disable) → **400 `validation` with `fields`**, never 401, so the UI must not treat it as logout.
+- `PUT /api/admin/events/:id` and `PUT /api/admin/daily-menus/:id` are **partial updates**: omitted fields keep their value; a date-time field sent as an empty string clears it. `enabled` defaults to `false` on create.
+- Draft menu: unknown or duplicate ids → 400; validation `fields` keys look like `categories[0].items[1].priceCents`.
+- Upload: file extension must match the sniffed type (`.jpg`/`.jpeg` both OK); declared MIME must match unless empty/`application/octet-stream`.
+- Public file-mode `publishedAt` = the file's upload time (no separate publish timestamp).
+- DST: a local time in the spring-forward gap moves forward 1 h (03:30 → 04:30); an autumn-overlap time resolves to the first (summer-time) occurrence.
+- Usernames: case-insensitive, 3–50 chars `[A-Za-z0-9._-]`.
+- Unknown routes return the JSON 404 (no HTML 404 page yet). Static files: `Cache-Control: no-cache`.
+- Test helpers for QA: `server/test/helpers.js` → `startApp({ iso, trustProxy })`, `loggedIn`, `formData`.

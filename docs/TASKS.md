@@ -31,9 +31,9 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
   - AC4 Upload validation by magic bytes + size limits; safe names; old files deleted
   - AC5 Data persists across restart; migrations idempotent
   - AC6 `npm test` passes, covering auth, authorisation of every admin route, time rules incl. DST, uploads
-- Status: in-progress
+- Status: done
 - Deliverables: `package.json`, `package-lock.json`, `server/**`, `.env.example`
-- Verification: not yet verified
+- Verification: backend's own `npm test` 32/32 pass, re-run by PM 32/32 pass. Independent QA pending (T-5). Unverified: TTY password prompt, production cookie flags via server.js, reverse proxy.
 
 ### T-3: Frontend — public site integration
 - Agent: frontend-developer
