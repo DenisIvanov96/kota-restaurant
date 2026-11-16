@@ -12,25 +12,29 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/components.css">
 </head>
-<body>
-  <a class="skip-link" href="#main">Към съдържанието</a>
+<body data-page="daily">
+  <a class="skip-link" href="#main" data-i18n="skip">Към съдържанието</a>
 
-  <div class="top-bar" id="top-bar" hidden>Резервации: <a id="top-phone" href="tel:"></a></div>
+  <div class="top-bar" id="top-bar" hidden><span data-i18n="topbar.label">Резервации:</span> <a id="top-phone" href="tel:"></a></div>
 
   <header class="site-header">
     <div class="header-inner">
-      <a href="/" class="logo" aria-label="Kota1 — начало"><span class="kota">KOTA</span><span class="one">1</span></a>
-      <a href="/daily-menu" class="btn-special-sm" aria-current="page">Обедно меню</a>
-      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Навигация">
+      <a href="/" class="logo" aria-label="Kota1 — начало" data-i18n-aria="logo.aria"><span class="kota">KOTA</span><span class="one">1</span></a>
+      <a href="/daily-menu" class="btn-special-sm" aria-current="page" data-i18n="nav.daily">Обедно меню</a>
+      <div class="lang-switch" role="group" aria-label="Език" data-i18n-aria="lang.group">
+        <button type="button" class="lang-btn" data-lang="bg" lang="bg" aria-pressed="true">БГ</button>
+        <button type="button" class="lang-btn" data-lang="en" lang="en" aria-pressed="false">EN</button>
+      </div>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Навигация" data-i18n-aria="nav.toggle">
         <svg class="icon-menu" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         <svg class="icon-x" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
-    <nav class="site-nav" id="site-nav" aria-label="Основна навигация">
+    <nav class="site-nav" id="site-nav" aria-label="Основна навигация" data-i18n-aria="nav.aria">
       <ul>
-        <li><a href="/#menu">Меню</a></li>
-        <li class="nav-daily"><a href="/daily-menu" aria-current="page">Обедно меню</a></li>
-        <li><a href="/#about">За нас</a></li>
-        <li id="nav-contact"><a href="/#contact">Контакти</a></li>
+        <li><a href="/#menu" data-i18n="nav.menu">Меню</a></li>
+        <li class="nav-daily"><a href="/daily-menu" aria-current="page" data-i18n="nav.daily">Обедно меню</a></li>
+        <li><a href="/#about" data-i18n="nav.about">За нас</a></li>
+        <li id="nav-contact"><a href="/#contact" data-i18n="nav.contact">Контакти</a></li>
       </ul>
     </nav>
     </div>
@@ -38,11 +42,11 @@
 
   <main id="main" tabindex="-1">
     <div class="page-band">
-      <h1 class="eyebrow">Обедно меню <span class="en" lang="en">/ Daily Special</span></h1>
+      <h1 class="eyebrow" data-i18n="daily.h1">Обедно меню</h1>
       <p class="daily-date" id="daily-date"></p>
-      <span class="event-tag" id="daily-tag" hidden>Само за днес</span>
+      <span class="event-tag" id="daily-tag" hidden data-i18n="daily.tag">Само за днес</span>
     </div>
-    <section class="section daily-main" aria-label="Меню за днес">
+    <section class="section daily-main" aria-label="Меню за днес" data-i18n-aria="daily.section">
       <div class="daily-view" id="daily-view"></div>
     </section>
   </main>

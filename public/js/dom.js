@@ -1,4 +1,6 @@
 // Small DOM helpers. Text always goes through textContent.
+import { langHref } from './i18n.js';
+
 export function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -39,20 +41,19 @@ export async function getJSON(url) {
 }
 
 /** Error / empty state box. actions: [{label, href?, onClick?, className?}] */
-export function stateBox({ title, en, body, role, isError, actions }) {
+export function stateBox({ title, body, role, isError, actions }) {
   const box = el('div', 'state-box');
   if (role) box.setAttribute('role', role);
   if (isError) box.append(icon('alert', 'state-icon'));
   const t = el('p', 'state-title');
   t.append(document.createTextNode(title));
-  if (en) { const s = el('span', 'en', en); s.lang = 'en'; t.append(s); }
   box.append(t);
   if (body) box.append(el('p', '', body));
   if (actions && actions.length) {
     const row = el('div', 'state-actions');
     for (const a of actions) {
       const node = el(a.href ? 'a' : 'button', a.className || 'btn', a.label);
-      if (a.href) node.href = a.href; else node.type = 'button';
+      if (a.href) node.href = langHref(a.href); else node.type = 'button';
       if (a.onClick) node.addEventListener('click', a.onClick);
       row.append(node);
     }
