@@ -148,18 +148,18 @@ test('persistence: data survives closing and reopening the database; migrations 
 test('CRLF normalised for dish description and settings (BUG-4)', async () => {
   const s = await loggedIn();
   try {
-    const d500 = Array(11).fill('x'.repeat(44)).join('\n').slice(0, 500);
+    const d500 = Array(12).fill('x'.repeat(44)).join('\n').slice(0, 500);
     assert.equal(d500.length, 500);
     const put = (desc) => s.api.put('/api/admin/menu/draft', { categories: [{ name: 'C\r\nD', items: [{ name: 'i', description: desc, priceCents: 1 }] }] });
     const ok = await put(d500.replace(/\n/g, '\r\n'));
     assert.equal(ok.status, 200);
-    const d = (await s.api.get('/api/admin/menu/draft')).data;
+    const d = ok.data;
     const cat = d.categories[0];
     assert.equal(cat.name, 'C\nD');
     assert.equal(cat.items[0].description, d500);
     assert.equal((await put((d500 + 'y').replace(/\n/g, '\r\n'))).status, 400);
 
-    const h500 = Array(11).fill('y'.repeat(44)).join('\n').slice(0, 500);
+    const h500 = Array(12).fill('y'.repeat(44)).join('\n').slice(0, 500);
     const st = await s.api.put('/api/admin/settings', { openingHours: h500.replace(/\n/g, '\r\n'), address: 'a\rb' });
     assert.equal(st.status, 200);
     assert.equal(st.data.openingHours, h500);
