@@ -6,3 +6,13 @@
 | D-2 | 2026-11-16 | Google Fonts (Oswald, Lato) | Closest free match to the KOTA 1 sign lettering | PM |
 | D-3 | 2026-11-16 | Hosting target GitHub Pages (pending user approval to enable) | Free, repo already on GitHub | PM |
 | D-4 | 2026-11-16 | PM runs as main session; 5 specialists as subagents | Claude Code subagents cannot spawn subagents | PM |
+| D-5 | 2026-11-16 | Add a Node.js (Express) server; the site is no longer purely static | Admin CMS needs server-side storage, auth and time-based publishing | PM |
+| D-6 | 2026-11-16 | SQLite via built-in `node:sqlite` + uploads on local disk (`DATA_DIR`) | Zero external services, no native build; single-restaurant traffic. Risk: `node:sqlite` is flagged experimental in Node 22 → pin Node ≥ 22.13 and cover with tests | PM |
+| D-7 | 2026-11-16 | Runtime deps limited to `express` + `multer`; scrypt/TOTP via Node `crypto` | Avoid unnecessary dependencies | PM |
+| D-8 | 2026-11-16 | Static site moved into `public/`; only that folder is served | Prevents exposing server code, DB and env files | PM |
+| D-9 | 2026-11-16 | API speaks Sofia-local date-time strings; server owns all timezone logic | Admin is in Bulgaria; avoids browser/DST bugs | PM |
+| D-10 | 2026-11-16 | Structured menu: editable draft tables + immutable published snapshots | Drafts never leak; published menu survives until replaced; history kept | PM |
+| D-11 | 2026-11-16 | Password recovery by server-side CLI reset; e-mail recovery deferred | No e-mail service configured; adding one needs credentials + user approval | PM |
+| D-12 | 2026-11-16 | Prices stored as integer cents; currency symbol is a setting (default `€`, Bulgaria uses the euro since 2026-01-01) | Exact money maths; easy to change | PM |
+| D-13 | 2026-11-16 | GitHub Pages can no longer host the site (needs a server). Hosting choice deferred to DevOps recommendation + user approval | Paid/external service changes need approval | PM |
+| D-14 | 2026-11-16 | Work on branch `feature/admin-cms`; `main` unchanged until the user approves | No production change without approval | PM |
