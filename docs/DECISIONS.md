@@ -20,3 +20,6 @@
 | D-16 | 2026-11-16 | Unpublishing the live menu file while mode=`file` → 409 `in_use` (same as delete) | Designer T-1 open point 2; customers must never lose the menu by accident | PM |
 | D-17 | 2026-11-16 | 2FA setup is manual (secret key + `otpauth://` link), no QR library | Designer T-1 open point 3; avoids a dependency; QR can be added later | PM |
 | D-18 | 2026-11-16 | Admin uses a light theme with dark brand chrome; public site stays dark | Designer T-1; legibility on phones in daylight | Designer, accepted by PM |
+| D-19 | 2026-11-16 | **Proposed, awaiting user approval:** production host = small EU VPS + Caddy (auto-HTTPS) + systemd, nightly encrypted backups. Supersedes D-13 | Persistent disk, predictable low cost, no rewrite; alternatives in `docs/DEPLOYMENT.md` §2 | DevOps, PM — user to decide |
+| D-20 | 2026-11-16 | Server binds to `HOST` (default 127.0.0.1); new `admin:disable-2fa` CLI | DevOps review: don't expose app port directly; 2FA recovery without manual SQL | PM |
+| D-21 | 2026-11-16 | WIP checkpoint commits on the feature branch are kept (not rewritten) | Feature branch only; final reviewed state is what matters; rewriting history adds risk | PM |

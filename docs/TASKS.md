@@ -61,13 +61,21 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 - Agent: devops-engineer
 - Depends on: T-2 (can run alongside T-5)
 - Description: Hosting recommendation, production config, backups of `DATA_DIR`, rollback, run/maintenance docs; validate a production-mode start.
-- Status: in-progress
+- Status: review
 - Deliverables: `docs/DEPLOYMENT.md`, deployment config files, `README.md` run section
+- Verification: production-mode run verified by DevOps (secure cookie, KOTA_NOW ignored, internal files 404, headers), backup + restore tested on a copy. NOT RUN: Caddy, Docker, real server. Hosting choice awaits user (D-19).
 
 ### T-7: Admin user guide (Bulgarian/English)
 - Agent: PM (with designer review if needed)
 - Depends on: T-4
 - Deliverables: `docs/ADMIN-GUIDE.md`
+
+### T-8: Backend hardening — HOST binding + admin:disable-2fa CLI
+- Agent: backend-developer
+- Depends on: T-2
+- Description: findings 2 and 3 of the DevOps review (D-20)
+- Status: in-progress
+- Deliverables: `server/src/server.js`, `server/scripts/`, tests
 
 ## Future
 - Table management / Маси — see `docs/FUTURE-TABLES.md` (not started).
