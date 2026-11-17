@@ -1,5 +1,5 @@
-import { el, getJSON, stateBox, icon } from './dom.js';
-import { loadSite, initNav, applyTopBar, initYear, realignHash } from './common.js';
+import { el, getJSON, stateBox } from './dom.js';
+import { loadSite, initNav, applyTopBar, applyInstagram, renderLocation, initYear, realignHash } from './common.js';
 import { renderEventCard, renderStructuredMenu, observeCategories, renderFileViewer } from './render.js';
 import { telHref } from './format.js';
 import { initI18n, onLangChange, t, apiUrl, localizeLinks } from './i18n.js';
@@ -11,54 +11,33 @@ initYear();
 /* Stale-response guard: bumped on every (re)load; only the newest generation may render. */
 let gen = 0;
 
-/* ---------- Site info: top bar + contact ---------- */
+/* ---------- Site info: top bar, location, contact ---------- */
 function renderContact(site) {
-  const section = document.getElementById('contact');
-  if (!section) return;
-  const navItem = document.getElementById('nav-contact');
-  const bookBtn = document.getElementById('hero-book');
   const phone = site && site.reservationPhone ? site.reservationPhone.trim() : '';
-  const address = site && site.address ? site.address.trim() : '';
-  const hours = site && site.openingHours ? site.openingHours.trim() : '';
-  if (!phone && !address && !hours) {
-    section.remove();
-    if (navItem) navItem.remove();
-    if (bookBtn) bookBtn.remove();
-    return;
-  }
+  renderLocation(document.getElementById('location-list'), site);
   const dl = document.getElementById('contact-list');
   dl.replaceChildren();
-  const item = (label, build) => {
+  if (phone) {
     const div = el('div', 'contact-item');
-    div.append(el('dt', '', label));
+    div.append(el('dt', '', t('contact.phone')));
     const dd = el('dd');
-    build(dd);
+    const a = el('a', '', phone);
+    a.href = telHref(phone);
+    dd.append(a);
     div.append(dd);
     dl.append(div);
-  };
-  if (phone) item(t('contact.phone'), (dd) => { const a = el('a', '', phone); a.href = telHref(phone); dd.append(a); });
-  if (address) item(t('contact.address'), (dd) => {
-    dd.append(el('span', 'address-text', address));
-    const map = el('a', 'map-link');
-    map.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
-    map.target = '_blank';
-    map.rel = 'noopener noreferrer';
-    map.append(el('span', '', t('map.link')), icon('external', 'map-icon'), el('span', 'visually-hidden', ' ' + t('map.newtab')));
-    dd.append(map);
-  });
-  if (hours) item(t('contact.hours'), (dd) => { dd.className = 'hours'; dd.textContent = hours; });
-  if (phone) {
-    const call = document.getElementById('contact-call');
-    call.href = telHref(phone);
-    call.hidden = false;
   }
-  section.hidden = false;
+  dl.hidden = !phone;
+  const call = document.getElementById('contact-call');
+  if (phone) call.href = telHref(phone);
+  call.hidden = !phone;
 }
 
 function loadSiteInfo(mine) {
   return loadSite().then((site) => {
     if (mine !== gen) return;
     applyTopBar(site);
+    applyInstagram(site);
     renderContact(site);
     realignHash();
   });

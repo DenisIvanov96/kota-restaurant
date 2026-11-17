@@ -1,5 +1,5 @@
 import { el, getJSON, stateBox } from './dom.js';
-import { loadSite, initNav, applyTopBar, initYear } from './common.js';
+import { loadSite, initNav, applyTopBar, applyInstagram, initYear } from './common.js';
 import { renderFileViewer } from './render.js';
 import { formatDateLongCap, formatDateLong, telHref } from './format.js';
 import { initI18n, onLangChange, t, apiUrl, localizeLinks } from './i18n.js';
@@ -12,12 +12,7 @@ const dateEl = document.getElementById('daily-date');
 const tagEl = document.getElementById('daily-tag');
 const view = document.getElementById('daily-view');
 
-loadSite().then((s) => {
-  applyTopBar(s);
-  const nav = document.getElementById('nav-contact');
-  const has = s && (s.reservationPhone || s.address || s.openingHours);
-  if (nav && !has) nav.remove();
-});
+loadSite().then((s) => { applyTopBar(s); applyInstagram(s); localizeLinks(); });
 
 function loading() {
   dateEl.replaceChildren(el('span', 'skeleton sk-date'));
@@ -76,5 +71,5 @@ async function load() {
   }));
 }
 
-onLangChange(() => { load(); loadSite().then(applyTopBar); });
+onLangChange(() => { load(); loadSite().then((s) => { applyTopBar(s); applyInstagram(s); localizeLinks(); }); });
 load();

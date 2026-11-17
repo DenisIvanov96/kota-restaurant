@@ -81,7 +81,7 @@
 }
 
 /* Category nav (chips) */
-.cat-nav { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line); overflow-x: auto; white-space: nowrap; scroll-snap-type: x proximity; padding: 8px var(--s-4); display: flex; gap: 8px; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 0 calc(-1 * var(--s-4)); }
+.cat-nav { position: sticky; top: var(--topbar-h, 0px); z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line); overflow-x: auto; white-space: nowrap; scroll-snap-type: x proximity; padding: 8px var(--s-4); display: flex; gap: 8px; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 0 calc(-1 * var(--s-4)); }
 .cat-nav::-webkit-scrollbar { display: none; }
 .cat-nav a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); font-family: var(--font-display); font-size: .9rem; text-transform: uppercase; letter-spacing: .08em; text-decoration: none; scroll-snap-align: start; }
 .cat-nav a[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper-ink); }
@@ -92,7 +92,7 @@
 
 /* Menu categories and dishes */
 .menu-cats { margin-top: var(--s-4); }
-.cat { scroll-margin-top: 64px; margin-bottom: var(--s-5); break-inside: avoid; }
+.cat { scroll-margin-top: calc(var(--topbar-h, 0px) + 64px); margin-bottom: var(--s-5); break-inside: avoid; }
 .cat-title { font-family: var(--font-display); font-weight: 500; font-size: 1.4rem; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line); position: relative; break-after: avoid; overflow-wrap: anywhere; }
 .cat-title::after { content: ""; position: absolute; left: 0; bottom: -2px; width: 48px; border-bottom: 3px solid var(--accent); }
 .dish-list { list-style: none; margin: 0; padding: 0; }

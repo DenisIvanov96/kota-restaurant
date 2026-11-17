@@ -1,4 +1,5 @@
 import { h, icon, clear, formatDateLong, formatSize, kindLabel, addDays, capitalize } from './util.js';
+import { dateField } from './datetime.js';
 import { get, patch, del, upload } from './api.js';
 import { badge, alertBox, btn, skeleton, loadError, emptyState, reportError, toast, modal, confirmDialog, para, makeSwitch, field, createUpload, filePreview, setBusy, withBusy } from './ui.js';
 
@@ -86,7 +87,7 @@ export function dailyView(ctx) {
   function focusStep() { const t = wizardHost.querySelector('.a-step h3'); if (t) { t.tabIndex = -1; t.focus(); } }
 
   function step2(p) {
-    const dateF = field({ label: 'Дата на менюто', required: true, type: 'date', value: w.date, helper: 'Менюто се показва на клиентите само на тази дата.', onInput: () => { w.date = dateF.value; dateF.setError(''); sync(); } });
+    const dateF = dateField({ label: 'Дата на менюто', required: true, today, value: w.date, helper: 'Менюто се показва на клиентите само на тази дата.', onInput: () => { w.date = dateF.value; sync(); } });
     if (w.dateError) dateF.setError(w.dateError);
     const seg = h('div', { class: 'a-seg', role: 'group', 'aria-label': 'Бърз избор на дата' });
     const quick = [['Днес', today], ['Утре', addDays(today, 1)]];
@@ -98,7 +99,7 @@ export function dailyView(ctx) {
     const long = h('p', { class: 'a-bigdate' });
     const notes = h('div');
     const next = btn({ label: 'Напред', variant: 'primary', onClick: () => {
-      if (!w.date) { dateF.setError('Изберете дата.'); dateF.input.focus(); return; }
+      if (!w.date) { if (!dateF.validate()) dateF.setError('Изберете дата.'); dateF.input.focus(); return; }
       w.step = 3; renderWizard(); focusStep();
     } });
     function sync() {
@@ -279,7 +280,7 @@ export function dailyView(ctx) {
   }
 
   async function editDialog(m) {
-    const dateF = field({ label: 'Дата', required: true, type: 'date', value: m.date });
+    const dateF = dateField({ label: 'Дата', required: true, today, value: m.date });
     const upl2 = createUpload({ exts: EXTS, maxMB: 10, onCancel: () => abort && abort() });
     let abort = null;
     const body = h('div', { class: 'a-form' }, dateF.el, h('div', { class: 'a-field' }, h('span', { class: 'a-label', text: 'Нов файл (по избор)' }), h('p', { class: 'a-help', text: `Текущ файл: ${m.originalName}` }), upl2.el));
@@ -287,7 +288,7 @@ export function dailyView(ctx) {
       title: 'Редактиране на меню', wide: true, body,
       buttons: [{ label: 'Отказ', value: false, focus: true }, { label: 'Запази', variant: 'primary', value: true, run: async () => {
         dateF.setError('');
-        if (!dateF.value) { dateF.setError('Изберете дата.'); return 'keep'; }
+        if (!dateF.value) { if (!dateF.validate()) dateF.setError('Изберете дата.'); dateF.input.focus(); return 'keep'; }
         const fd = new FormData();
         fd.append('date', dateF.value);
         if (upl2.file) fd.append('file', upl2.file);

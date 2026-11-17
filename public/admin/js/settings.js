@@ -29,27 +29,35 @@ export function settingsView(ctx) {
     addrEn.input.setAttribute('aria-label', 'Адрес на английски');
     hoursEn.input.setAttribute('aria-label', 'Работно време на английски');
     const enBox = enGroup([addrEn, hoursEn]);
+    const insta = field({ label: 'Instagram профил', type: 'url', inputmode: 'url', max: 200, value: s.instagramUrl || '', placeholder: 'https://www.instagram.com/вашият-профил', autocomplete: 'off', autocapitalize: 'none', helper: 'Връзка към профила ви в Instagram. Оставете празно, ако нямате профил.' });
     const cur = field({ label: 'Валутен символ', max: 5, value: s.currencySymbol, cls: 'a-field--narrow', helper: 'Показва се след цената, например €.' });
-    const snap = () => JSON.stringify([phone.value, addr.value, hours.value, addrEn.value, hoursEn.value, cur.value]);
+    const snap = () => JSON.stringify([phone.value, addr.value, hours.value, addrEn.value, hoursEn.value, cur.value, insta.value]);
     let base = snap();
     siteDirty = () => snap() !== base;
     const save = btn({ label: 'Запази', variant: 'primary', type: 'submit' });
-    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Информация за сайта' }), phone.el, addr.el, hours.el, enBox, cur.el, h('div', { class: 'a-actionrow' }, save));
+    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Информация за сайта' }), phone.el, addr.el, hours.el, enBox, insta.el, cur.el, h('div', { class: 'a-actionrow' }, save));
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      [phone, addr, hours, addrEn, hoursEn, cur].forEach((f) => f.setError(''));
+      [phone, addr, hours, addrEn, hoursEn, cur, insta].forEach((f) => f.setError(''));
       if (!/^[+0-9 ()-]*$/.test(phone.value)) { phone.setError('Само цифри, интервали, +, ( ) и -.'); phone.input.focus(); return; }
+      const iu = insta.value.trim();
+      if (iu) {
+        let ok = false;
+        try { const u = new URL(iu); ok = u.protocol === 'https:' && /^(www\.)?instagram\.com$/i.test(u.hostname); } catch { ok = false; }
+        if (!ok) { insta.setError('Въведете адрес, започващ с https://www.instagram.com/'); insta.input.focus(); return; }
+      }
       setBusy(save, true);
       try {
-        const r = await put('/api/admin/settings', { reservationPhone: phone.value.trim(), address: addr.value.trim(), openingHours: hours.value.trim(), addressEn: addrEn.value.trim(), openingHoursEn: hoursEn.value.trim(), currencySymbol: cur.value.trim() });
+        const r = await put('/api/admin/settings', { reservationPhone: phone.value.trim(), address: addr.value.trim(), openingHours: hours.value.trim(), addressEn: addrEn.value.trim(), openingHoursEn: hoursEn.value.trim(), currencySymbol: cur.value.trim(), instagramUrl: iu });
         phone.value = r.reservationPhone; addr.value = r.address; hours.value = r.openingHours; cur.value = r.currencySymbol;
+        if (r.instagramUrl !== undefined) insta.value = r.instagramUrl;
         if (r.addressEn !== undefined) addrEn.value = r.addressEn;
         if (r.openingHoursEn !== undefined) hoursEn.value = r.openingHoursEn;
         base = snap();
         toast('Настройките са запазени.');
       } catch (err) {
         if (err.status === 400 && err.fields) {
-          const m = { reservationPhone: phone, address: addr, openingHours: hours, addressEn: addrEn, openingHoursEn: hoursEn, currencySymbol: cur };
+          const m = { reservationPhone: phone, address: addr, openingHours: hours, addressEn: addrEn, openingHoursEn: hoursEn, currencySymbol: cur, instagramUrl: insta };
           let first = null;
           for (const [k, msg] of Object.entries(err.fields)) if (m[k]) { if (m[k] === addrEn || m[k] === hoursEn) enBox.open = true; m[k].setError(msg); first = first || m[k]; }
           if (first) first.input.focus();

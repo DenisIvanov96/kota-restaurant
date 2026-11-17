@@ -1,7 +1,7 @@
 // Shared by all public pages: skip link target, nav, top bar, site info.
-import { getJSON } from './dom.js';
+import { getJSON, el, icon } from './dom.js';
 import { telHref } from './format.js';
-import { getLang, apiUrl } from './i18n.js';
+import { getLang, apiUrl, t, langHref } from './i18n.js';
 
 const sitePromises = {};
 /** Resolves to the /api/public/site object in the current language, or null when it cannot be loaded. */
@@ -30,16 +30,64 @@ export function initNav() {
   });
 }
 
-/** Top bar phone: shown only when a phone is set, otherwise removed from the DOM. */
+/** Top bar: always present. With a phone: "For reservations: <tel link>"; without: a "Reservations" link to /reservation. */
 export function applyTopBar(site) {
-  const bar = document.getElementById('top-bar');
-  if (!bar) return;
-  const phone = site && site.reservationPhone ? site.reservationPhone.trim() : '';
-  if (!phone) { bar.remove(); return; }
   const a = document.getElementById('top-phone');
-  a.href = telHref(phone);
-  a.textContent = phone;
-  bar.hidden = false;
+  const label = document.getElementById('top-label');
+  if (!a || !label) return;
+  const phone = site && site.reservationPhone ? site.reservationPhone.trim() : '';
+  if (phone) {
+    label.hidden = false;
+    a.removeAttribute('data-i18n');
+    a.dataset.href0 = '';
+    a.href = telHref(phone);
+    a.textContent = phone;
+  } else {
+    label.hidden = true;
+    a.dataset.i18n = 'topbar.res';
+    a.dataset.href0 = '/reservation';
+    a.href = langHref('/reservation');
+    a.textContent = t('topbar.res');
+  }
+}
+
+/** Instagram icon links: the configured profile, or the placeholder https://www.instagram.com/ when empty or not an instagram.com URL. */
+export function applyInstagram(site) {
+  let url = 'https://www.instagram.com/';
+  const raw = site && typeof site.instagramUrl === 'string' ? site.instagramUrl.trim() : '';
+  if (raw) {
+    try {
+      const u = new URL(raw);
+      if (u.protocol === 'https:' && (u.hostname === 'instagram.com' || u.hostname === 'www.instagram.com')) url = u.href;
+    } catch { /* keep placeholder */ }
+  }
+  document.querySelectorAll('a.ig-link').forEach((a) => { a.href = url; });
+}
+
+/** Location block (address + map link, opening hours when set) into a <dl>. Address falls back to the default. */
+export function renderLocation(dl, site) {
+  if (!dl) return;
+  const address = (site && site.address ? site.address.trim() : '') || t('loc.defaultAddress');
+  const hours = site && site.openingHours ? site.openingHours.trim() : '';
+  dl.replaceChildren();
+  const item = (label, build) => {
+    const div = el('div', 'contact-item');
+    div.append(el('dt', '', label));
+    const dd = el('dd');
+    build(dd);
+    div.append(dd);
+    dl.append(div);
+  };
+  item(t('contact.address'), (dd) => {
+    dd.append(el('span', 'address-text', address));
+    const map = el('a', 'map-link');
+    map.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
+    map.target = '_blank';
+    map.rel = 'noopener noreferrer';
+    map.append(el('span', '', t('map.link')), icon('external', 'map-icon'), el('span', 'visually-hidden', ' ' + t('map.newtab')));
+    dd.append(map);
+  });
+  if (hours) item(t('contact.hours'), (dd) => { dd.className = 'hours'; dd.textContent = hours; });
 }
 
 export function initYear() {

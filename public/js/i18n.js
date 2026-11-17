@@ -3,7 +3,35 @@
 export const STRINGS = {
   bg: {
     'skip': 'Към съдържанието',
-    'topbar.label': 'Резервации:',
+    'topbar.label': 'За резервации:',
+    'topbar.res': 'Резервации',
+    'nav.location': 'Локация',
+    'nav.reservation': 'Резервация',
+    'hero.reserve': 'Резервация',
+    'loc.heading': 'Локация',
+    'loc.defaultAddress': 'ул. Ралевица 85, София',
+    'title.reservation': 'Резервация — Kota1 Restaurant',
+    'meta.reservation': 'Резервирайте маса в Kota1 Restaurant по телефона. Примерна схема на залата и адрес.',
+    'res.h1': 'Резервация',
+    'res.lead': 'Резервирайте маса по телефона. Ще се радваме да ви посрещнем.',
+    'res.call.h': 'Резервация по телефона',
+    'res.call': 'Обадете се за резервация',
+    'res.nophone': 'Телефонът за резервации ще бъде добавен скоро.',
+    'res.plan.h': 'Схема на залата',
+    'res.plan.title': 'Примерна схема на залата',
+    'res.plan.desc': 'Примерна схема със 12 номерирани маси, вход, бар и прозорци.',
+    'res.plan.note': 'Примерна схема — реалната ще бъде добавена скоро',
+    'res.entrance': 'Вход',
+    'res.bar': 'Бар',
+    'res.legend.round': 'Кръгла маса',
+    'res.legend.square': 'Квадратна маса',
+    'res.legend.long': 'Дълга маса',
+    'res.legend.bar': 'Бар',
+    'res.legend.window': 'Прозорец',
+    'res.legend.entrance': 'Вход',
+    'res.tbl.round': 'Маса {n}, кръгла',
+    'res.tbl.square': 'Маса {n}, квадратна',
+    'res.tbl.long': 'Маса {n}, дълга',
     'nav.menu': 'Меню',
     'nav.daily': 'Обедно меню',
     'nav.event': 'Събитие',
@@ -97,7 +125,35 @@ export const STRINGS = {
   },
   en: {
     'skip': 'Skip to content',
-    'topbar.label': 'For reservation:',
+    'topbar.label': 'For reservations:',
+    'topbar.res': 'Reservations',
+    'nav.location': 'Location',
+    'nav.reservation': 'Reservation',
+    'hero.reserve': 'Reservation',
+    'loc.heading': 'Location',
+    'loc.defaultAddress': '85 Ralevitsa St, Sofia',
+    'title.reservation': 'Reservation — Kota1 Restaurant',
+    'meta.reservation': 'Book a table at Kota1 Restaurant by phone. Sample floor plan and address.',
+    'res.h1': 'Reservation',
+    'res.lead': 'Book a table by phone. We look forward to welcoming you.',
+    'res.call.h': 'Book by phone',
+    'res.call': 'Call to reserve',
+    'res.nophone': 'The reservation phone number will be added soon.',
+    'res.plan.h': 'Floor plan',
+    'res.plan.title': 'Sample floor plan',
+    'res.plan.desc': 'Sample layout with 12 numbered tables, an entrance, a bar and windows.',
+    'res.plan.note': 'Sample layout — the real plan is coming soon',
+    'res.entrance': 'Entrance',
+    'res.bar': 'Bar',
+    'res.legend.round': 'Round table',
+    'res.legend.square': 'Square table',
+    'res.legend.long': 'Long table',
+    'res.legend.bar': 'Bar',
+    'res.legend.window': 'Window',
+    'res.legend.entrance': 'Entrance',
+    'res.tbl.round': 'Table {n}, round',
+    'res.tbl.square': 'Table {n}, square',
+    'res.tbl.long': 'Table {n}, long',
     'nav.menu': 'Menu',
     'nav.daily': 'Daily Special',
     'nav.event': 'Event',
@@ -238,10 +294,12 @@ export function t(key, vars, lang) {
 
 export function onLangChange(fn) { listeners.push(fn); }
 
+const isInternal = (h) => h === '/' || h.startsWith('/#') || /^\/(daily-menu|privacy|reservation)([?#]|$)/.test(h);
+
 /** Internal page links keep the language: '/#menu' -> '/?lang=en#menu'. Other URLs are returned unchanged. */
 export function langHref(href) {
   if (getLang() !== 'en') return href;
-  if (!(href === '/' || href.startsWith('/#') || href === '/daily-menu' || href === '/privacy' || href.startsWith('/daily-menu#') || href.startsWith('/daily-menu?'))) return href;
+  if (!isInternal(href)) return href;
   const hashAt = href.indexOf('#');
   const path = hashAt === -1 ? href : href.slice(0, hashAt);
   const hash = hashAt === -1 ? '' : href.slice(hashAt);
@@ -274,7 +332,7 @@ export function localizeLinks(root = document) {
   root.querySelectorAll('a[href]').forEach((a) => {
     if (a.dataset.href0 === undefined) {
       const h = a.getAttribute('href');
-      a.dataset.href0 = (h === '/' || h.startsWith('/#') || h.startsWith('/daily-menu') || h === '/privacy') ? h : '';
+      a.dataset.href0 = isInternal(h) ? h : '';
     }
     if (a.dataset.href0) a.setAttribute('href', langHref(a.dataset.href0));
   });

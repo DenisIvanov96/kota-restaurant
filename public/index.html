@@ -30,7 +30,7 @@
 <body data-page="index">
   <a class="skip-link" href="#main" data-i18n="skip">Към съдържанието</a>
 
-  <div class="top-bar" id="top-bar" hidden><span data-i18n="topbar.label">Резервации:</span> <a id="top-phone" href="tel:"></a></div>
+  <div class="top-bar" id="top-bar"><span id="top-label" data-i18n="topbar.label" hidden>За резервации:</span> <a id="top-phone" href="/reservation" data-i18n="topbar.res">Резервации</a></div>
 
   <header class="site-header">
     <div class="header-inner">
@@ -50,7 +50,9 @@
         <li class="nav-daily"><a href="/daily-menu" data-i18n="nav.daily">Обедно меню</a></li>
         <li id="nav-event" hidden><a href="/#event" data-i18n="nav.event">Събитие</a></li>
         <li><a href="/#about" data-i18n="nav.about">За нас</a></li>
+        <li><a href="/#location" data-i18n="nav.location">Локация</a></li>
         <li id="nav-contact"><a href="/#contact" data-i18n="nav.contact">Контакти</a></li>
+        <li class="nav-reservation"><a href="/reservation" data-i18n="nav.reservation">Резервация</a></li>
       </ul>
     </nav>
     </div>
@@ -63,7 +65,7 @@
       <p class="lead" data-i18n="hero.lead">Прясна храна, топло посрещане.</p>
       <div class="hero-actions">
         <a href="/daily-menu" class="btn btn-special" data-i18n="hero.daily">Обедно меню</a>
-        <a href="#contact" class="btn" id="hero-book" data-i18n="hero.book">Резервирай маса</a>
+        <a href="/reservation" class="btn" id="hero-book" data-i18n="hero.reserve">Резервация</a>
       </div>
     </section>
 
@@ -77,15 +79,24 @@
       <p data-i18n="about.text">Прясна храна и топло посрещане.</p>
     </section>
 
-    <section id="contact" class="section" aria-labelledby="contact-heading" hidden>
+    <section id="location" class="section" aria-labelledby="location-heading">
+      <h2 id="location-heading" data-i18n="loc.heading">Локация</h2>
+      <dl class="contact-list" id="location-list"></dl>
+    </section>
+
+    <section id="contact" class="section" aria-labelledby="contact-heading">
       <h2 id="contact-heading" data-i18n="contact.heading">Контакти</h2>
       <dl class="contact-list" id="contact-list"></dl>
-      <div class="contact-actions"><a class="btn" id="contact-call" href="tel:" hidden data-i18n="hero.book">Резервирай маса</a></div>
+      <div class="contact-actions">
+        <a class="btn" id="contact-call" href="tel:" hidden data-i18n="hero.book">Резервирай маса</a>
+        <a class="ig-link ig-large" href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+      </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <p>&copy; <span id="year"></span> Kota1 Restaurant</p>
+    <p class="footer-ig"><a class="ig-link" href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a></p>
     <p><a class="footer-link" href="/privacy" data-i18n="footer.privacy">Поверителност</a></p>
   </footer>
 

@@ -1,6 +1,7 @@
 import { h, icon, clear, formatDateTime, debounce } from './util.js';
 import { get, post, put, patch, del, upload } from './api.js';
 import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, setBusy, enGroup, EN_HELP } from './ui.js';
+import { dateTimeField } from './datetime.js';
 import { renderEventCard, previewScroller, langToggle } from './preview.js';
 
 const STATUS = {
@@ -138,12 +139,7 @@ export function eventFormView(ctx) {
     const enBox = enGroup([titleEn, descEn]);
     let pvLang = 'bg';
     const mkDt = (label, key, helper, val) => {
-      const f = field({ label, type: 'datetime-local', value: val || '', helper, onInput: () => { checkRange(true); refresh(); }, onBlur: () => checkRange(true) });
-      f.input.addEventListener('change', () => { checkRange(true); refresh(); });
-      const row = h('div', { class: 'a-dt-row' });
-      f.input.replaceWith(row);
-      row.append(f.input, btn({ label: 'Изчисти', variant: 'ghost', aria: `Изчисти „${label}“`, onClick: () => { f.value = ''; checkRange(true); refresh(); } }));
-      return f;
+      return dateTimeField({ label, value: val || '', helper, clearable: true, onInput: () => { checkRange(true); refresh(); }, onBlur: () => checkRange(true) });
     };
     const eventAt = mkDt('Дата на събитието', 'eventAt', 'Кога се случва събитието. Показва се на клиентите. Не е задължително.', ev && ev.eventAt);
     const startsAt = mkDt('Показвай от', 'startsAt', 'От кога събитието да се вижда на сайта. Оставете празно, за да се покаже веднага.', ev && ev.startsAt);
@@ -211,7 +207,7 @@ export function eventFormView(ctx) {
     }
     function checkRange(soft) {
       let ok = true;
-      expiresAt.setError('');
+      if (!expiresAt.hasFormatError) expiresAt.setError('');
       if (startsAt.value && expiresAt.value && expiresAt.value <= startsAt.value) { expiresAt.setError('„Скрий след“ трябва да е по-късно от „Показвай от“.'); ok = false; }
       clear(warnBox);
       if (eventAt.value && expiresAt.value && expiresAt.value < eventAt.value) warnBox.append(alertBox('warning', 'Събитието ще изчезне от сайта, преди да започне.'));
@@ -244,7 +240,8 @@ export function eventFormView(ctx) {
       if (titleEn.value.trim().length > 120) { titleEn.setError('Заглавието е твърде дълго (макс. 120 знака).'); errs.push({ id: titleEn.id, label: 'Заглавие (английски)', msg: titleEn.error }); enBox.open = true; } else titleEn.setError('');
       if (descEn.value.length > 2000) { descEn.setError('Описанието е твърде дълго (макс. 2000 знака).'); errs.push({ id: descEn.id, label: 'Описание (английски)', msg: descEn.error }); enBox.open = true; } else descEn.setError('');
       if (!vDesc()) errs.push({ id: desc.id, label: 'Описание', msg: desc.error });
-      if (!checkRange()) errs.push({ id: expiresAt.id, label: 'Скрий след', msg: expiresAt.error });
+      for (const [f, l] of [[eventAt, 'Дата на събитието'], [startsAt, 'Показвай от'], [expiresAt, 'Скрий след']]) { const m = f.validate(); if (m) errs.push({ id: f.id, label: l, msg: m }); }
+      if (!errs.some((x) => x.id === expiresAt.id) && !checkRange()) errs.push({ id: expiresAt.id, label: 'Скрий след', msg: expiresAt.error });
       if (errs.length) { summary.show(errs); return; }
       summary.hide();
       const fd = new FormData();

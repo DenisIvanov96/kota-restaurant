@@ -10,11 +10,15 @@ main:focus { outline: none; }
 
 h2 { font-family: var(--font-display); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--glow); }
 
-/* Top reservation bar */
-.top-bar { background: var(--accent); color: var(--paper-ink); text-align: center; padding: .25rem 1rem; font-size: .95rem; }
+/* Top reservation bar: always present, sticky above everything */
+:root { --topbar-h: 52px; }
+html { scroll-padding-top: calc(var(--topbar-h) + 12px); }
+.top-bar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--topbar-h); padding: 0 8px; background: var(--accent); color: var(--paper-ink); text-align: center; font-size: .95rem; white-space: nowrap; }
+.top-bar[hidden], .top-bar [hidden] { display: none; }
 .top-bar a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--paper-ink); font-weight: 700; text-decoration: none; }
 .top-bar a:hover { text-decoration: underline; }
 .top-bar :focus-visible { outline-color: var(--paper-ink); outline-offset: -3px; }
+@media (max-width: 359px) { .top-bar { font-size: .85rem; gap: 4px; padding: 0 4px; } }
 
 /* Header */
 .site-header { position: relative; z-index: 20; }
@@ -138,3 +142,42 @@ h2 { font-family: var(--font-display); font-weight: 500; text-transform: upperca
 .privacy-contact a { display: inline-flex; align-items: center; min-height: 44px; }
 .not-found .eyebrow { margin-bottom: var(--s-4); }
 .not-found .sign { font-size: clamp(4rem, 20vw, 8rem); justify-content: center; }
+
+/* Instagram icon link */
+.ig-link { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--accent); border-radius: var(--radius); }
+.ig-link svg { width: 26px; height: 26px; }
+.ig-link:hover { color: var(--glow); }
+.ig-large { border: 1px solid var(--accent); }
+.contact-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+.footer-ig { display: flex; justify-content: center; }
+.contact-list[hidden] { display: none; }
+@media (min-width: 768px) { #location-list, #contact-list { grid-template-columns: repeat(2, 1fr); } }
+
+/* Nav: reservation item */
+.site-nav .nav-reservation a { color: var(--accent); }
+@media (min-width: 768px) {
+  .site-nav ul { gap: 1rem; }
+  .site-nav .nav-reservation a { padding: 0 14px; background: var(--accent); color: var(--paper-ink); border-radius: var(--radius); }
+}
+
+/* Reservation page */
+.page-title { font-family: var(--font-display); font-weight: 700; color: var(--glow); font-size: clamp(2rem, 9vw, 3.25rem); line-height: 1.15; margin: 0 0 var(--s-3); text-transform: uppercase; letter-spacing: .06em; text-shadow: 0 0 18px rgba(243, 217, 164, .45); overflow-wrap: anywhere; }
+.page-band .lead { margin: 0 auto; max-width: 40ch; }
+.res-call { text-align: center; }
+.call-big { width: 100%; max-width: 420px; min-height: 80px; gap: 2px; }
+.call-big .call-number { font-size: 1.4rem; font-weight: 700; letter-spacing: .04em; }
+.floor-plan { margin: 0; text-align: center; }
+.plan-svg { display: block; width: 100%; max-width: 520px; height: auto; margin: 0 auto; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius-card); }
+.plan-floor { fill: var(--bg-2); stroke: var(--muted); stroke-width: 3; }
+.plan-bar { fill: var(--bg-3); stroke: var(--accent); stroke-width: 2; }
+.plan-window { fill: var(--glow); stroke: var(--accent); stroke-width: 1; }
+.plan-door { fill: var(--accent); }
+.plan-swing { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 6 5; }
+.plan-svg .tbl circle, .plan-svg .tbl rect, .tbl-shape { fill: var(--bg-3); stroke: var(--accent); stroke-width: 2.5; }
+.tbl-shape { stroke-width: 1.5; }
+.plan-svg text { fill: var(--glow); font-family: var(--font-display); font-weight: 500; font-size: 26px; text-anchor: middle; dominant-baseline: central; }
+.plan-svg .plan-label { fill: var(--text); font-size: 24px; letter-spacing: .12em; text-transform: uppercase; }
+.plan-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-2) var(--s-5); list-style: none; margin: var(--s-4) 0 0; padding: 0; color: var(--text); }
+.plan-legend li { display: inline-flex; align-items: center; gap: var(--s-2); }
+.plan-legend svg { width: 24px; height: 24px; flex: none; }
+.plan-note { margin-top: var(--s-3); color: var(--muted); font-style: italic; }
