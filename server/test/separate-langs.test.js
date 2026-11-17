@@ -137,7 +137,7 @@ test('events: EN image media visibility follows the event, replace/remove/delete
   } finally { await s.close(); }
 });
 
-test('events: imageEn upload validation (type, extension, mime, size); nothing left behind', async () => {
+test('events: imageEn upload validation (type, extension, mime); nothing left behind', async () => {
   const s = await loggedIn();
   try {
     const post = (files, fields = { title: 't' }) => s.api.req('POST', '/api/admin/events', { form: form(fields, files) });
@@ -151,9 +151,6 @@ test('events: imageEn upload validation (type, extension, mime, size); nothing l
     assert.equal((await post([png('image'), pdf('imageEn')])).status, 415);
     // validation failure with valid files
     assert.equal((await post([png('image'), jpg('imageEn')], { title: '', titleEn: '' })).status, 400);
-    const big = Buffer.concat([PNG, Buffer.alloc(5 * 1024 * 1024 + 10, 7)]);
-    r = await post([{ field: 'imageEn', buf: big, name: 'x.png', type: 'image/png' }]);
-    assert.equal(r.status, 413);
     // unknown file field is rejected
     assert.equal((await post([png('other')])).status, 400);
     assert.equal(s.uploads().length, 0); assert.equal(nFiles(s), 0);
@@ -261,8 +258,6 @@ test('daily menu: fileEn upload validation; invalid EN leaves nothing behind', a
     assert.equal(r.status, 415); assert.ok(r.data.fields.fileEn);
     assert.equal((await post({ date: '2026-06-15' }, [pdf('file'), { field: 'fileEn', buf: PNG, name: 'm.pdf', type: 'application/pdf' }])).status, 415);
     assert.equal((await post({ date: 'nope' }, [pdf('file'), pdf('fileEn')])).status, 400);
-    const big = Buffer.concat([PDF, Buffer.alloc(10 * 1024 * 1024 + 10, 7)]);
-    assert.equal((await post({ date: '2026-06-15' }, [{ field: 'fileEn', buf: big, name: 'm.pdf', type: 'application/pdf' }])).status, 413);
     assert.equal(s.uploads().length, 0); assert.equal(nFiles(s), 0);
     assert.equal(s.db.prepare('SELECT COUNT(*) n FROM daily_menus').get().n, 0);
   } finally { await s.close(); }
@@ -304,71 +299,64 @@ test('site settings: address / opening hours fall back both directions', async (
   } finally { await s.close(); }
 });
 
-test('menu files per language: upload lang, one published per language, public pick + fallback, media, in_use', async () => {
+test('menu pages per language: upload lang, published flag per language, public pick + fallback, media, in_use', async () => {
   const s = await loggedIn();
   try {
-    const up = (lang, f = pdf('file')) => s.api.req('POST', '/api/admin/menu/files', { form: form(lang === undefined ? {} : { lang }, [f]) });
+    const up = (lang, f = pdf('file')) => s.api.req('POST', '/api/admin/menu/pages', { form: form(lang === undefined ? {} : { lang }, [f]) });
     assert.equal((await up('fr')).status, 400);
     assert.equal((await up('fr')).data.fields.lang.length > 0, true);
     assert.equal(s.uploads().length, 0);
     const bg1 = await up(); const bg2 = await up('bg', jpg('file')); const en1 = await up('en', pdf('file', 'en.pdf')); const en2 = await up('en', png('file', 'en2.png'));
     assert.deepEqual([bg1.data.lang, bg2.data.lang, en1.data.lang], ['bg', 'bg', 'en']);
     assert.equal(bg1.status, 201);
-    const pubd = (r) => s.api.patch(`/api/admin/menu/files/${r.data.id}/published`, { published: true });
-    await pubd(bg1); await pubd(en1);
-    // publishing another bg file only unpublishes the bg one
-    await pubd(bg2);
-    let list = (await s.api.get('/api/admin/menu')).data.files;
-    assert.deepEqual(list.map((f) => [f.id, f.lang, f.published]).sort((a, b) => a[0] - b[0]),
-      [[bg1.data.id, 'bg', false], [bg2.data.id, 'bg', true], [en1.data.id, 'en', true], [en2.data.id, 'en', false]]);
-    await pubd(en2);
-    assert.equal((await s.api.get('/api/admin/menu')).data.files.find((f) => f.id === en1.data.id).published, false);
+    const setPub = (lang, published) => s.api.put('/api/admin/menu/pages/published', { lang, published });
+    await setPub('bg', true); await setPub('en', true);
+    let pages = (await s.api.get('/api/admin/menu')).data.pages;
+    assert.deepEqual(pages.bg.items.map((p) => p.id), [bg1.data.id, bg2.data.id]);
+    assert.deepEqual(pages.en.items.map((p) => p.id), [en1.data.id, en2.data.id]);
 
     // media + public pick only in file mode
     const name = (r) => r.data.fileUrl.split('/').pop();
     assert.equal((await fetch(`${s.base}/media/${name(en2)}`)).status, 404);
-    // structured menu must exist to switch back later; switch to file mode
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'file' })).status, 200);
     const bgF = (await pubGet(s, 'menu?lang=bg')).data.file; const enF = (await pubGet(s, 'menu?lang=en')).data.file;
-    assert.equal(bgF.fileUrl, '/media/' + name(bg2)); assert.equal(enF.fileUrl, '/media/' + name(en2));
-    assert.equal(enF.kind, 'image'); assert.equal(bgF.kind, 'image');
-    for (const r of [bg2, en2]) assert.equal((await fetch(`${s.base}/media/${name(r)}`)).status, 200);
-    for (const r of [bg1, en1]) assert.equal((await fetch(`${s.base}/media/${name(r)}`)).status, 404);
+    assert.deepEqual(bgF.pages.map((p) => p.fileUrl), ['/media/' + name(bg1), '/media/' + name(bg2)]);
+    assert.deepEqual(enF.pages.map((p) => p.fileUrl), ['/media/' + name(en1), '/media/' + name(en2)]);
+    assert.equal(enF.lang, 'en'); assert.equal(bgF.lang, 'bg');
+    for (const r of [bg1, bg2, en1, en2]) assert.equal((await fetch(`${s.base}/media/${name(r)}`)).status, 200);
 
-    // only EN published: bg falls back to EN
-    await s.api.patch(`/api/admin/menu/files/${bg2.data.id}/published`, { published: false }); // allowed: EN still published
-    assert.equal((await pubGet(s, 'menu?lang=bg')).data.file.fileUrl, '/media/' + name(en2));
-    assert.equal((await fetch(`${s.base}/media/${name(bg2)}`)).status, 404);
-    // last published file in file mode is in use
-    for (const [m, u, b] of [['PATCH', `/published`, { published: false }]]) {
-      const r = await s.api.req(m, `/api/admin/menu/files/${en2.data.id}${u}`, { json: b });
-      assert.equal(r.status, 409); assert.equal(r.data.error, 'in_use');
-    }
-    assert.equal((await s.api.del(`/api/admin/menu/files/${en2.data.id}`)).status, 409);
-    // published bg again, then deleting the EN one is allowed (not the last)
-    await pubd(bg1);
-    assert.equal((await s.api.del(`/api/admin/menu/files/${en2.data.id}`)).status, 204);
-    assert.equal((await pubGet(s, 'menu?lang=en')).data.file.fileUrl, '/media/' + name(bg1)); // en falls back to bg
-    // leave file mode: nothing_published rules consider any published file
+    // only EN published: bg falls back to EN, bg pages are no longer served
+    assert.equal((await setPub('bg', false)).status, 200); // allowed: EN still live
+    const fb = (await pubGet(s, 'menu?lang=bg')).data.file;
+    assert.equal(fb.lang, 'en'); assert.equal(fb.pages.length, 2);
+    assert.equal((await fetch(`${s.base}/media/${name(bg1)}`)).status, 404);
+    // the last live language is in use
+    const r = await setPub('en', false);
+    assert.equal(r.status, 409); assert.equal(r.data.error, 'in_use');
+    assert.equal((await s.api.del(`/api/admin/menu/pages/${en1.data.id}`)).status, 204); // not the last EN page
+    assert.equal((await s.api.del(`/api/admin/menu/pages/${en2.data.id}`)).status, 409); // last page of the last live language
+    // publish bg again, then the EN page may go
+    await setPub('bg', true);
+    assert.equal((await s.api.del(`/api/admin/menu/pages/${en2.data.id}`)).status, 204);
+    assert.equal((await pubGet(s, 'menu?lang=en')).data.file.lang, 'bg'); // en falls back to bg
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'structured' })).status, 409); // no structured snapshot
-    // delete the remaining non-published files: no orphans
-    assert.equal((await s.api.del(`/api/admin/menu/files/${en1.data.id}`)).status, 204);
-    assert.equal((await s.api.del(`/api/admin/menu/files/${bg2.data.id}`)).status, 204);
-    noOrphans(s);
+    assert.equal((await s.api.del(`/api/admin/menu/pages/${bg2.data.id}`)).status, 204);
+    assert.equal(nFiles(s), 1); noOrphans(s);
   } finally { await s.close(); }
 });
 
-test('menu mode file: ready when only an English file is published', async () => {
+test('menu mode file: ready when only an English page set is published', async () => {
   const s = await loggedIn();
   try {
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'file' })).status, 409);
-    const en = await s.api.req('POST', '/api/admin/menu/files', { form: form({ lang: 'en' }, [pdf('file')]) });
+    const en = await s.api.req('POST', '/api/admin/menu/pages', { form: form({ lang: 'en' }, [pdf('file')]) });
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'file' })).status, 409); // uploaded, unpublished
-    await s.api.patch(`/api/admin/menu/files/${en.data.id}/published`, { published: true });
+    await s.api.put('/api/admin/menu/pages/published', { lang: 'en', published: true });
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'file' })).status, 200);
     assert.ok((await pubGet(s, 'menu?lang=bg')).data.file);
     const dash = (await s.api.get('/api/admin/dashboard')).data.menu;
-    assert.equal(dash.publishedFile.id, en.data.id); assert.deepEqual(dash.publishedFiles.map((f) => f.lang), ['en']);
+    assert.deepEqual(dash.pages, { bg: { published: false, count: 0 }, en: { published: true, count: 1 } });
+    assert.ok(en.data.id);
   } finally { await s.close(); }
 });
 
@@ -378,7 +366,7 @@ test('changed routes: 401 without session, 403 without CSRF header', async () =>
   try {
     const anon = s.client();
     const f = () => form({ title: 't' }, [png('imageEn')]);
-    for (const [m, u] of [['POST', '/api/admin/events'], ['PUT', '/api/admin/events/1'], ['POST', '/api/admin/daily-menus'], ['PUT', '/api/admin/daily-menus/1'], ['POST', '/api/admin/menu/files']]) {
+    for (const [m, u] of [['POST', '/api/admin/events'], ['PUT', '/api/admin/events/1'], ['POST', '/api/admin/daily-menus'], ['PUT', '/api/admin/daily-menus/1'], ['POST', '/api/admin/menu/pages']]) {
       const r = await anon.req(m, u, { form: f() });
       assert.equal(r.status, 401, `${m} ${u} anon`);
       const r2 = await s.api.req(m, u, { form: f(), csrf: false });

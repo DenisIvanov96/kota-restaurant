@@ -13,8 +13,8 @@ const ROUTES = [
   ['GET', '/api/admin/daily-menus'], ['POST', '/api/admin/daily-menus'], ['PUT', '/api/admin/daily-menus/1'],
   ['PATCH', '/api/admin/daily-menus/1/published'], ['DELETE', '/api/admin/daily-menus/1'],
   ['GET', '/api/admin/menu'], ['PUT', '/api/admin/menu/draft'], ['POST', '/api/admin/menu/draft/discard'],
-  ['POST', '/api/admin/menu/publish'], ['POST', '/api/admin/menu/files'],
-  ['PATCH', '/api/admin/menu/files/1/published'], ['DELETE', '/api/admin/menu/files/1'], ['PUT', '/api/admin/menu/mode'],
+  ['POST', '/api/admin/menu/publish'], ['POST', '/api/admin/menu/pages'],
+  ['PUT', '/api/admin/menu/pages/order'], ['PUT', '/api/admin/menu/pages/published'], ['DELETE', '/api/admin/menu/pages/1'], ['PUT', '/api/admin/menu/mode'],
 ];
 
 test('every admin route: 401 without session, 403 without CSRF header', async () => {

@@ -74,7 +74,7 @@ test('draft validation', async () => {
   } finally { await s.close(); }
 });
 
-test('file mode: upload, publish one, mode switch rules, in_use delete, public file', async () => {
+test('file mode (pages): upload, publish per language, mode switch rules, in_use delete, public pages', async () => {
   const s = await loggedIn();
   try {
     // nothing published in either mode
@@ -83,30 +83,31 @@ test('file mode: upload, publish one, mode switch rules, in_use delete, public f
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'structured' })).status, 409);
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'bogus' })).status, 400);
 
-    const f1 = await s.api.req('POST', '/api/admin/menu/files', { form: formData({}, file()) });
-    const f2 = await s.api.req('POST', '/api/admin/menu/files', { form: formData({}, file(JPG, 'm.jpg', 'image/jpeg')) });
-    assert.equal(f1.status, 201); assert.equal(f1.data.published, false);
+    const f1 = await s.api.req('POST', '/api/admin/menu/pages', { form: formData({}, file()) });
+    const f2 = await s.api.req('POST', '/api/admin/menu/pages', { form: formData({}, file(JPG, 'm.jpg', 'image/jpeg')) });
+    assert.equal(f1.status, 201); assert.equal(f1.data.position, 1); assert.equal(f2.data.position, 2); assert.equal(f1.data.lang, 'bg');
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'file' })).status, 409); // uploaded, not published
-    assert.equal((await s.api.req('POST', '/api/admin/menu/files', { form: formData({}) })).status, 400);
+    assert.equal((await s.api.req('POST', '/api/admin/menu/pages', { form: formData({}) })).status, 400);
 
-    await s.api.patch(`/api/admin/menu/files/${f1.data.id}/published`, { published: true });
-    await s.api.patch(`/api/admin/menu/files/${f2.data.id}/published`, { published: true }); // unpublishes f1
-    const files = (await s.api.get('/api/admin/menu')).data.files;
-    assert.deepEqual(files.map((f) => [f.id, f.published]), [[f2.data.id, true], [f1.data.id, false]]);
+    assert.equal((await s.api.put('/api/admin/menu/pages/published', { lang: 'bg', published: true })).status, 200);
+    const pages = (await s.api.get('/api/admin/menu')).data.pages;
+    assert.equal(pages.bg.published, true); assert.deepEqual(pages.bg.items.map((p) => p.id), [f1.data.id, f2.data.id]);
+    assert.deepEqual(pages.en, { published: false, items: [] });
 
-    // still structured mode: file not public
+    // still structured mode: pages not public
     assert.equal((await fetch(s.base + f2.data.fileUrl.replace('/api/admin/media', '/media'))).status, 404);
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'file' })).data.mode, 'file');
     const pm = await pubMenu(s);
-    assert.equal(pm.mode, 'file'); assert.equal(pm.structured, null); assert.equal(pm.file.kind, 'image');
-    assert.equal((await fetch(s.base + pm.file.fileUrl)).status, 200);
-    assert.equal((await fetch(s.base + f1.data.fileUrl.replace('/api/admin/media', '/media'))).status, 404);
+    assert.equal(pm.mode, 'file'); assert.equal(pm.structured, null);
+    assert.equal(pm.file.lang, 'bg'); assert.deepEqual(pm.file.pages.map((p) => p.kind), ['pdf', 'image']);
+    for (const p of pm.file.pages) assert.equal((await fetch(s.base + p.fileUrl)).status, 200);
 
-    // in_use
-    const del = await s.api.del(`/api/admin/menu/files/${f2.data.id}`);
-    assert.equal(del.status, 409); assert.equal(del.data.error, 'in_use');
-    assert.equal((await s.api.patch(`/api/admin/menu/files/${f2.data.id}/published`, { published: false })).status, 409);
-    assert.equal((await s.api.del(`/api/admin/menu/files/${f1.data.id}`)).status, 204);
+    // in_use: the last public page set cannot go away
+    const del = await s.api.del(`/api/admin/menu/pages/${f2.data.id}`); // not the last page: allowed
+    assert.equal(del.status, 204);
+    const del1 = await s.api.del(`/api/admin/menu/pages/${f1.data.id}`);
+    assert.equal(del1.status, 409); assert.equal(del1.data.error, 'in_use');
+    assert.equal((await s.api.put('/api/admin/menu/pages/published', { lang: 'bg', published: false })).status, 409);
     assert.equal(s.uploads().length, 1);
 
     // switch back needs a snapshot
@@ -115,9 +116,10 @@ test('file mode: upload, publish one, mode switch rules, in_use delete, public f
     await s.api.post('/api/admin/menu/publish');
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'structured' })).status, 200);
     assert.equal((await pubMenu(s)).file, null);
-    assert.equal((await s.api.del(`/api/admin/menu/files/${f2.data.id}`)).status, 204);
+    assert.equal((await s.api.del(`/api/admin/menu/pages/${f1.data.id}`)).status, 204);
     assert.equal(s.uploads().length, 0);
-    assert.equal((await s.api.get('/api/admin/dashboard')).data.menu.mode, 'structured');
+    const dash = (await s.api.get('/api/admin/dashboard')).data.menu;
+    assert.equal(dash.mode, 'structured'); assert.deepEqual(dash.pages, { bg: { published: true, count: 0 }, en: { published: false, count: 0 } });
   } finally { await s.close(); }
 });
 

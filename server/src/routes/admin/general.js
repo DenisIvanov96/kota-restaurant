@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSetting, setSetting, siteSettings, eventStatus, today, latestSnapshot, hasUnpublishedChanges, loc } from '../../store.js';
+import { getSetting, setSetting, siteSettings, eventStatus, today, latestSnapshot, hasUnpublishedChanges, loc, pagesFlag, LANGS } from '../../store.js';
 import { addDays } from '../../time.js';
 import { HttpError, validationError, has, normText } from '../../http.js';
 import { STORED_NAME_RE } from '../../files.js';
@@ -30,8 +30,9 @@ export function generalRoutes({ db, nowMs, files }) {
       const row = db.prepare('SELECT id, published FROM daily_menus WHERE menu_date = ?').get(d);
       return row ? { id: row.id, published: !!row.published } : null;
     }; 
-    const pfs = db.prepare("SELECT m.id, m.lang, f.original_name FROM menu_files m JOIN files f ON f.id = m.file_id WHERE m.published = 1 ORDER BY m.lang = 'bg' DESC, m.id DESC").all();
-    const pf = pfs[0];
+    const pages = Object.fromEntries(LANGS.map((l) => [l, {
+      published: pagesFlag(db, l), count: db.prepare('SELECT COUNT(*) AS n FROM menu_files WHERE lang = ?').get(l).n,
+    }]));
     const snap = latestSnapshot(db);
     res.json({
       today: t,
@@ -42,8 +43,7 @@ export function generalRoutes({ db, nowMs, files }) {
         mode: getSetting(db, 'menu_mode'),
         structuredPublishedAt: snap ? loc(snap.publishedAt) : null,
         hasUnpublishedChanges: hasUnpublishedChanges(db),
-        publishedFile: pf ? { id: pf.id, originalName: pf.original_name } : null,
-        publishedFiles: pfs.map((x) => ({ id: x.id, lang: x.lang, originalName: x.original_name })),
+        pages,
       },
     });
   });

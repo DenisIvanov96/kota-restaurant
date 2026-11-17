@@ -1,25 +1,30 @@
 import express from 'express';
-import { uploadSingle, DOC_TYPES, MB, kindOf } from '../../files.js';
+import { DOC_TYPES, kindOf } from '../../files.js';
 import { tx } from '../../db.js';
 import {
   getSetting, setSetting, siteSettings, readDraft, latestSnapshot, hasUnpublishedChanges, fileUrlAdmin, loc,
+  LANGS, MAX_MENU_PAGES, pagesFlag, setPagesFlag, touchPages, pageRows, liveLangs,
 } from '../../store.js';
 import { HttpError, validationError, notFound, parseBool, parseId, normText, has } from '../../http.js';
 
 export function menuRoutes({ db, nowMs, files }) {
   const r = express.Router();
-  const upload = uploadSingle('file', 15 * MB);
+  const upload = files.uploadSingle('file');
 
   const draftObj = () => ({ updatedAt: loc(Number(getSetting(db, 'draft_updated_at')) || null), categories: readDraft(db) });
-  const SELECT = `SELECT m.id, m.lang, m.published, m.created_at, f.stored_name, f.mime_type, f.original_name, f.size_bytes
-    FROM menu_files m JOIN files f ON f.id = m.file_id`;
-  const fileObj = (m) => ({
+  // ----- pages (file mode, D-46) -----
+  const pageObj = (m) => ({
     id: m.id, lang: m.lang, fileUrl: fileUrlAdmin(m.stored_name), mimeType: m.mime_type, kind: kindOf(m.mime_type),
-    originalName: m.original_name, sizeBytes: m.size_bytes, published: !!m.published, createdAt: loc(m.created_at),
+    originalName: m.original_name, sizeBytes: m.size_bytes, position: m.position, createdAt: loc(m.created_at),
   });
-  // In file mode a published file is "in use" only while it is the last published file (any language).
-  const otherPublished = (id) => !!db.prepare('SELECT 1 FROM menu_files WHERE published = 1 AND id <> ?').get(id);
-  const fileById = (id) => db.prepare(`${SELECT} WHERE m.id = ?`).get(id);
+  const langBlock = (lang) => ({ lang, published: pagesFlag(db, lang), items: pageRows(db, lang).map(pageObj) });
+  const pagesObj = () => ({ bg: langBlock('bg'), en: langBlock('en') });
+  const pageById = (id) => db.prepare('SELECT * FROM menu_files WHERE id = ?').get(id);
+  const parseLang = (v) => {
+    if (!LANGS.includes(v)) throw validationError({ lang: 'Допустими стойности: bg, en.' });
+    return v;
+  };
+  const noMenuMsg = 'Това е единственото публикувано меню (файлове). Първо превключете на структурирано меню.';
 
   r.get('/', (req, res) => {
     const snap = latestSnapshot(db);
@@ -29,7 +34,7 @@ export function menuRoutes({ db, nowMs, files }) {
       draft: draftObj(),
       published: snap ? { publishedAt: loc(snap.publishedAt), categories: snap.categories } : null,
       hasUnpublishedChanges: hasUnpublishedChanges(db),
-      files: db.prepare(`${SELECT} ORDER BY m.id DESC`).all().map(fileObj),
+      pages: Object.fromEntries(LANGS.map((l) => { const { lang, ...rest } = langBlock(l); return [lang, rest]; })),
     });
   });
 
@@ -148,43 +153,66 @@ export function menuRoutes({ db, nowMs, files }) {
     res.json({ publishedAt: loc(now) });
   });
 
-  // ----- files -----
-  r.post('/files', upload, async (req, res) => {
-    if (!req.file) throw validationError({ file: 'Изберете файл.' });
-    const lang = has(req.body, 'lang') ? req.body.lang : 'bg';
-    if (lang !== 'bg' && lang !== 'en') throw validationError({ lang: 'Допустими стойности: bg, en.' });
-    const id = await files.withUpload(req.file, DOC_TYPES, 'file', (staged) => tx(db, () => {
+  // ----- pages -----
+  r.post('/pages', upload, async (req, res) => {
+    if (!req.uploads.file) throw validationError({ file: 'Изберете файл.' });
+    const lang = has(req.body, 'lang') ? parseLang(req.body.lang) : 'bg';
+    const countOf = () => db.prepare('SELECT COUNT(*) AS n FROM menu_files WHERE lang = ?').get(lang).n;
+    const tooMany = () => new HttpError(409, 'too_many_pages', `Най-много ${MAX_MENU_PAGES} страници на език.`);
+    if (countOf() >= MAX_MENU_PAGES) throw tooMany();
+    const id = await files.withUpload(req.uploads.file, DOC_TYPES, 'file', (staged) => tx(db, () => {
+      if (countOf() >= MAX_MENU_PAGES) throw tooMany();
+      const pos = db.prepare('SELECT COALESCE(MAX(position), 0) + 1 AS p FROM menu_files WHERE lang = ?').get(lang).p;
       const fid = files.insertRow(staged);
-      return Number(db.prepare('INSERT INTO menu_files(file_id, lang, published, created_at) VALUES (?,?,0,?)').run(fid, lang, nowMs()).lastInsertRowid);
+      const now = nowMs();
+      touchPages(db, lang, now);
+      return Number(db.prepare('INSERT INTO menu_files(file_id, lang, published, position, created_at) VALUES (?,?,0,?,?)').run(fid, lang, pos, now).lastInsertRowid);
     }));
-    res.status(201).json(fileObj(fileById(id)));
+    const row = pageRows(db, lang).find((x) => x.id === id);
+    res.status(201).json(pageObj(row));
   });
 
-  r.patch('/files/:id/published', (req, res) => {
-    const id = parseId(req.params.id);
-    const ex = fileById(id);
-    if (!ex) throw notFound('Файлът не е намерен.');
-    const p = parseBool(req.body && req.body.published);
-    if (p === undefined) throw validationError({ published: 'Стойност true или false.' });
-    if (!p && ex.published && getSetting(db, 'menu_mode') === 'file' && !otherPublished(id)) {
-      throw new HttpError(409, 'in_use', 'Този файл е публичното меню. Първо превключете на структурирано меню.');
-    }
+  r.put('/pages/order', (req, res) => {
+    const b = req.body || {};
+    const lang = parseLang(b.lang);
+    const cur = pageRows(db, lang).map((x) => x.id);
+    const ids = b.ids;
+    const ok = Array.isArray(ids) && ids.length === cur.length && ids.every((x) => Number.isInteger(x))
+      && new Set(ids).size === ids.length && ids.every((x) => cur.includes(x));
+    if (!ok) throw validationError({ ids: 'Очаква се пълен списък с идентификаторите на страниците на този език, без повторения.' });
     tx(db, () => {
-      if (p) db.prepare('UPDATE menu_files SET published = 0 WHERE id <> ? AND lang = ?').run(id, ex.lang);
-      db.prepare('UPDATE menu_files SET published = ? WHERE id = ?').run(p ? 1 : 0, id);
+      ids.forEach((id, i) => db.prepare('UPDATE menu_files SET position = ? WHERE id = ?').run(i + 1, id));
+      touchPages(db, lang, nowMs());
     });
-    res.json(fileObj(fileById(id)));
+    res.json(langBlock(lang));
   });
 
-  r.delete('/files/:id', async (req, res) => {
+  r.put('/pages/published', (req, res) => {
+    const b = req.body || {};
+    const lang = parseLang(b.lang);
+    const p = parseBool(b.published);
+    if (p === undefined) throw validationError({ published: 'Стойност true или false.' });
+    if (!p && getSetting(db, 'menu_mode') === 'file' && liveLangs(db).includes(lang) && liveLangs(db).length === 1) {
+      throw new HttpError(409, 'in_use', noMenuMsg);
+    }
+    tx(db, () => { setPagesFlag(db, lang, p); touchPages(db, lang, nowMs()); });
+    res.json(langBlock(lang));
+  });
+
+  r.delete('/pages/:id', async (req, res) => {
     const id = parseId(req.params.id);
-    const ex = db.prepare('SELECT * FROM menu_files WHERE id = ?').get(id);
-    if (!ex) throw notFound('Файлът не е намерен.');
-    if (ex.published && getSetting(db, 'menu_mode') === 'file' && !otherPublished(id)) {
-      throw new HttpError(409, 'in_use', 'Този файл е публичното меню и не може да бъде изтрит.');
+    const ex = pageById(id);
+    if (!ex) throw notFound('Страницата не е намерена.');
+    const live = liveLangs(db);
+    const lastOfLang = db.prepare('SELECT COUNT(*) AS n FROM menu_files WHERE lang = ?').get(ex.lang).n === 1;
+    if (getSetting(db, 'menu_mode') === 'file' && lastOfLang && live.includes(ex.lang) && live.length === 1) {
+      throw new HttpError(409, 'in_use', 'Това е последната страница от публичното меню. Първо превключете на структурирано меню.');
     }
     const old = tx(db, () => {
       db.prepare('DELETE FROM menu_files WHERE id = ?').run(id);
+      db.prepare('SELECT id FROM menu_files WHERE lang = ? ORDER BY position, id').all(ex.lang)
+        .forEach((x, i) => db.prepare('UPDATE menu_files SET position = ? WHERE id = ?').run(i + 1, x.id));
+      touchPages(db, ex.lang, nowMs());
       return files.deleteRow(ex.file_id);
     });
     await files.unlink(old);
@@ -196,11 +224,11 @@ export function menuRoutes({ db, nowMs, files }) {
     const mode = req.body && req.body.mode;
     if (mode !== 'structured' && mode !== 'file') throw validationError({ mode: 'Допустими стойности: structured, file.' });
     const ready = mode === 'file'
-      ? !!db.prepare('SELECT 1 FROM menu_files WHERE published = 1').get()
+      ? liveLangs(db).length > 0
       : !!latestSnapshot(db);
     if (!ready) {
       throw new HttpError(409, 'nothing_published', mode === 'file'
-        ? 'Няма публикуван файл с меню.' : 'Структурираното меню още не е публикувано.');
+        ? 'Няма публикувани страници с меню.' : 'Структурираното меню още не е публикувано.');
     }
     setSetting(db, 'menu_mode', mode);
     res.json({ mode });

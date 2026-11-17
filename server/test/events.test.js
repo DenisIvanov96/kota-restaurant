@@ -111,7 +111,7 @@ test('event image: stored safely, /media only while event is public, replaced/re
   } finally { await s.close(); }
 });
 
-test('upload rejection: fake PDF, SVG, HTML, extension/type mismatch, PDF as event image, oversize; no orphans', async () => {
+test('upload rejection: fake PDF, SVG, HTML, extension/type mismatch, PDF as event image; no orphans', async () => {
   const s = await loggedIn();
   try {
     const fakePdf = await s.api.req('POST', '/api/admin/daily-menus', { form: formData({ date: '2026-06-15', published: true }, { field: 'file', buf: Buffer.from('<html>not a pdf</html>'), name: 'menu.pdf', type: 'application/pdf' }) });
@@ -124,14 +124,7 @@ test('upload rejection: fake PDF, SVG, HTML, extension/type mismatch, PDF as eve
     assert.equal((await create(s, { title: 'pdf', enabled: true }, img(PDF, 'x.pdf', 'application/pdf'))).status, 415);
     assert.equal((await create(s, { title: 'm', enabled: true }, img(PNG, 'x.jpg', 'image/png'))).status, 415); // ext mismatch
     assert.equal((await create(s, { title: 'm', enabled: true }, img(PNG, 'x.png', 'image/jpeg'))).status, 415); // mime mismatch
-    // oversize (5 MB limit for event images)
-    const big = Buffer.concat([PNG, Buffer.alloc(5 * 1024 * 1024 + 10, 7)]);
-    const r2 = await create(s, { title: 'big', enabled: true }, img(big));
-    assert.equal(r2.status, 413);
-    assert.equal(r2.data.error, 'file_too_large');
-    // daily menu limit 10 MB
-    const big2 = Buffer.concat([PDF, Buffer.alloc(10 * 1024 * 1024 + 10, 7)]);
-    assert.equal((await s.api.req('POST', '/api/admin/daily-menus', { form: formData({ date: '2026-06-15' }, { field: 'file', buf: big2, name: 'm.pdf', type: 'application/pdf' }) })).status, 413);
+    // (size limits: see uploads.test.js)
     assert.equal(s.uploads().length, 0);
     assert.equal(s.db.prepare('SELECT COUNT(*) n FROM files').get().n, 0);
     assert.equal(s.db.prepare('SELECT COUNT(*) n FROM events').get().n, 0);
