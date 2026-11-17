@@ -266,3 +266,37 @@ Admin shows Bulgarian and English as **two clear tabs ("Български" / "E
 - **Public site:** no download UI. Remove the "Изтегли менюто"/"Download menu" button, per-page download links, the structured-menu "Изтегли / Принтирай" button (`renderPrintBar`) and the daily-menu image download button. Daily-menu PDF keeps its open-in-new-tab link but **without** the `download` attribute. The `@media print` stylesheet may stay (harmless). `GET /api/public/menu/download` is **removed** (→ 404 like any unknown route).
 - **Admin:** `GET /api/admin/menu/pages/download?lang=bg|en` — session required (401 `unauthorized` otherwise; GET so no CSRF header needed, same-origin cookie is sent on a normal link click). `lang` required-valid (default bg; invalid → 400 `validation` `fields.lang`). Streams a ZIP of **all pages of that language in position order, published or not, no fallback**. 404 `not_found` when the language has no pages. Same ZIP writer (`server/src/zip.js`), entry names `kota1-menu-<lang>-page-NN.<ext>`, `Content-Disposition: attachment; filename="kota1-menu-<lang>.zip"`, `Cache-Control: no-store`, exact Content-Length, streaming/backpressure/abort behaviour unchanged.
 - **Admin UI:** in the page manager of each language tab, a "Изтегли менюто (ZIP)" button (link to the endpoint above; not rendered when the language has 0 pages) and a small "Изтегли" link per page (admin media URL with `download` attribute).
+
+## Gallery + editable "About us" (D-51..D-53)
+Owner request: a "Галерия / Gallery" button opening its own page with up to 25 photos or videos (max 50 MB each); the "За нас / About" nav button removed but the About section stays on the home page and becomes editable. Everything is managed only from the admin.
+
+### Data — migration 007
+- `gallery_items`: id, file_id (→ files, the existing file table), kind `image|video`, caption_bg, caption_en (nullable, ≤ 300 chars, normText), visible (0/1, default 1), position (1..n), created_at, updated_at. Max **25 items total** (`MAX_GALLERY_ITEMS`).
+- Settings: `about_bg`, `about_en` (nullable text, ≤ 2000 chars each, newlines kept). Empty/null = not set.
+
+### Uploads
+- Accepted: JPG, PNG, WebP (existing magic-byte checks) and video **MP4** (ISO-BMFF `ftyp` with an mp4/iso/avc/M4V brand), **MOV** (`ftyp` brand `qt  ` — iPhone videos), **WebM** (EBML `1A 45 DF A3`). Anything else → 415. 50 MB per file, one file per request, disk temp storage, no orphans (same as D-44).
+- Stored mime: image/jpeg|png|webp, video/mp4, video/quicktime, video/webm.
+
+### Admin API (session + CSRF like the rest; mirror the `/menu/pages` style)
+- `GET /api/admin/gallery` → `{ max: 25, items: [{ id, kind, mime, size, fileUrl, captionBg, captionEn, visible, position, createdAt }] }` in position order.
+- `POST /api/admin/gallery` multipart `file` (+ optional `captionBg`, `captionEn`) → 201 item, appended at the end, visible. 26th → 409 `gallery_full` (race-safe, like pages).
+- `PATCH /api/admin/gallery/:id` JSON `{ captionBg?, captionEn?, visible? }` → 200 item.
+- `PUT /api/admin/gallery/order` `{ ids: [...] }` (must be exactly the current set) → 200 list.
+- `DELETE /api/admin/gallery/:id` → 204, file deleted from disk, positions compacted.
+- Settings `GET/PUT /api/admin/settings` gain `aboutBg`, `aboutEn` (string|null, ≤ 2000).
+- Dashboard summary gains `gallery: { count, visible }`.
+
+### Public API
+- `GET /api/public/gallery?lang=` → `{ items: [{ id, kind, mime, url, caption }] }` — visible items only, in order; `caption` = requested language, falling back to the other one, else null.
+- `GET /api/public/site` (existing) gains `about`: text in the served language with BG/EN fallback, or null when neither is set (frontend then shows the built-in default i18n text).
+- `/media/:name` serves gallery files only while the item is visible (extend `isPubliclyVisible`). `res.sendFile` already answers Range requests (206) — required for video seeking on iPhone; verify it.
+- CSP unchanged (`default-src 'self'` covers `media-src`).
+
+### Public UI
+- Nav on **every** page: remove "За нас"; add "Галерия / Gallery" → `/gallery` (new `public/gallery.html`, same header/top bar/footer, routed like `/reservation`). The `#about` section on the home page stays; its text comes from `site.about` (paragraphs split on blank lines/newlines, rendered as text, never HTML).
+- Gallery page: responsive grid of thumbnails (images: `<img loading="lazy">`; videos: poster-less `<video preload="metadata" muted playsinline>` tile with a play badge). Click opens the lightbox (extend `public/js/lightbox.js`) with prev/next/swipe/Escape; videos play inside it with native `controls`, `playsinline`, never autoplay with sound, and pause when navigating away. Captions under items. Empty state: "Скоро ще добавим снимки." / "Photos coming soon.".
+
+### Admin UI (Bulgarian)
+- New sidebar/bottom-bar section **Галерия**: upload (multiple selection, sequential uploads with progress, client-side 50 MB and type check, counter "N / 25", upload disabled at 25), list with thumbnail/video preview, BG/EN caption fields, visible switch, up/down reorder, delete with confirmation.
+- **Настройки** gains a **Текст „За нас“** card with Български / English tabs (textarea, counter, save).

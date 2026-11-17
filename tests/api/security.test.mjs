@@ -47,6 +47,7 @@ describe('security (dev mode server)', () => {
     ['GET', '/api/admin/menu'], ['PUT', '/api/admin/menu/draft'], ['POST', '/api/admin/menu/draft/discard'],
     ['POST', '/api/admin/menu/publish'], ['POST', '/api/admin/menu/pages'], ['PUT', '/api/admin/menu/pages/order'], ['PUT', '/api/admin/menu/pages/published'],
     ['DELETE', '/api/admin/menu/pages/1'], ['PUT', '/api/admin/menu/mode'],
+    ['GET', '/api/admin/menu/pages/download?lang=bg'], ['GET', '/api/admin/menu/pages/download'], ['GET', '/api/admin/menu/pages/download?lang=zz'], // D-49: admin-only ZIP; auth must precede validation
     ['POST', '/api/admin/menu/files'], ['PATCH', '/api/admin/menu/files/1/published'], ['DELETE', '/api/admin/menu/files/1'], // removed in T-38: must still not answer unauthenticated requests with anything but 401
     ['GET', '/api/admin/does-not-exist'],
   ];

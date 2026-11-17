@@ -1,5 +1,5 @@
 // T-43 (D-44..D-48) browser level: multi-page regular menu end to end (admin page manager -> public), lightbox gallery,
-// downloads (single file, ZIP), structured-menu print. Ports 3201 (main) and 3202 (print).
+// (T-46 / D-49: downloads are admin-only: public site has none; admin ZIP + per-page links). Ports 3201 (main) and 3202 (structured/daily).
 // Run: node --disable-warning=ExperimentalWarning tests/e2e/pages.mjs
 import fs from 'node:fs';
 import path from 'node:path';
@@ -42,7 +42,7 @@ const clickLang = (page, l) => page.locator(`.lang-btn[data-lang="${l}"]`).click
 await api.put('/api/admin/menu/draft', { json: { categories: [{ name: 'Салати', nameEn: 'Salads', items: [{ name: 'Шопска', nameEn: 'Shopska', description: 'домати, краставици', priceCents: 650, available: true }] }, { name: 'Основни', nameEn: 'Mains', items: [{ name: 'Кебапче', nameEn: 'Kebapche', description: '', priceCents: 250, available: true }] }] } });
 await api.post('/api/admin/menu/publish');
 
-const ctxA = await newPage(browser, { width: 1280, height: 900 });
+const ctxA = await newPage(browser, { width: 1280, height: 900, acceptDownloads: true });
 const admin = ctxA.page; const alog = ctxA.log;
 await login(admin);
 const ptabs = admin.locator('[aria-label="Език на страниците"] [role=tab]');
@@ -150,7 +150,7 @@ await step('P1', async () => {
   const caps = await page.locator('.menu-pages .menu-page-cap').allInnerTexts();
   R.check('P1b every page has the caption "Страница N от 10" with N = 1..10 in order', caps.length === 10 && caps.every((c, i) => c.includes(`Страница ${i + 1} от 10`)), JSON.stringify(caps));
   R.check('P1c image pages have an alt text "Меню — страница N" and a zoom button labelled "Увеличи страница N от 10"', await page.evaluate(() => [...document.querySelectorAll('.menu-page-image')].every((f, i) => /^Меню — страница \d+$/.test(f.querySelector('img').alt) && /^Увеличи страница \d+ от 10$/.test(f.querySelector('.zoom-btn').getAttribute('aria-label')))));
-  R.check('P1d PDF page 10 is a card with "Отвори меню (PDF)" (new tab, noopener) and "Изтегли"', (await page.locator('.menu-page-pdf a[target=_blank][rel~=noopener]').count()) === 1 && (await page.locator('.menu-page-pdf').textContent()).includes('Изтегли'));
+  R.check('P1d PDF page 10 is a card with exactly one link "Отвори меню (PDF)" (new tab, noopener) and NO "Изтегли" / download attribute (D-49)', (await page.locator('.menu-page-pdf a[target=_blank][rel~=noopener]').count()) === 1 && (await page.locator('.menu-page-pdf a').count()) === 1 && (await page.locator('.menu-page-pdf a').first().textContent()).includes('Отвори меню (PDF)') && !(await page.locator('.menu-page-pdf').textContent()).includes('Изтегли') && (await page.locator('.menu-page-pdf [download]').count()) === 0);
   R.check('P1e no horizontal scroll at 390 and no console/page errors', (await noHScroll(page)).ok && pub.log.console.length === 0 && pub.log.pageErrors.length === 0, JSON.stringify(pub.log.console));
   await page.locator('#menu').screenshot({ path: path.join(shots, 'pages-public-390.png') });
 });
@@ -192,7 +192,7 @@ await step('L1', async () => {
   await page.keyboard.press('Escape');
   // EN labels
   await clickLang(page, 'en'); await page.waitForTimeout(600);
-  R.check('L1l EN visitor: set falls back to BG pages; captions "Page N of 10"; zoom label "Enlarge page 1 of 10"; "Download menu"', (await page.locator('.menu-pages .menu-page-cap').first().innerText()).includes('Page 1 of 10') && (await page.locator('.menu-pages .zoom-btn').first().getAttribute('aria-label')) === 'Enlarge page 1 of 10' && (await page.locator('.menu-dl-btn').textContent()).includes('Download menu'));
+  R.check('L1l EN visitor: set falls back to BG pages; captions "Page N of 10"; zoom label "Enlarge page 1 of 10"; no "Download" text or download attribute (D-49)', (await page.locator('.menu-pages .menu-page-cap').first().innerText()).includes('Page 1 of 10') && (await page.locator('.menu-pages .zoom-btn').first().getAttribute('aria-label')) === 'Enlarge page 1 of 10' && !/Download/i.test(await page.locator('#menu').innerText()) && (await page.locator('[download]').count()) === 0);
   await page.locator('.menu-pages .zoom-btn').first().click(); await page.waitForSelector('dialog.lightbox[open]');
   R.check('L1m EN lightbox: "Page 1 of 10", buttons "Previous page" / "Next page"', (await pos()) === 'Page 1 of 10' && (await dlg.getByRole('button', { name: 'Next page' }).count()) === 1 && (await dlg.getByRole('button', { name: 'Previous page' }).count()) === 1);
   await page.keyboard.press('Escape'); await clickLang(page, 'bg'); await page.waitForTimeout(400);
@@ -202,17 +202,16 @@ await step('L1', async () => {
 await step('AX', async () => {
   await page.goto(base + '/', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-pages');
   const pairs = {};
-  for (const sel of ['.menu-page-cap', '.menu-page-dl', '.menu-dl-btn', '.menu-page-pdf .pdf-card p', '.menu-page-pdf .btn:not(.btn-ghost-dark)', '.menu-page-pdf .btn-ghost-dark']) {
+  for (const sel of ['.menu-page-cap', '.menu-page-pdf .pdf-card p', '.menu-page-pdf .btn']) {
     const c = await colorsOf(page, sel); pairs[sel] = { ...c, ratio: Math.round(contrast(c.fg, c.bg) * 100) / 100 };
   }
   const bad = Object.entries(pairs).filter(([, v]) => v.ratio < 4.5);
-  R.check('AX1 computed colour contrast >= 4.5:1 for page caption, per-page download link, "Изтегли менюто", PDF card text and its two buttons', bad.length === 0, JSON.stringify(pairs));
-  // keyboard: Tab from the top reaches the download-all link, then the zoom buttons, with a visible focus outline
-  await page.locator('.menu-dl-btn').focus();
+  R.check('AX1 computed colour contrast >= 4.5:1 for page caption, PDF card text and its open button', bad.length === 0, JSON.stringify(pairs));
+  // keyboard: the first zoom button is focusable with a visible focus outline (no download-all link any more)
+  await page.locator('.menu-pages .zoom-btn').first().focus();
   const ring = await page.evaluate(() => { const cs = getComputedStyle(document.activeElement); return { w: cs.outlineWidth, s: cs.outlineStyle, sh: cs.boxShadow }; });
-  R.check('AX2 the focused "Изтегли менюто" link has a visible focus indicator', (ring.s !== 'none' && parseFloat(ring.w) >= 2) || ring.sh !== 'none', JSON.stringify(ring));
-  await page.keyboard.press('Tab');
-  R.check('AX3 Tab from "Изтегли менюто" moves to the first page zoom button (document order: download, page 1)', (await page.evaluate(() => document.activeElement.className)).includes('zoom-btn'));
+  R.check('AX2 the focused first page zoom button has a visible focus indicator', (ring.s !== 'none' && parseFloat(ring.w) >= 2) || ring.sh !== 'none', JSON.stringify(ring));
+  R.check('AX3 D-49: no focusable element precedes the first zoom button inside the menu pages (no download bar)', await page.evaluate(() => { const f = document.querySelector('.menu-pages .zoom-btn'); return [...document.querySelectorAll('.menu-pages a, .menu-pages button')].find((e) => e.offsetParent !== null) === f; }));
   await page.keyboard.press('Enter'); await page.waitForSelector('dialog.lightbox[open]');
   const lb = await page.evaluate(() => { const d = document.querySelector('dialog.lightbox'); const b = [...d.querySelectorAll('button')].filter((x) => !x.hidden); return { name: d.getAttribute('aria-label'), focusInside: d.contains(document.activeElement), buttons: b.map((x) => x.getAttribute('aria-label') || x.textContent.trim()) }; });
   R.check('AX4 keyboard Enter opens the lightbox: dialog has an accessible name, focus is inside, visible controls all have names (Предишна/Следваща/Увеличи/Затвори)', lb.name && lb.focusInside && lb.buttons.every(Boolean) && lb.buttons.some((x) => /Следваща/.test(x)) && lb.buttons.some((x) => /Затвори/.test(x)), JSON.stringify(lb));
@@ -241,7 +240,7 @@ await step('F1', async () => {
   R.check('F1a EN set published: EN visitors get lang=en with 1 page; BG visitors still 10 pages', en.lang === 'en' && en.pages.length === 1 && (await anon.get('/api/public/menu?lang=bg')).data.file.pages.length === 10);
   await clickLang(page, 'en'); await page.waitForTimeout(800);
   const caps = await page.locator('.menu-pages .menu-page-cap').allInnerTexts();
-  R.check('F1b public page switched to EN without reload shows exactly the EN page (no caption "Page 1 of 1" for a single page; direct download link to the file)', (await page.locator('.menu-pages figure.menu-page').count()) === 1 && idxOf(await pixel(page, '.menu-pages .menu-page-image img')) === 12 && !caps.some((c) => /Page 1 of 1/.test(c)) && (await page.locator('.menu-dl-btn').getAttribute('download')) !== null, JSON.stringify(caps));
+  R.check('F1b public page switched to EN without reload shows exactly the EN page (no caption "Page 1 of 1" for a single page; no download link, D-49)', (await page.locator('.menu-pages figure.menu-page').count()) === 1 && idxOf(await pixel(page, '.menu-pages .menu-page-image img')) === 12 && !caps.some((c) => /Page 1 of 1/.test(c)) && (await page.locator('.menu-dl-btn, [download]').count()) === 0, JSON.stringify(caps));
   await clickLang(page, 'bg'); await page.waitForTimeout(800);
   R.check('F1c back to БГ: 10 pages again', (await page.locator('.menu-pages figure.menu-page').count()) === 10);
   // unpublish BG while EN stays live -> BG visitors fall back to the EN page
@@ -257,39 +256,50 @@ await step('F1', async () => {
   R.check('F1f BG published again: both live', (await api.get('/api/admin/menu')).data.pages.bg.published === true);
 });
 
-// ===================================================================================== 6. downloads
+// ===================================================================================== 6. downloads (D-49: admin only)
 await step('D1', async () => {
-  const dl = page.locator('.menu-dl-btn');
   await page.goto(base + '/', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-pages');
-  R.check('D1a 10 pages: "Изтегли менюто" is a link to /api/public/menu/download?lang=bg (no download attribute needed; server sends attachment)', (await dl.getAttribute('href')) === '/api/public/menu/download?lang=bg');
-  const [d] = await Promise.all([page.waitForEvent('download'), dl.click()]);
+  const pubTxt = await page.locator('main').innerText();
+  R.check('D1a public BG, 10 pages: no "Изтегли…"/"Download" text, no .menu-dl-btn/.menu-page-dl, no element with a download attribute anywhere on the page', !/Изтегли|Download/i.test(pubTxt) && (await page.locator('.menu-dl-btn, .menu-page-dl, .menu-print-bar').count()) === 0 && (await page.locator('[download]').count()) === 0 && !(await page.content()).includes('/api/public/menu/download'));
+  const g = await anon.get('/api/public/menu/download?lang=bg'); const h = await anon.req('HEAD', '/api/public/menu/download?lang=bg');
+  R.check('D1b public endpoint is gone: GET and HEAD /api/public/menu/download?lang=bg -> 404 (also with a live file menu)', g.status === 404 && h.status === 404, `${g.status} ${h.status}`);
+  // admin ZIP through the browser
+  await admin.bringToFront(); await go(admin, '#/menu'); await admin.reload({ waitUntil: 'networkidle' }); await admin.waitForSelector('#tab-file'); await tab(admin, 'Файл').click(); await admin.waitForSelector('.a-pagerow'); await ptabs.nth(0).click(); await admin.waitForTimeout(300);
+  const dlBg = admin.locator('a[href="/api/admin/menu/pages/download?lang=bg"]');
+  R.check('D1c admin BG tab: exactly one "Изтегли менюто (ZIP)" link to /api/admin/menu/pages/download?lang=bg, visible text "Изтегли менюто (ZIP)", accessible name mentions it', (await dlBg.count()) === 1 && (await dlBg.innerText()).includes('Изтегли менюто (ZIP)') && /Изтегли менюто \(ZIP\)/.test(await dlBg.getAttribute('aria-label')), await dlBg.getAttribute('aria-label'));
+  const [d] = await Promise.all([admin.waitForEvent('download'), dlBg.click()]);
   const zp = path.join(SCRATCH, `pages-dl-${process.pid}.zip`); await d.saveAs(zp);
   const t = spawnSync('unzip', ['-t', zp], { encoding: 'utf8' }); const l = spawnSync('unzip', ['-Z1', zp], { encoding: 'utf8' });
   const entries = l.stdout.trim().split('\n');
   const want = Array.from({ length: 10 }, (_, i) => `kota1-menu-bg-page-${String(i + 1).padStart(2, '0')}.${i === 9 ? 'pdf' : 'png'}`);
-  R.check('D1b clicking it downloads "kota1-menu-bg.zip"; `unzip -t` passes; 10 entries named kota1-menu-bg-page-01..10 in page order (png x9, pdf last)', d.suggestedFilename() === 'kota1-menu-bg.zip' && t.status === 0 && /No errors detected/.test(t.stdout) && entries.join() === want.join(), `${d.suggestedFilename()} ${t.stdout.slice(-80)} ${entries.join()}`);
-  // compare first entry bytes with the page served at /media (entry 1 = page 1)
+  R.check('D1d clicking it downloads "kota1-menu-bg.zip"; `unzip -t` passes; 10 entries named kota1-menu-bg-page-01..10 in page order (png x9, pdf last)', d.suggestedFilename() === 'kota1-menu-bg.zip' && t.status === 0 && /No errors detected/.test(t.stdout) && entries.join() === want.join(), `${d.suggestedFilename()} ${t.stdout.slice(-80)} ${entries.join()}`);
+  const items = (await api.get('/api/admin/menu')).data.pages.bg.items;
   const e1 = spawnSync('unzip', ['-p', zp, 'kota1-menu-bg-page-01.png'], { maxBuffer: 1 << 26 });
-  const media1 = (await anon.get(bgUrls[0])).buf;
-  R.check('D1c ZIP entry page-01 is byte-identical to the live page 1 file', Buffer.compare(e1.stdout, media1) === 0);
+  R.check('D1e ZIP entry page-01 is byte-identical to admin page 1 file; entry 10 (PDF) identical to page 10', Buffer.compare(e1.stdout, (await api.get(items[0].fileUrl)).buf) === 0 && Buffer.compare(spawnSync('unzip', ['-p', zp, 'kota1-menu-bg-page-10.pdf'], { maxBuffer: 1 << 26 }).stdout, (await api.get(items[9].fileUrl)).buf) === 0);
   fs.rmSync(zp, { force: true });
-  // per-page download link
-  const [d2] = await Promise.all([page.waitForEvent('download'), page.getByRole('link', { name: 'Изтегли страница 2', exact: true }).click()]);
+  // per-page "Изтегли" link
+  const pl = admin.getByRole('link', { name: 'Изтегли страница 2', exact: true });
+  R.check('D1f per-page "Изтегли" link: one per page (10), has a download attribute, href = the admin media URL of that page', (await admin.locator('.a-pagerow a[download]').count()) === 10 && (await pl.getAttribute('download')) !== null && (await pl.getAttribute('href')) === items[1].fileUrl, `${await pl.getAttribute('href')} ${items[1].fileUrl}`);
+  const [d2] = await Promise.all([admin.waitForEvent('download'), pl.click()]);
   const pp = path.join(SCRATCH, `pages-dl2-${process.pid}`); await d2.saveAs(pp);
-  R.check('D1d "Изтегли страница 2" downloads that single page file (bytes equal the page /media)', Buffer.compare(fs.readFileSync(pp), (await anon.get(bgUrls[1])).buf) === 0, d2.suggestedFilename());
+  R.check('D1g "Изтегли страница 2" downloads that single page file (bytes equal page 2; not page 1 or 3)', Buffer.compare(fs.readFileSync(pp), (await api.get(items[1].fileUrl)).buf) === 0 && Buffer.compare(fs.readFileSync(pp), (await api.get(items[0].fileUrl)).buf) !== 0 && Buffer.compare(fs.readFileSync(pp), (await api.get(items[2].fileUrl)).buf) !== 0, d2.suggestedFilename());
   fs.rmSync(pp, { force: true });
-  // EN: EN set live (1 page) => direct link; make EN 2 pages => zip named en
+  // EN tab: add a second EN page via API, reload, ZIP named en with the 2 EN pages (EN set is live and has 1 + 1 pages)
   await api.post('/api/admin/menu/pages', { form: form({ lang: 'en' }, { field: 'file', buf: pagePng(13, 300, 400), name: 'en2.png', type: 'image/png' }) });
-  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-pages');
-  const [d3] = await Promise.all([page.waitForEvent('download'), page.locator('.menu-dl-btn').click()]);
+  await admin.reload({ waitUntil: 'networkidle' }); await admin.waitForSelector('#tab-file'); await tab(admin, 'Файл').click(); await admin.waitForSelector('.a-pagerow'); await ptabs.nth(1).click(); await admin.waitForTimeout(300);
+  const dlEn = admin.locator('a[href="/api/admin/menu/pages/download?lang=en"]');
+  R.check('D1h EN tab shows its own ZIP link (lang=en) and no BG link', (await dlEn.count()) === 1 && (await admin.locator('a[href="/api/admin/menu/pages/download?lang=bg"]').count()) === 0);
+  const [d3] = await Promise.all([admin.waitForEvent('download'), dlEn.click()]);
   const zp3 = path.join(SCRATCH, `pages-dl3-${process.pid}.zip`); await d3.saveAs(zp3);
   const l3 = spawnSync('unzip', ['-Z1', zp3], { encoding: 'utf8' }).stdout.trim().split('\n');
-  R.check('D1e EN visitor with 2 EN pages: "Download menu" -> "kota1-menu-en.zip" with kota1-menu-en-page-01.png, -02.png', d3.suggestedFilename() === 'kota1-menu-en.zip' && l3.join() === 'kota1-menu-en-page-01.png,kota1-menu-en-page-02.png' && spawnSync('unzip', ['-t', zp3]).status === 0, `${d3.suggestedFilename()} ${l3.join()}`);
+  R.check('D1i EN ZIP: "kota1-menu-en.zip" with kota1-menu-en-page-01.png, -02.png; unzip -t passes', d3.suggestedFilename() === 'kota1-menu-en.zip' && l3.join() === 'kota1-menu-en-page-01.png,kota1-menu-en-page-02.png' && spawnSync('unzip', ['-t', zp3]).status === 0, `${d3.suggestedFilename()} ${l3.join()}`);
   fs.rmSync(zp3, { force: true });
-  // 404 when not public: switch to structured (admin API) -> endpoint 404
+  // the admin download works in structured mode too (not tied to the public mode) and for UNPUBLISHED pages
   await api.put('/api/admin/menu/mode', { json: { mode: 'structured' } });
-  R.check('D1f structured mode: the download endpoint answers 404 (nothing public) and the page shows the structured menu without a "Изтегли менюто" ZIP button', (await anon.get('/api/public/menu/download?lang=bg')).status === 404);
+  const r2 = await api.get('/api/admin/menu/pages/download?lang=bg');
+  R.check('D1j admin ZIP is independent of the public mode: structured mode still 200 application/zip', r2.status === 200 && r2.headers.get('content-type') === 'application/zip', String(r2.status));
   await api.put('/api/admin/menu/mode', { json: { mode: 'file' } });
+  R.check('D1k anonymous request to the admin ZIP endpoint is refused (401 unauthorized)', (await anon.get('/api/admin/menu/pages/download?lang=bg')).status === 401);
 });
 
 // ===================================================================================== 7. responsive + accessibility of the pages UI
@@ -298,13 +308,13 @@ await step('V1', async () => {
     const c = await newPage(browser, { width: vp.w, height: vp.h });
     await c.page.goto(base + '/', { waitUntil: 'networkidle' }); await c.page.waitForSelector('.menu-pages'); await c.page.waitForTimeout(500);
     const h1 = await c.page.locator('h1').count(); const imgsNoAlt = await c.page.locator('.menu-pages img:not([alt]), .menu-pages img[alt=""]').count();
-    const btns = await c.page.locator('.menu-dl-btn, .menu-page-dl, .menu-pages .zoom-btn').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
-    R.check(`V1[${vp.n}] public menu pages: no h-scroll, no console/page errors, no failed requests, one h1, every image has alt, download/zoom targets >= 44px high`, (await noHScroll(c.page)).ok && c.log.console.length === 0 && c.log.pageErrors.length === 0 && c.log.failed.length === 0 && h1 === 1 && imgsNoAlt === 0 && btns.every(([w, h]) => h >= 44 && w >= 44), JSON.stringify({ log: c.log.console, f: c.log.failed, btns: btns.filter(([w, h]) => h < 44 || w < 44) }));
+    const btns = await c.page.locator('.menu-pages .zoom-btn').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
+    R.check(`V1[${vp.n}] public menu pages: no h-scroll, no console/page errors, no failed requests, one h1, every image has alt, zoom targets >= 44px high`, (await noHScroll(c.page)).ok && c.log.console.length === 0 && c.log.pageErrors.length === 0 && c.log.failed.length === 0 && h1 === 1 && imgsNoAlt === 0 && btns.every(([w, h]) => h >= 44 && w >= 44), JSON.stringify({ log: c.log.console, f: c.log.failed, btns: btns.filter(([w, h]) => h < 44 || w < 44) }));
     await c.context.close();
     const a = await newPage(browser, { width: vp.w, height: vp.h });
     await login(a.page); await go(a.page, '#/menu'); await a.page.waitForSelector('#tab-file'); await tab(a.page, 'Файл').click(); await a.page.waitForSelector('.a-pagerow'); await a.page.waitForTimeout(400);
     const hs = await noHScroll(a.page);
-    const small = await a.page.locator('.a-pagerow button, .a-pagerow a, .a-upload--pages button, [role=switch]').evaluateAll((els) => els.filter((e) => e.offsetParent !== null).map((e) => { const r = e.getBoundingClientRect(); return [e.getAttribute('aria-label') || e.textContent.trim(), Math.round(r.width), Math.round(r.height)]; }).filter(([, w, h]) => w < 44 || h < 44));
+    const small = await a.page.locator('.a-pagerow button, .a-pagerow a, .a-actions a, .a-upload--pages button, [role=switch]').evaluateAll((els) => els.filter((e) => e.offsetParent !== null).map((e) => { const r = e.getBoundingClientRect(); return [e.getAttribute('aria-label') || e.textContent.trim(), Math.round(r.width), Math.round(r.height)]; }).filter(([, w, h]) => w < 44 || h < 44));
     R.check(`V2[${vp.n}] admin page manager with 10 pages: no h-scroll, no console errors (beyond intended 4xx), controls >= 44x44`, hs.ok && a.log.pageErrors.length === 0 && small.length === 0, JSON.stringify({ hs, small, p: a.log.pageErrors }));
     if (vp.n === 390) await a.page.screenshot({ path: path.join(shots, 'pages-admin-390.png'), fullPage: true });
     await a.context.close();
@@ -318,7 +328,7 @@ await step('A-LOG', async () => {
 await ctxA.context.close(); await pub.context.close();
 await srv.stop();
 
-// ===================================================================================== 8. structured menu: print (fresh server, port 3202)
+// ===================================================================================== 8. structured menu (D-49: no print/download button), daily menu, admin ZIP absent with 0 pages (fresh server, port 3202)
 const dir2 = tmpDir('pagesprint'); createAdmin(dir2);
 const srv2 = await startServer({ port: 3202, dataDir: dir2, now: T0 });
 await step('PR', async () => {
@@ -330,38 +340,19 @@ await step('PR', async () => {
   const p = c.page;
   await p.addInitScript(() => { window.__prints = 0; window.print = () => { window.__prints++; }; });
   await p.goto(srv2.url + '/', { waitUntil: 'networkidle' }); await p.waitForSelector('.cat');
-  const btn = p.getByRole('button', { name: 'Изтегли / Принтирай' });
-  R.check('PR1 structured mode: button "Изтегли / Принтирай" is visible (>=44px high) above the menu; no ZIP/download-all link', (await btn.isVisible()) && (await btn.boundingBox()).height >= 44 && (await p.locator('a.menu-dl-btn').count()) === 0);
-  await btn.click();
-  R.check('PR2 clicking the button calls window.print() exactly once', (await p.evaluate(() => window.__prints)) === 1);
-  await btn.focus(); await p.keyboard.press('Enter');
-  R.check('PR3 the button is keyboard operable (Enter -> second print call)', (await p.evaluate(() => window.__prints)) === 2);
-  // screen: the print title is hidden
-  R.check('PR4 on screen the print-only "KOTA 1" heading is not displayed', !(await p.locator('.print-title').isVisible()));
+  const mt = await p.locator('#menu').innerText();
+  R.check('PR1 structured mode (D-49): no button/link "Изтегли / Принтирай", no .menu-print-bar/.menu-dl-btn/.print-title, no print button, no [download]; categories and dishes still shown', (await p.getByRole('button', { name: /Принтирай|Print/ }).count()) === 0 && (await p.locator('.menu-print-bar, .menu-dl-btn, .print-title, [download]').count()) === 0 && !/Изтегли|Принтирай/.test(mt) && (await p.locator('#menu button').count()) === 0 && /Шопска салата/.test(mt) && /Кебапче/.test(mt), mt.slice(0, 200));
+  R.check('PR2 the first control in #menu is the category nav (nothing precedes it), the page never calls window.print()', (await p.evaluate(() => window.__prints)) === 0);
   await p.emulateMedia({ media: 'print' });
-  const vis = await p.evaluate(() => {
-    const shown = (sel) => [...document.querySelectorAll(sel)].some((e) => { const cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden' && e.getBoundingClientRect().height > 0; });
-    const bg = (el) => getComputedStyle(el).backgroundColor;
-    return { header: shown('.site-header'), topbar: shown('.top-bar'), footer: shown('.site-footer'), hero: shown('.hero'), nav: shown('.cat-nav'), skip: shown('.skip-link'), btn: shown('.menu-print-bar button'),
-      sections: [...document.querySelectorAll('main > section')].filter((s) => getComputedStyle(s).display !== 'none').map((s) => s.id), title: shown('.print-title'), titleText: (document.querySelector('.print-title') || {}).textContent, cats: shown('.cat'), dish: shown('.dish'),
-      bodyBg: bg(document.body), bodyColor: getComputedStyle(document.body).color, menuBg: bg(document.querySelector('.menu-section')), text: document.querySelector('main').innerText };
-  });
-  const lum = (s) => { const m = s.match(/[\d.]+/g).map(Number); return (m[0] + m[1] + m[2]) / 3; };
-  R.check('PR5 print media: header, top bar, footer, hero, category nav, skip link and the print button are hidden; the only visible main section is #menu', !vis.header && !vis.topbar && !vis.footer && !vis.hero && !vis.nav && !vis.skip && !vis.btn && vis.sections.join() === 'menu', JSON.stringify(vis));
-  R.check('PR6 print media: "KOTA 1" heading shown, categories and dishes with prices shown; background light (body and menu), text dark', vis.title && vis.titleText === 'KOTA 1' && vis.cats && vis.dish && lum(vis.bodyBg) > 240 && lum(vis.menuBg) > 240 && lum(vis.bodyColor) < 60 && /Шопска салата/.test(vis.text) && /Кебапче/.test(vis.text), JSON.stringify({ bg: vis.bodyBg, menuBg: vis.menuBg, color: vis.bodyColor }));
-  // real PDF output through Chromium's print engine
-  const pdfPath = path.join(SCRATCH, `print-${process.pid}.pdf`);
-  await p.pdf({ path: pdfPath, format: 'A4', printBackground: true, preferCSSPageSize: true });
-  const txt = spawnSync('pdftotext', ['-layout', pdfPath, '-'], { encoding: 'utf8' }).stdout;
-  R.check('PR7 the generated PDF contains KOTA 1, the categories, dishes and prices but NOT the navigation / footer / address / phone / "Изтегли"', /KOTA 1/.test(txt) && /салати/i.test(txt) && /шопска салата/i.test(txt) && /6[.,]50/.test(txt) && /кебапче/i.test(txt) && !/ул\. Тест 1/.test(txt) && !/\+359 2 123 4567/.test(txt) && !/Изтегли/.test(txt) && !/Резервация|Контакти/.test(txt), txt.replace(/\n+/g, ' | ').slice(0, 400));
-  fs.rmSync(pdfPath, { force: true });
+  const txt = await p.evaluate(() => { const shown = (sel) => [...document.querySelectorAll(sel)].some((e) => { const cs = getComputedStyle(e); return cs.display !== 'none' && e.getBoundingClientRect().height > 0; }); return { sections: [...document.querySelectorAll('main > section')].filter((s) => getComputedStyle(s).display !== 'none').map((s) => s.id), header: shown('.site-header'), footer: shown('.site-footer'), cats: shown('.cat') }; });
+  R.check('PR3 @media print stylesheet kept (harmless, D-49): print emulation shows only #menu, no header/footer', txt.sections.join() === 'menu' && !txt.header && !txt.footer && txt.cats, JSON.stringify(txt));
   await p.emulateMedia({ media: 'screen' });
   await p.goto(srv2.url + '/?lang=en', { waitUntil: 'networkidle' }); await p.waitForSelector('.cat');
-  R.check('PR8 EN: button reads "Download / Print"', (await p.getByRole('button', { name: 'Download / Print' }).count()) === 1);
-  R.check('PR9 no console errors / page errors on the structured page', c.log.console.length === 0 && c.log.pageErrors.length === 0, JSON.stringify(c.log.console));
+  R.check('PR4 EN: no "Download / Print" button', (await p.getByRole('button', { name: /Download|Print/ }).count()) === 0 && !/Download|Print/.test(await p.locator('#menu').innerText()));
+  R.check('PR5 no console errors / page errors on the structured page', c.log.console.length === 0 && c.log.pageErrors.length === 0, JSON.stringify(c.log.console));
   await c.context.close();
 });
-// daily menu UI (D-45/D-44): wizard note, no "past menus" toggle, 50 MB limit text; image daily menu has open + download
+// daily menu UI (D-45/D-44/D-49): wizard note, no "past menus" toggle; image daily menu has open + zoom but NO download; PDF open link without download attribute
 await step('DM', async () => {
   const a2 = new Client(srv2.url); await a2.login();
   const c = await newPage(browser, { width: 1280, height: 900 });
@@ -371,12 +362,41 @@ await step('DM', async () => {
   await go(p, '#/daily-menu'); await p.waitForTimeout(700);
   const txt = await p.locator('main').innerText();
   R.check('DM1 daily-menu wizard states "Менютата от минали дни се изтриват автоматично" and the list has no "Покажи минали менюта" toggle', /Менютата от минали дни се изтриват автоматично/.test(txt) && !/Покажи минали менюта/.test(txt), txt.slice(0, 300));
+  // admin: 0 pages in both languages -> no "Изтегли менюто (ZIP)" link
+  await go(p, '#/menu'); await p.waitForSelector('#tab-file'); await tab(p, 'Файл').click(); await p.waitForTimeout(400);
+  const pt = p.locator('[aria-label="Език на страниците"] [role=tab]');
+  const zipLinks = async () => p.locator('a[href*="/pages/download"]').count();
+  const bg0 = await zipLinks(); await pt.nth(1).click(); await p.waitForTimeout(300); const en0 = await zipLinks();
+  R.check('DM0 admin page manager with 0 pages (BG and EN): no "Изтегли менюто (ZIP)" link and no per-page links; direct endpoint answers 404 not_found', bg0 === 0 && en0 === 0 && (await p.getByText('Изтегли менюто (ZIP)').count()) === 0 && (await a2.get('/api/admin/menu/pages/download?lang=bg')).status === 404 && (await a2.get('/api/admin/menu/pages/download?lang=en')).data.error === 'not_found');
+  await a2.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: makePng(30, 40, [9, 9, 9]), name: 'z.png', type: 'image/png' }) });
+  await p.reload({ waitUntil: 'networkidle' }); await p.waitForSelector('#tab-file'); await tab(p, 'Файл').click(); await p.waitForSelector('.a-pagerow'); await pt.nth(0).click(); await p.waitForTimeout(300);
+  R.check('DM0b after the first BG page is added the BG ZIP link appears (and EN still has none)', (await zipLinks()) === 1 && (await (async () => { await pt.nth(1).click(); await p.waitForTimeout(300); return zipLinks(); })()) === 0);
   // a past-dated menu created via API is gone from the admin list and from the page after the next upload
   const mk = (date, buf, name, type) => { const fd = new FormData(); fd.append('date', date); fd.append('published', 'true'); fd.append('file', new Blob([buf], { type }), name); return a2.post('/api/admin/daily-menus', { form: fd }); };
-  assert_ok((await mk('2026-06-15', makePng(30, 40, [1, 2, 3]), 'today.png', 'image/png')).status === 201);
-  await p.goto(srv2.url + '/daily-menu', { waitUntil: 'networkidle' }); await p.waitForSelector('.viewer');
-  const vt = await p.locator('.viewer-actions').textContent();
-  R.check('DM2 public daily image menu: "Отвори в нов раздел" + "Изтегли" links (download attribute, same-origin /media)', /Отвори в нов раздел/.test(vt) && /Изтегли/.test(vt) && (await p.locator('.viewer-actions a[download]').count()) >= 1 && (await p.locator('.viewer-actions a[download]').first().getAttribute('href')).startsWith('/media/'), vt);
+  const dmk = await mk('2026-06-15', makePng(30, 40, [1, 2, 3]), 'today.png', 'image/png');
+  assert_ok(dmk.status === 201);
+  for (const lng of ['bg', 'en']) {
+    await p.goto(srv2.url + `/daily-menu?lang=${lng}`, { waitUntil: 'networkidle' }); await p.waitForSelector('.viewer');
+    const vt = await p.locator('.viewer-actions').textContent();
+    const open = p.locator('.viewer-actions a');
+    R.check(`DM2[${lng}] public daily image menu (D-49): one "open in new tab" link (/media/, noopener), NO download link/attribute/text on the page, zoom button present`, (await open.count()) === 1 && (await open.getAttribute('href')).startsWith('/media/') && (await open.getAttribute('target')) === '_blank' && /noopener/.test(await open.getAttribute('rel')) && !/Изтегли|Download/i.test(await p.locator('#daily-view').innerText()) && (await p.locator('[download]').count()) === 0 && (await p.locator('.viewer .zoom-btn').count()) === 1, vt);
+    await p.locator('.viewer .zoom-btn').click(); await p.waitForSelector('dialog.lightbox[open]');
+    const lbOk = await p.evaluate(() => { const d = document.querySelector('dialog.lightbox'); return d.open && !!d.querySelector('.lb-img') && d.contains(document.activeElement); });
+    await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+    R.check(`DM3[${lng}] daily menu lightbox still opens (image visible, focus inside) and Escape closes it`, lbOk && !(await p.evaluate(() => document.querySelector('dialog.lightbox').open)));
+  }
+  // daily PDF: replace today's menu with a PDF
+  const dpdf = await a2.put(`/api/admin/daily-menus/${dmk.data.id}`, { form: form({ date: '2026-06-15', published: 'true' }, { field: 'file', buf: PDF, name: 'd.pdf', type: 'application/pdf' }) });
+  assert_ok(dpdf.status < 300);
+  for (const lng of ['bg', 'en']) {
+    await p.goto(srv2.url + `/daily-menu?lang=${lng}`, { waitUntil: 'networkidle' }); await p.waitForSelector('.viewer');
+    const open = p.locator('.viewer a');
+    const href = await open.first().getAttribute('href');
+    const resp = await a2.get(href);
+    R.check(`DM4[${lng}] public daily PDF: exactly one open link ("${lng === 'bg' ? 'Отвори PDF' : 'Open PDF'}", new tab, noopener), no download attribute/text; the link still opens the PDF (200 application/pdf)`, (await open.count()) === 1 && (await open.first().textContent()).includes(lng === 'bg' ? 'Отвори PDF' : 'Open PDF') && (await open.first().getAttribute('target')) === '_blank' && /noopener/.test(await open.first().getAttribute('rel')) && (await p.locator('[download]').count()) === 0 && !/Изтегли|Download/i.test(await p.locator('#daily-view').innerText()) && resp.status === 200 && /application\/pdf/.test(resp.headers.get('content-type')), `${href} ${resp.status} ${resp.headers.get('content-type')}`);
+  }
+  const dmBad = c.log.console.filter((m) => !/status of 401 \(Unauthorized\) @ \S+\/api\/admin\/me$/.test(m)); // the admin login screen probes /me
+  R.check('DM5 no console/page errors on daily pages (only the expected 401 of the admin login probe)', dmBad.length === 0 && c.log.pageErrors.length === 0, JSON.stringify(c.log.console));
   await c.context.close();
 });
 function assert_ok(v) { if (!v) throw new Error('precondition failed'); }

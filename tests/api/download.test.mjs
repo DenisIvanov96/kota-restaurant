@@ -1,4 +1,4 @@
-// T-43 (D-48): public menu download (ZIP of live pages). Port 3203.
+// T-43 / T-46 (D-49): menu download is ADMIN-ONLY: GET /api/admin/menu/pages/download?lang= (ZIP of all pages of a language); the public endpoint is gone. Port 3203.
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -49,17 +49,19 @@ export function readZip(buf) {
 }
 
 /** GET that can pause: returns { res, headers, readAll() } using node:http so the body can be consumed slowly. */
-function rawGet(url, { method = 'GET' } = {}) {
+function rawGet(url, { method = 'GET', cookie } = {}) {
   return new Promise((resolve, reject) => {
-    const req = http.request(url, { method }, (res) => resolve({ res, req }));
+    const req = http.request(url, { method, headers: cookie ? { cookie } : {} }, (res) => resolve({ res, req }));
     req.on('error', reject); req.end();
   });
 }
 
-describe('menu download (D-48)', () => {
+describe('admin menu download (D-49)', () => {
   let dir; let srv; let admin; let anon;
   const up = () => fs.readdirSync(path.join(dir, 'uploads'));
-  const dl = (q = '', o) => anon.get(`/api/public/menu/download${q}`, o);
+  const AD = '/api/admin/menu/pages/download';
+  const dl = (q = '', o) => admin.get(`${AD}${q}`, o);
+  const pubdl = (q = '', o) => anon.get(`/api/public/menu/download${q}`, o);
   const addPage = async (lang, buf, name, type) => { const r = await admin.post('/api/admin/menu/pages', { form: mp({ lang }, [{ field: 'file', buf, name, type }]) }); assert.equal(r.status, 201, r.text().slice(0, 150)); return r.data; };
   const setPub = (lang, published) => admin.put('/api/admin/menu/pages/published', { json: { lang, published } });
   const fdCount = (pid) => fs.readdirSync(`/proc/${pid}/fd`).length;
@@ -67,28 +69,68 @@ describe('menu download (D-48)', () => {
   before(async () => { dir = tmpDir('dl'); createAdmin(dir); srv = await startServer({ port: PORT, dataDir: dir, now: T0 }); admin = new Client(srv.url); await admin.login(); anon = new Client(srv.url); });
   after(async () => { await srv.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
 
-  test('DL1 404 when nothing is public: fresh DB; pages uploaded but unpublished; published but mode=structured; flag on but no pages', async () => {
-    assert.equal((await dl()).status, 404);
-    const a = await addPage('bg', PNG_A, 'a.png', 'image/png');
-    assert.equal((await dl()).status, 404, 'unpublished pages');
-    await setPub('bg', true);
-    assert.equal((await dl()).status, 404, 'published but mode=structured');
-    await setPub('bg', false); await setPub('en', true);
-    assert.equal((await admin.put('/api/admin/menu/mode', { json: { mode: 'structured' } })).status === 409 || true, true);
-    assert.equal((await dl('?lang=en')).status, 404, 'EN flag on with zero EN pages (and mode structured)');
-    await setPub('en', false);
-    assert.equal((await admin.del(`/api/admin/menu/pages/${a.id}`)).status, 204);
-    assert.deepEqual(up(), []);
-  });
-
-  let pg;
-  test('DL2 structured menu published -> mode file with 3 BG pages (png, pdf, webp): ZIP headers, size, entries in page order, CRCs, bytes identical', async () => {
-    const draft = await admin.put('/api/admin/menu/draft', { json: { categories: [{ name: 'К', items: [{ name: 'Я', description: '', priceCents: 100, available: true }] }] } }); assert.equal(draft.status, 200);
+  test('DL1 the public download endpoint is gone: GET/HEAD (any lang, with or without live pages) -> 404 not_found JSON, never a ZIP; other methods 4xx', async () => {
+    const check = async (label) => {
+      for (const q of ['', '?lang=bg', '?lang=en']) {
+        const r = await pubdl(q); assert.equal(r.status, 404, `${label} GET ${q} -> ${r.status}`);
+        assert.notEqual(r.headers.get('content-type'), 'application/zip'); assert.equal(r.headers.get('content-disposition'), null);
+        const h = await anon.req('HEAD', `/api/public/menu/download${q}`); assert.equal(h.status, 404, `${label} HEAD ${q} -> ${h.status}`);
+      }
+      // a bad ?lang is rejected by the public router's generic lang check (400) like on any public route; never a ZIP
+      const bad = await pubdl('?lang=fr'); assert.ok([400, 404].includes(bad.status)); assert.notEqual(bad.headers.get('content-type'), 'application/zip');
+      for (const m of ['POST', 'PUT', 'DELETE', 'PATCH']) { const r = await anon.req(m, '/api/public/menu/download?lang=bg', { csrf: false }); assert.ok(r.status >= 400 && r.status < 500, `${m} -> ${r.status}`); }
+    };
+    await check('fresh DB');
+    // with live published pages in file mode (the old precondition for a 200)
+    await admin.put('/api/admin/menu/draft', { json: { categories: [{ name: 'К', items: [{ name: 'Я', description: '', priceCents: 100, available: true }] }] } });
     await admin.post('/api/admin/menu/publish');
     pg = [await addPage('bg', PNG_A, 'първа.png', 'image/png'), await addPage('bg', PDF_A, 'second.pdf', 'application/pdf'), await addPage('bg', WEBP_A, 'third.webp', 'image/webp')];
     await setPub('bg', true);
-    assert.equal((await dl()).status, 404, 'still structured mode');
     assert.equal((await admin.put('/api/admin/menu/mode', { json: { mode: 'file' } })).status, 200);
+    assert.equal((await anon.get('/api/public/menu?lang=bg')).data.file.pages.length, 3, 'precondition: 3 live public pages');
+    await check('3 live pages, mode=file');
+    // the public menu JSON does not advertise a download either
+    assert.doesNotMatch((await anon.get('/api/public/menu?lang=bg')).text(), /download/i);
+    // an authenticated admin session does not resurrect the public route
+    assert.equal((await pubdl('?lang=bg', { cookie: admin.cookie })).status, 404);
+    await admin.put('/api/admin/menu/mode', { json: { mode: 'structured' } }); await setPub('bg', false);
+  });
+  let pg;
+
+  test('DL2 auth: no session -> 401 unauthorized for GET and HEAD (also forged cookies, also with an invalid/missing lang: auth comes first); no body/ZIP bytes leak', async () => {
+    for (const q of ['', '?lang=bg', '?lang=en', '?lang=fr', '?lang=../../etc/passwd']) {
+      const r = await anon.get(`${AD}${q}`); assert.equal(r.status, 401, `${q} -> ${r.status}`); assert.equal(r.data.error, 'unauthorized');
+      assert.notEqual(r.headers.get('content-type'), 'application/zip'); assert.equal(r.headers.get('content-disposition'), null);
+      const h = await anon.req('HEAD', `${AD}${q}`); assert.equal(h.status, 401, `HEAD ${q} -> ${h.status}`);
+    }
+    for (const c of ['kota_session=garbage', 'kota_session=' + 'A'.repeat(43), 'kota_session=']) assert.equal((await anon.get(`${AD}?lang=bg`, { cookie: c })).status, 401, c);
+    // a session that was logged out is dead
+    const c2 = new Client(srv.url); await c2.login(); assert.equal((await c2.get(`${AD}?lang=bg`)).status, 200);
+    const stale = c2.cookie; assert.equal((await c2.post('/api/admin/logout')).status, 204);
+    assert.equal((await anon.get(`${AD}?lang=bg`, { cookie: stale })).status, 401, 'logged-out session cookie rejected');
+  });
+
+  test('DL3 404 not_found for a language with no pages (no fallback to the other language), and for a fresh DB with the default lang', async () => {
+    // pg are in BG (unpublished); EN has none
+    assert.equal((await dl('?lang=en')).status, 404); assert.equal((await dl('?lang=en')).data.error, 'not_found');
+    const tmp = new Client(srv.url); await tmp.login();
+    for (const x of pg) assert.equal((await admin.del(`/api/admin/menu/pages/${x.id}`)).status, 204);
+    for (const q of ['', '?lang=bg', '?lang=en']) { const r = await dl(q); assert.equal(r.status, 404, `${q} -> ${r.status}`); assert.equal(r.data.error, 'not_found'); assert.notEqual(r.headers.get('content-type'), 'application/zip'); }
+    assert.equal((await admin.req('HEAD', `${AD}?lang=bg`)).status, 404);
+    assert.deepEqual(up(), []);
+  });
+
+  test('DL4 bad lang with a session -> 400 validation with fields.lang (never 500, no file system access, no leakage)', async () => {
+    for (const q of ['?lang=fr', '?lang=', '?lang=BG', '?lang=bg,en', '?lang=bg%00', '?lang=../../etc/passwd', '?lang=..%2f..%2fapp', '?lang=bg&lang=en', '?lang=%2e%2e', `?lang=${'a'.repeat(5000)}`]) {
+      const r = await dl(q); assert.equal(r.status, 400, `${q.slice(0, 40)} -> ${r.status}`);
+      assert.equal(r.data.error, 'validation', q.slice(0, 40)); assert.ok(r.data.fields && r.data.fields.lang, `fields.lang for ${q.slice(0, 40)}`);
+      assert.doesNotMatch(r.text(), /etc\/passwd|ENOENT|stack|at \w+ \(/);
+    }
+  });
+
+  test('DL5 3 pages (png, pdf, webp) UNPUBLISHED and mode=structured: ZIP headers, size, entries in page order, CRCs, bytes identical, default lang = bg, HEAD', async () => {
+    pg = [await addPage('bg', PNG_A, 'първа.png', 'image/png'), await addPage('bg', PDF_A, 'second.pdf', 'application/pdf'), await addPage('bg', WEBP_A, 'third.webp', 'image/webp')];
+    const pubState = (await admin.get('/api/admin/menu')).data; assert.equal(pubState.pages.bg.published, false); assert.equal(pubState.mode, 'structured');
     const r = await dl('?lang=bg');
     assert.equal(r.status, 200);
     assert.equal(r.headers.get('content-type'), 'application/zip');
@@ -99,9 +141,8 @@ describe('menu download (D-48)', () => {
     const z = readZip(r.buf);
     assert.deepEqual(z.map((e) => e.name), ['kota1-menu-bg-page-01.png', 'kota1-menu-bg-page-02.pdf', 'kota1-menu-bg-page-03.webp']);
     assert.ok(z[0].data.equals(PNG_A)); assert.ok(z[1].data.equals(PDF_A)); assert.ok(z[2].data.equals(WEBP_A));
-    // default language = bg
     assert.ok((await dl()).buf.equals(r.buf), 'no lang = bg, byte-identical');
-    // independent extractors
+    assert.ok((await dl('?lang=bg&file=../../server/src/app.js&path=/etc/passwd&page=99&stored=0123456789abcdef0123456789abcdef.png')).buf.equals(r.buf), 'extra query input ignored');
     fs.mkdirSync(path.join(SCRATCH, 'dl-out'), { recursive: true });
     const zp = path.join(SCRATCH, `dl-${process.pid}.zip`); fs.writeFileSync(zp, r.buf);
     const t = spawnSync('unzip', ['-t', zp], { encoding: 'utf8' });
@@ -109,11 +150,13 @@ describe('menu download (D-48)', () => {
     const py = spawnSync('python3', ['-I', '-c', 'import zipfile,sys;z=zipfile.ZipFile(sys.argv[1]);print(z.testzip());print(",".join(z.namelist()))', zp], { encoding: 'utf8' });
     assert.equal(py.stdout.split('\n')[0], 'None'); assert.equal(py.stdout.split('\n')[1], z.map((e) => e.name).join(','));
     fs.rmSync(zp, { force: true });
-    // HEAD: same headers, no body
-    const h = await anon.req('HEAD', '/api/public/menu/download?lang=bg'); assert.equal(h.status, 200); assert.equal(h.buf.length, 0); assert.equal(Number(h.headers.get('content-length')), r.buf.length);
+    const h = await admin.req('HEAD', `${AD}?lang=bg`); assert.equal(h.status, 200); assert.equal(h.buf.length, 0); assert.equal(Number(h.headers.get('content-length')), r.buf.length); assert.equal(h.headers.get('content-type'), 'application/zip');
+    // published: same output (published or not)
+    await setPub('bg', true); assert.ok((await dl('?lang=bg')).buf.equals(r.buf), 'published state does not change the ZIP');
+    await setPub('bg', false);
   });
 
-  test('DL3 order follows the admin page order; deleting a page renumbers the entries (-01, -02)', async () => {
+  test('DL6 order follows the admin page order; deleting a page renumbers; single page still a ZIP', async () => {
     assert.equal((await admin.put('/api/admin/menu/pages/order', { json: { lang: 'bg', ids: [pg[2].id, pg[0].id, pg[1].id] } })).status, 200);
     let z = readZip((await dl()).buf);
     assert.deepEqual(z.map((e) => e.name), ['kota1-menu-bg-page-01.webp', 'kota1-menu-bg-page-02.png', 'kota1-menu-bg-page-03.pdf']);
@@ -121,79 +164,68 @@ describe('menu download (D-48)', () => {
     assert.equal((await admin.del(`/api/admin/menu/pages/${pg[0].id}`)).status, 204);
     z = readZip((await dl()).buf);
     assert.deepEqual(z.map((e) => e.name), ['kota1-menu-bg-page-01.webp', 'kota1-menu-bg-page-02.pdf']);
-    // a single page: the endpoint still answers (the UI links the file directly)
-    assert.equal((await admin.del(`/api/admin/menu/pages/${pg[1].id}`)).status, 204, 'non-last page deletable');
+    assert.equal((await admin.del(`/api/admin/menu/pages/${pg[1].id}`)).status, 204);
     const one = await dl(); assert.equal(one.status, 200); z = readZip(one.buf); assert.equal(z.length, 1); assert.ok(z[0].data.equals(WEBP_A));
     pg = [await addPage('bg', PNG_A, 'again.png', 'image/png')];
   });
 
-  test('DL4 language: EN live -> kota1-menu-en.zip with EN pages; EN not live -> served (BG) language names the file; BG not live -> EN fallback', async () => {
-    const en = [await addPage('en', PNG_B, 'e1.png', 'image/png'), await addPage('en', PDF, 'e2.pdf', 'application/pdf')];
-    let r = await dl('?lang=en');
-    assert.equal(r.headers.get('content-disposition'), 'attachment; filename="kota1-menu-bg.zip"', 'EN flag still off: served language is bg');
-    assert.deepEqual(readZip(r.buf).map((e) => e.name), ['kota1-menu-bg-page-01.webp', 'kota1-menu-bg-page-02.png']);
-    await setPub('en', true);
-    r = await dl('?lang=en'); assert.equal(r.headers.get('content-disposition'), 'attachment; filename="kota1-menu-en.zip"');
+  test('DL7 languages are separate and there is NO fallback: EN ZIP has only EN pages (published or not); BG ZIP only BG pages; each named by its language; BG pages unaffected by EN state', async () => {
+    assert.equal((await dl('?lang=en')).status, 404, 'EN empty while BG has pages -> 404, not the BG ZIP');
+    await addPage('en', PNG_B, 'e1.png', 'image/png'); await addPage('en', PDF, 'e2.pdf', 'application/pdf');
+    assert.equal((await admin.get('/api/admin/menu')).data.pages.en.published, false);
+    let r = await dl('?lang=en'); assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-disposition'), 'attachment; filename="kota1-menu-en.zip"');
     let z = readZip(r.buf); assert.deepEqual(z.map((e) => e.name), ['kota1-menu-en-page-01.png', 'kota1-menu-en-page-02.pdf']); assert.ok(z[0].data.equals(PNG_B)); assert.ok(z[1].data.equals(PDF));
     r = await dl('?lang=bg'); assert.equal(r.headers.get('content-disposition'), 'attachment; filename="kota1-menu-bg.zip"');
-    // BG unpublished (EN stays live) -> BG visitors get the EN zip
-    assert.equal((await setPub('bg', false)).status, 200);
-    r = await dl('?lang=bg'); assert.equal(r.headers.get('content-disposition'), 'attachment; filename="kota1-menu-en.zip"');
-    z = readZip(r.buf); assert.equal(z.length, 2); assert.match(z[0].name, /^kota1-menu-en-page-01\./);
-    // the public JSON agrees with what is downloaded
-    const j = (await anon.get('/api/public/menu?lang=bg')).data.file; assert.equal(j.lang, 'en'); assert.equal(j.pages.length, 2);
-    await setPub('bg', true); void en;
+    z = readZip(r.buf); assert.deepEqual(z.map((e) => e.name), ['kota1-menu-bg-page-01.webp', 'kota1-menu-bg-page-02.png']); assert.ok(z[0].data.equals(WEBP_A) && z[1].data.equals(PNG_A)); // BG = the 2 BG pages left by DL6, no EN content
+    // publish EN, unpublish BG: both still download the same content
+    await setPub('en', true);
+    assert.equal(readZip((await dl('?lang=en')).buf).length, 2); assert.equal(readZip((await dl('?lang=bg')).buf).length, 2);
+    await setPub('en', false);
+    // public site is unaffected / unchanged: no file mode requested, public never lists EN unpublished pages
+    assert.equal((await anon.get('/api/public/menu?lang=en')).status, 200);
+    for (const x of (await admin.get('/api/admin/menu')).data.pages.en.items) assert.equal((await admin.del(`/api/admin/menu/pages/${x.id}`)).status, 204);
+    assert.equal((await dl('?lang=en')).status, 404, 'EN empty again');
+    // array-style query keys are not a lang: ignored => default bg
+    assert.equal((await dl('?lang[]=en')).status, 200);
   });
 
-  test('DL5 invalid lang -> 400 (never 500, no file system access); extra query/path input is ignored; traversal in the path is 404', async () => {
-    for (const q of ['?lang=fr', '?lang=', '?lang=BG', '?lang=bg,en', '?lang=bg%00', '?lang=../../etc/passwd', '?lang=..%2f..%2fapp', '?lang=bg&lang=en', '?lang=%2e%2e', `?lang=${'a'.repeat(5000)}`]) {
-      const r = await dl(q); assert.ok([400].includes(r.status), `${q.slice(0, 40)} -> ${r.status}`);
-      assert.doesNotMatch(r.text(), /etc\/passwd|ENOENT|stack|at /);
+  test('DL8 other methods on the admin route: POST/PUT/DELETE/PATCH are not a download (4xx); CSRF header not needed for GET; traversal in the path is 4xx', async () => {
+    for (const m of ['POST', 'PUT', 'DELETE', 'PATCH']) { const r = await admin.req(m, `${AD}?lang=bg`); assert.ok(r.status >= 400 && r.status < 500, `${m} -> ${r.status}`); assert.notEqual(r.headers.get('content-type'), 'application/zip'); }
+    const noCsrf = await admin.req('GET', `${AD}?lang=bg`, { csrf: false }); assert.equal(noCsrf.status, 200);
+    for (const p of [`${AD}/../../../etc/passwd`, `${AD}/%2e%2e%2fapp.js`, `${AD}/x`, `/api/admin/menu/pages/download%2f..%2f..%2fpackage.json`]) {
+      const r = await admin.get(p); assert.ok([400, 404].includes(r.status), `${p} -> ${r.status}`); assert.doesNotMatch(r.text(), /"name": "kota-restaurant"|root:/);
     }
-    const base = (await dl('?lang=bg')).buf;
-    for (const q of ['?lang=bg&file=../../server/src/app.js', '?lang=bg&path=/etc/passwd', '?lang=bg&name=../../x', '?lang=bg&page=99', '?lang=bg&stored=0123456789abcdef0123456789abcdef.png', '?lang[]=en']) {
-      const r = await dl(q); assert.equal(r.status, 200, q); assert.ok(r.buf.equals(base), `${q}: output unchanged`);
-    }
-    for (const p of ['/api/public/menu/download/../../../etc/passwd', '/api/public/menu/download/%2e%2e%2fapp.js', '/api/public/menu/download/x', '/api/public/menu/download%2f..%2f..%2fpackage.json']) {
-      const r = await anon.get(p); assert.ok([400, 404].includes(r.status), `${p} -> ${r.status}`); assert.doesNotMatch(r.text(), /"name": "kota-restaurant"|root:/);
-    }
-    for (const m of ['POST', 'PUT', 'DELETE', 'PATCH']) { const r = await anon.req(m, '/api/public/menu/download?lang=bg', { csrf: false }); assert.ok(r.status >= 400 && r.status < 500, `${m} -> ${r.status}`); }
+    // the route name must not be swallowed by /pages/:id
+    assert.equal((await admin.del('/api/admin/menu/pages/download')).status >= 400, true);
   });
 
-  test('DL6 unpublish / delete mid-download: a started download completes as a valid ZIP (files opened up front); the next request reflects the change', async () => {
-    // 3 BG pages of 25 MB each so the response is big enough to be mid-flight
+  test('DL9 delete mid-download: a started download completes as a valid ZIP (files opened up front); the next request reflects the change (404)', async () => {
     for (const x of (await admin.get('/api/admin/menu')).data.pages.bg.items) await admin.del(`/api/admin/menu/pages/${x.id}`);
     const big = (mark) => { const b = Buffer.alloc(25 * MB); makePng(10, 10).copy(b); b.write(mark, b.length - 20); return b; };
     const bigs = [big('page-one'), big('page-two'), big('page-three')];
     for (let i = 0; i < 3; i++) await addPage('bg', bigs[i], `b${i}.png`, 'image/png');
-    const { res } = await rawGet(`${srv.url}/api/public/menu/download?lang=bg`);
+    const { res } = await rawGet(`${srv.url}${AD}?lang=bg`, { cookie: admin.cookie });
     assert.equal(res.statusCode, 200); const len = Number(res.headers['content-length']);
     const chunks = []; let got = 0;
     res.pause();
     let midway = false;
     await new Promise((resolve) => { res.on('data', (c) => { chunks.push(c); got += c.length; if (!midway && got > 2 * MB) { midway = true; res.pause(); resolve(); } }); res.resume(); });
     assert.ok(got < len / 2, 'paused well before the end');
-    // now the response is mid-flight; unpublish BG and delete every BG page
-    assert.equal((await setPub('bg', false)).status, 200);
     for (const x of (await admin.get('/api/admin/menu')).data.pages.bg.items) assert.equal((await admin.del(`/api/admin/menu/pages/${x.id}`)).status, 204);
-    assert.equal(up().length, 2, 'BG page files deleted from disk (2 EN pages remain)');
+    assert.equal(up().length, 0, 'BG page files deleted from disk');
     await new Promise((resolve, reject) => { res.on('end', resolve); res.on('error', reject); res.on('aborted', () => reject(new Error('aborted'))); res.resume(); });
     const body = Buffer.concat(chunks); assert.equal(body.length, len, 'complete body');
     const z = readZip(body); assert.equal(z.length, 3); for (let i = 0; i < 3; i++) assert.ok(z[i].data.equals(bigs[i]), 'entry ' + i);
-    // next request: BG has no pages, EN is live => EN zip
-    const r = await dl('?lang=bg'); assert.equal(r.headers.get('content-disposition'), 'attachment; filename="kota1-menu-en.zip"');
+    assert.equal((await dl('?lang=bg')).status, 404);
   });
 
-  test('DL7 client abort mid-download: server stays healthy, file descriptors are released, other downloads still work', async () => {
-    for (const x of (await admin.get('/api/admin/menu')).data.pages.en.items) await admin.del(`/api/admin/menu/pages/${x.id}`).catch(() => {});
-    await admin.put('/api/admin/menu/mode', { json: { mode: 'structured' } });
-    for (const x of (await admin.get('/api/admin/menu')).data.pages.en.items) assert.equal((await admin.del(`/api/admin/menu/pages/${x.id}`)).status, 204);
+  test('DL10 client abort mid-download: server stays healthy, file descriptors are released, other downloads still work', async () => {
     const b1 = Buffer.alloc(30 * MB, 1); makePng(8, 8).copy(b1); const b2 = Buffer.alloc(30 * MB, 2); makePng(9, 9).copy(b2);
-    await addPage('bg', b1, 'x1.png', 'image/png'); await addPage('bg', b2, 'x2.png', 'image/png'); await setPub('bg', true);
-    assert.equal((await admin.put('/api/admin/menu/mode', { json: { mode: 'file' } })).status, 200);
+    await addPage('bg', b1, 'x1.png', 'image/png'); await addPage('bg', b2, 'x2.png', 'image/png');
     const fd0 = fdCount(srv.pid);
     for (let i = 0; i < 5; i++) {
-      const { res, req } = await rawGet(`${srv.url}/api/public/menu/download?lang=bg`);
+      const { res, req } = await rawGet(`${srv.url}${AD}?lang=bg`, { cookie: admin.cookie });
       await new Promise((r) => { res.once('data', r); }); res.pause(); await sleep(50);
       req.destroy(); res.destroy();
     }
@@ -204,19 +236,19 @@ describe('menu download (D-48)', () => {
     assert.deepEqual(fs.readdirSync(path.join(dir, 'tmp')), []);
   });
 
-  test('DL8 admin-side delete of a file that is unreadable on disk -> download 404/5xx handled without crash (ENOENT -> 404)', async () => {
+  test('DL11 a page file that is unreadable on disk -> clean 404 (ENOENT), no crash, recovers when restored', async () => {
     const f = up().sort(); fs.renameSync(path.join(dir, 'uploads', f[0]), path.join(dir, 'uploads', f[0] + '.bak'));
-    const r = await dl('?lang=bg'); assert.ok([404, 500].includes(r.status), String(r.status)); assert.equal(r.status, 404, 'missing file is a clean 404');
+    const r = await dl('?lang=bg'); assert.equal(r.status, 404, String(r.status));
     fs.renameSync(path.join(dir, 'uploads', f[0] + '.bak'), path.join(dir, 'uploads', f[0]));
     assert.equal((await dl('?lang=bg')).status, 200);
   });
 });
 
-describe('menu download: 10 pages x 50 MB (500 MB ZIP) streams from disk without buffering', () => {
+describe('admin menu download: 10 pages x 50 MB (500 MB ZIP) streams from disk without buffering', () => {
   let dir; let srv; let admin;
   before(async () => { dir = tmpDir('dlbig'); createAdmin(dir); srv = await startServer({ port: PORT, dataDir: dir, now: T0 }); admin = new Client(srv.url); await admin.login(); });
   after(async () => { await srv.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
-  test('DL9 10 x 50 MB pages: ZIP downloads (Content-Length exact), `unzip -t` passes, entry CRCs match, server peak RSS growth < 150 MB', async () => {
+  test('DL12 10 x 50 MB pages: ZIP downloads (Content-Length exact), `unzip -t` passes, entry CRCs match, server peak RSS growth < 150 MB', async () => {
     const heads = makePng(5, 5);
     const outZip = path.join(SCRATCH, `dlbig-${process.pid}.zip`);
     try {
@@ -225,18 +257,16 @@ describe('menu download: 10 pages x 50 MB (500 MB ZIP) streams from disk without
         const r = await admin.post('/api/admin/menu/pages', { form: mp({ lang: 'bg' }, [{ field: 'file', buf: b, type: 'image/png', name: `p${i}.png` }]) }); assert.equal(r.status, 201, `page ${i} ${r.status}`);
       }
       assert.equal((await admin.post('/api/admin/menu/pages', { form: mp({ lang: 'bg' }, [{ field: 'file', buf: heads, type: 'image/png', name: 'x.png' }]) })).status, 409, '11th page blocked');
-      await admin.put('/api/admin/menu/pages/published', { json: { lang: 'bg', published: true } });
-      await admin.put('/api/admin/menu/draft', { json: { categories: [{ name: 'К', items: [{ name: 'Я', description: '', priceCents: 1, available: true }] }] } }); await admin.post('/api/admin/menu/publish');
-      assert.equal((await admin.put('/api/admin/menu/mode', { json: { mode: 'file' } })).status, 200);
+      // pages stay UNPUBLISHED and the menu stays in structured mode: the admin ZIP does not depend on either
       const hwm = () => Number(/VmHWM:\s+(\d+)/.exec(fs.readFileSync(`/proc/${srv.pid}/status`, 'utf8'))[1]) / 1024;
       const before = hwm(); const t0 = Date.now();
-      const res = await fetch(`${srv.url}/api/public/menu/download?lang=bg`);
+      const res = await fetch(`${srv.url}/api/admin/menu/pages/download?lang=bg`, { headers: { cookie: admin.cookie } });
       assert.equal(res.status, 200); const len = Number(res.headers.get('content-length'));
       const ws = fs.createWriteStream(outZip); let n = 0;
       for await (const c of res.body) { n += c.length; if (!ws.write(c)) await new Promise((r) => ws.once('drain', r)); }
       await new Promise((r) => ws.end(r));
       const ms = Date.now() - t0; const after_ = hwm();
-      console.log(`# DL9 ${(n / MB).toFixed(0)} MB zip in ${ms} ms; server peak RSS ${before.toFixed(0)} -> ${after_.toFixed(0)} MB`);
+      console.log(`# DL12 ${(n / MB).toFixed(0)} MB zip in ${ms} ms; server peak RSS ${before.toFixed(0)} -> ${after_.toFixed(0)} MB`);
       assert.equal(n, len); assert.equal(fs.statSync(outZip).size, len);
       const t = spawnSync('unzip', ['-t', outZip], { encoding: 'utf8', maxBuffer: 1 << 24 });
       assert.equal(t.status, 0, t.stdout.slice(-300) + t.stderr); assert.match(t.stdout, /No errors detected/); assert.equal((t.stdout.match(/OK\n/g) || []).length, 10);
