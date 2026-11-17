@@ -1,6 +1,6 @@
 import { el, getJSON, stateBox } from './dom.js';
 import { loadSite, initNav, applyTopBar, applyInstagram, renderLocation, initYear, realignHash } from './common.js';
-import { renderEventCard, renderStructuredMenu, observeCategories, renderMenuPages } from './render.js';
+import { renderEventCard, renderStructuredMenu, observeCategories, renderMenuPages, renderPrintBar } from './render.js';
 import { telHref } from './format.js';
 import { initI18n, onLangChange, t, apiUrl, localizeLinks } from './i18n.js';
 
@@ -109,6 +109,7 @@ async function loadMenu(mine) {
   if (!s || !s.categories || !s.categories.length) return menuEmpty();
   const { nav, cats } = renderStructuredMenu(s, data.currencySymbol || '€');
   const frag = document.createDocumentFragment();
+  frag.append(renderPrintBar());
   if (nav) frag.append(nav);
   frag.append(cats);
   menuBox.replaceChildren(frag);

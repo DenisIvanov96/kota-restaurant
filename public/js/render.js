@@ -169,6 +169,15 @@ export function renderMenuPages(file, opts = {}) {
   const pages = Array.isArray(file.pages) ? file.pages : [{ fileUrl: file.fileUrl, mimeType: file.mimeType, kind: file.kind }];
   const total = pages.length;
   const wrap = el('div', 'menu-pages');
+  if (total > 0 && !opts.noDownloadAll) {
+    const bar = el('div', 'menu-dl-bar');
+    const all = el('a', 'btn menu-dl-btn');
+    all.append(icon('download'), document.createTextNode(t('menu.downloadAll')));
+    if (total === 1) { all.href = pages[0].fileUrl; all.setAttribute('download', ''); }
+    else { all.href = '/api/public/menu/download?lang=' + getLang(); }
+    bar.append(all);
+    wrap.append(bar);
+  }
   const gallery = [];
   const galleryIdx = new Map();
   pages.forEach((p, i) => {
@@ -203,8 +212,30 @@ export function renderMenuPages(file, opts = {}) {
       btn.addEventListener('click', () => openLightbox(null, null, btn, { items: gallery, index: galleryIdx.get(i) }));
       fig.append(btn);
     }
-    if (total > 1) fig.append(el('figcaption', 'menu-page-cap', t('page.of', { n, m: total })));
+    const cap = el('figcaption', 'menu-page-cap');
+    if (total > 1) cap.append(document.createTextNode(t('page.of', { n, m: total })));
+    if (p.kind !== 'pdf') {
+      const pdl = el('a', 'menu-page-dl');
+      pdl.href = p.fileUrl; pdl.setAttribute('download', '');
+      pdl.append(icon('download'), document.createTextNode(t('menu.pageDownload', { n })));
+      cap.append(pdl);
+    }
+    if (cap.childNodes.length) fig.append(cap);
     wrap.append(fig);
   });
   return wrap;
+}
+
+/** Structured menu print button + print-only KOTA 1 heading (D-48). Returns a node to place above the menu. */
+export function renderPrintBar() {
+  const bar = el('div', 'menu-dl-bar menu-print-bar');
+  const btn = el('button', 'btn menu-dl-btn');
+  btn.type = 'button';
+  btn.append(icon('printer'), document.createTextNode(tr('menu.printMenu')));
+  btn.addEventListener('click', () => window.print());
+  bar.append(btn);
+  const h = el('p', 'print-title', 'KOTA 1');
+  h.setAttribute('aria-hidden', 'true');
+  bar.append(h);
+  return bar;
 }
