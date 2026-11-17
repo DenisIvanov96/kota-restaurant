@@ -41,5 +41,6 @@ export function langToggle(onChange) {
       onChange(lang);
     } }));
   }
+  seg.setLang = (lang) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.lang === lang)));
   return seg;
 }

@@ -1,6 +1,6 @@
 import { h, icon, clear, formatDateTime, debounce } from './util.js';
 import { get, post, put, patch, del, upload } from './api.js';
-import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, setBusy, enGroup, EN_HELP } from './ui.js';
+import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, setBusy, langTabs, EN_HELP } from './ui.js';
 import { dateTimeField } from './datetime.js';
 import { renderEventCard, previewScroller, langToggle } from './preview.js';
 
@@ -127,17 +127,14 @@ export function eventFormView(ctx) {
     const summary = errorSummary();
     let saving = false;
     let saved = false;
-    let removeImage = false;
-    let abortFn = null;
 
-    const title = field({ label: 'Заглавие', required: true, max: 120, value: ev ? ev.title : '', onInput: () => { if (title.error) vTitle(); refresh(); }, onBlur: () => vTitle() });
+    const title = field({ label: 'Заглавие', required: true, max: 120, value: ev ? ev.title : '', onInput: () => { if (title.error) vTitle(); refreshD(); }, onBlur: () => vTitle() });
     const desc = field({ label: 'Описание', multiline: true, rows: 6, max: 2000, value: ev ? ev.description : '', helper: 'Обикновен текст. Новите редове се запазват.', onInput: refreshD, onBlur: () => vDesc() });
-    const titleEn = field({ label: 'Заглавие (английски)', max: 120, value: ev ? ev.titleEn || '' : '', helper: EN_HELP, onInput: refreshD });
-    const descEn = field({ label: 'Описание (английски)', multiline: true, rows: 5, max: 2000, value: ev ? ev.descriptionEn || '' : '', helper: EN_HELP, onInput: refreshD });
-    titleEn.input.setAttribute('aria-label', 'Заглавие на събитието на английски');
-    descEn.input.setAttribute('aria-label', 'Описание на събитието на английски');
-    const enBox = enGroup([titleEn, descEn]);
+    const titleEn = field({ label: 'Title (English)', max: 120, value: ev ? ev.titleEn || '' : '', helper: EN_HELP, onInput: () => { if (title.error) vTitle(); refreshD(); } });
+    const descEn = field({ label: 'Description (English)', multiline: true, rows: 5, max: 2000, value: ev ? ev.descriptionEn || '' : '', helper: EN_HELP, onInput: refreshD });
     let pvLang = 'bg';
+    let langBox = null;
+    let langSeg = null;
     const mkDt = (label, key, helper, val) => {
       return dateTimeField({ label, value: val || '', helper, clearable: true, onInput: () => { checkRange(true); refresh(); }, onBlur: () => checkRange(true) });
     };
@@ -149,26 +146,41 @@ export function eventFormView(ctx) {
 
     const warnBox = h('div', { class: 'a-warnbox' });
 
-    // image
-    const imgBlock = h('div', { class: 'a-field' });
-    const existingBox = h('div', { class: 'a-existing' });
-    const upl = createUpload({ exts: ['jpg', 'jpeg', 'png', 'webp'], maxMB: 5, imageOnly: true, onChange: () => { syncImage(); refresh(); }, onCancel: () => abortFn && abortFn() });
-    function syncImage() {
-      clear(existingBox);
-      const hasExisting = ev && ev.imageUrl;
-      if (hasExisting && !removeImage && !upl.file) {
-        upl.el.hidden = true;
-        existingBox.append(h('img', { class: 'a-existing__img', src: ev.imageUrl, alt: 'Текуща снимка на събитието' }),
-          h('div', { class: 'a-upload__btns' },
-            btn({ label: 'Смени снимка', variant: 'secondary', onClick: () => upl.pick() }),
-            btn({ label: 'Премахни снимка', variant: 'ghost-danger', onClick: () => { removeImage = true; syncImage(); refresh(); } })));
-      } else {
-        upl.el.hidden = false;
-        if (hasExisting && removeImage && !upl.file) existingBox.append(alertBox('info', 'Снимката ще бъде премахната при запазване.'), btn({ label: 'Върни снимката', variant: 'ghost', onClick: () => { removeImage = false; syncImage(); refresh(); } }));
+    // images (one per language)
+    function imageBlock(lang) {
+      const en = lang === 'en';
+      const url = ev ? (en ? ev.imageEnUrl : ev.imageUrl) : null;
+      const st = { remove: false, abort: null };
+      const block = h('div', { class: 'a-field' });
+      const existingBox = h('div', { class: 'a-existing' });
+      const upl = createUpload({ exts: ['jpg', 'jpeg', 'png', 'webp'], maxMB: 5, imageOnly: true, onChange: () => { sync(); refreshD(); }, onCancel: () => st.abort && st.abort() });
+      function sync() {
+        clear(existingBox);
+        if (url && !st.remove && !upl.file) {
+          upl.el.hidden = true;
+          existingBox.append(h('img', { class: 'a-existing__img', src: url, alt: en ? 'Текуща английска снимка на събитието' : 'Текуща снимка на събитието' }),
+            h('div', { class: 'a-upload__btns' },
+              btn({ label: 'Смени снимка', variant: 'secondary', onClick: () => upl.pick() }),
+              btn({ label: 'Премахни снимка', variant: 'ghost-danger', onClick: () => { st.remove = true; sync(); refreshD(); } })));
+        } else {
+          upl.el.hidden = false;
+          if (url && st.remove && !upl.file) existingBox.append(alertBox('info', 'Снимката ще бъде премахната при запазване.'), btn({ label: 'Върни снимката', variant: 'ghost', onClick: () => { st.remove = false; sync(); refreshD(); } }));
+        }
       }
+      block.append(h('span', { class: 'a-label', text: en ? 'Снимка (English)' : 'Снимка' }), existingBox, upl.el,
+        h('p', { class: 'a-help', text: en ? 'По избор. Ако е празно, на английската версия се показва българската снимка.' : 'Препоръчваме хоризонтална снимка. На сайта се показва цяла, без изрязване.' }));
+      sync();
+      return { el: block, upl, st, url, has: () => !!upl.file || (!!url && !st.remove) };
     }
-    imgBlock.append(h('span', { class: 'a-label', text: 'Снимка' }), existingBox, upl.el, h('p', { class: 'a-help', text: 'Препоръчваме хоризонтална снимка. На сайта се показва цяла, без изрязване.' }));
-    syncImage();
+    const imgBg = imageBlock('bg');
+    const imgEn = imageBlock('en');
+    const upl = imgBg.upl; const uplEn = imgEn.upl;
+    langBox = langTabs({
+      label: 'Език на събитието',
+      panels: { bg: [title.el, desc.el, imgBg.el], en: [titleEn.el, descEn.el, imgEn.el] },
+      filled: (l) => (l === 'bg' ? !!(title.value.trim() || desc.value.trim() || imgBg.has()) : !!(titleEn.value.trim() || descEn.value.trim() || imgEn.has())),
+      onChange: (l) => { pvLang = l; if (langSeg) langSeg.setLang(l); drawPreview(); },
+    });
 
     // preview
     const frame = h('div', { class: 'preview-frame public-theme w-390' });
@@ -179,25 +191,26 @@ export function eventFormView(ctx) {
         previewSeg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
       } }));
     }
-    const langSeg = langToggle((l) => { pvLang = l; drawPreview(); });
+    langSeg = langToggle((l) => { pvLang = l; drawPreview(); });
     const previewCard = h('section', { class: 'a-card a-previewcard' }, h('h2', { text: 'Така ще изглежда на сайта' }), previewSeg, langSeg, previewScroller(frame),
       h('p', { class: 'a-help', text: 'Дали е видимо сега зависи от превключвателя и датите.' }));
-    let blobKey = null;
     function drawPreview() {
-      const imageUrl = upl.file ? upl.url : (ev && ev.imageUrl && !removeImage ? ev.imageUrl : null);
-      blobKey = imageUrl;
       const en = pvLang === 'en';
-      const pt = (en && titleEn.value.trim()) || title.value.trim();
-      const pd = (en && descEn.value.trim()) || desc.value;
+      const pick = (bg, e) => (en ? (e || bg) : (bg || e));
+      const imgOf = (im) => (im.upl.file ? im.upl.url : (im.url && !im.st.remove ? im.url : null));
+      const imageUrl = en ? (imgOf(imgEn) || imgOf(imgBg)) : (imgOf(imgBg) || imgOf(imgEn));
+      const pt = pick(title.value.trim(), titleEn.value.trim());
+      const pd = pick(desc.value.trim() ? desc.value : '', descEn.value.trim() ? descEn.value : '');
       frame.setAttribute('lang', en ? 'en' : 'bg');
       frame.replaceChildren(renderEventCard({ title: pt, description: pd, imageUrl, eventAt: eventAt.value }, en ? 'en' : 'bg'));
+      if (langBox) langBox.update();
     }
     const drawDebounced = debounce(drawPreview, 120);
     function refreshD() { drawDebounced(); refresh(); }
 
     function vTitle() {
       const t = title.value.trim();
-      if (!t) { title.setError('Въведете заглавие.'); return false; }
+      if (!t && !titleEn.value.trim()) { title.setError('Въведете заглавие поне на един език.'); return false; }
       if (t.length > 120) { title.setError('Заглавието е твърде дълго (макс. 120 знака).'); return false; }
       title.setError(''); return true;
     }
@@ -215,7 +228,7 @@ export function eventFormView(ctx) {
       return ok;
     }
 
-    const snapshot = () => JSON.stringify([title.value, desc.value, titleEn.value, descEn.value, eventAt.value, startsAt.value, expiresAt.value, enabledSw.isChecked(), !!upl.file, removeImage]);
+    const snapshot = () => JSON.stringify([title.value, desc.value, titleEn.value, descEn.value, eventAt.value, startsAt.value, expiresAt.value, enabledSw.isChecked(), !!upl.file, imgBg.st.remove, !!uplEn.file, imgEn.st.remove]);
     const initial = snapshot();
     function refresh() { drawDebounced(); }
     view.dirty = () => !saved && !saving && snapshot() !== initial;
@@ -224,7 +237,7 @@ export function eventFormView(ctx) {
     const cancelLink = h('a', { href: '#/events', class: 'a-btn a-btn--secondary' }, h('span', { text: 'Отказ' }));
     const form = h('form', { novalidate: true, class: 'a-card a-formcard' },
       h('p', { class: 'a-help', text: '* задължително' }), summary.el,
-      title.el, desc.el, enBox, imgBlock, eventAt.el, startsAt.el, expiresAt.el,
+      langBox.el, eventAt.el, startsAt.el, expiresAt.el,
       h('p', { class: 'a-help a-tznote', text: 'Всички часове са по българско време.' }), warnBox,
       h('div', { class: 'a-field' }, h('span', { class: 'a-label', text: 'Включено' }), enabledSw, h('p', { class: 'a-help', text: 'Когато е изключено, събитието не се показва на сайта, независимо от датите.' })),
       ev && h('div', { class: 'a-actions' }, btn({ label: 'Изтрий събитието', variant: 'ghost-danger', icon: 'trash', onClick: async () => {
@@ -236,13 +249,14 @@ export function eventFormView(ctx) {
       e.preventDefault();
       if (saving) return;
       const errs = [];
-      if (!vTitle()) errs.push({ id: title.id, label: 'Заглавие', msg: title.error });
-      if (titleEn.value.trim().length > 120) { titleEn.setError('Заглавието е твърде дълго (макс. 120 знака).'); errs.push({ id: titleEn.id, label: 'Заглавие (английски)', msg: titleEn.error }); enBox.open = true; } else titleEn.setError('');
-      if (descEn.value.length > 2000) { descEn.setError('Описанието е твърде дълго (макс. 2000 знака).'); errs.push({ id: descEn.id, label: 'Описание (английски)', msg: descEn.error }); enBox.open = true; } else descEn.setError('');
-      if (!vDesc()) errs.push({ id: desc.id, label: 'Описание', msg: desc.error });
+      const goto = (f, lang) => () => { langBox.select(lang, false); f.input.focus(); };
+      if (!vTitle()) errs.push({ id: title.id, label: 'Заглавие', msg: title.error, focus: goto(title, 'bg') });
+      if (titleEn.value.trim().length > 120) { titleEn.setError('Заглавието е твърде дълго (макс. 120 знака).'); errs.push({ id: titleEn.id, label: 'Title (English)', msg: titleEn.error, focus: goto(titleEn, 'en') }); } else titleEn.setError('');
+      if (descEn.value.length > 2000) { descEn.setError('Описанието е твърде дълго (макс. 2000 знака).'); errs.push({ id: descEn.id, label: 'Description (English)', msg: descEn.error, focus: goto(descEn, 'en') }); } else descEn.setError('');
+      if (!vDesc()) errs.push({ id: desc.id, label: 'Описание', msg: desc.error, focus: goto(desc, 'bg') });
       for (const [f, l] of [[eventAt, 'Дата на събитието'], [startsAt, 'Показвай от'], [expiresAt, 'Скрий след']]) { const m = f.validate(); if (m) errs.push({ id: f.id, label: l, msg: m, focus: () => f.focusInvalid() }); }
       if (!errs.some((x) => x.id === expiresAt.id) && !checkRange()) errs.push({ id: expiresAt.id, label: 'Скрий след', msg: expiresAt.error, focus: () => expiresAt.focusInvalid() });
-      if (errs.length) { summary.show(errs); return; }
+      if (errs.length) { summary.show(errs); const f0 = errs[0]; if (f0.focus && (f0.id === title.id || f0.id === titleEn.id || f0.id === desc.id || f0.id === descEn.id)) langBox.select(f0.id === titleEn.id || f0.id === descEn.id ? 'en' : 'bg', false); return; }
       summary.hide();
       const fd = new FormData();
       fd.append('title', title.value.trim());
@@ -254,17 +268,20 @@ export function eventFormView(ctx) {
       fd.append('expiresAt', expiresAt.value);
       fd.append('enabled', String(enabledSw.isChecked()));
       if (upl.file) fd.append('image', upl.file);
-      if (removeImage && !upl.file) fd.append('removeImage', 'true');
+      if (imgBg.st.remove && !upl.file) fd.append('removeImage', 'true');
+      if (uplEn.file) fd.append('imageEn', uplEn.file);
+      if (imgEn.st.remove && !uplEn.file) fd.append('removeImageEn', 'true');
       saving = true;
       setBusy(saveBtn, true);
       const lockables = [...form.querySelectorAll('input,textarea,button')].filter((x) => x !== saveBtn);
       lockables.forEach((x) => { x.disabled = true; });
       cancelLink.setAttribute('aria-disabled', 'true');
-      if (upl.file) { upl.showProgress(0); }
+      const busyUpl = [upl, uplEn].filter((u) => u.file);
+      busyUpl.forEach((u) => u.showProgress(0));
       const up = upload(isEdit ? 'PUT' : 'POST', isEdit ? `/api/admin/events/${id}` : '/api/admin/events', fd, {
-        onProgress: (p) => upl.showProgress(p), onSent: () => upl.showProcessing(),
+        onProgress: (p) => busyUpl.forEach((u) => u.showProgress(p)), onSent: () => busyUpl.forEach((u) => u.showProcessing()),
       });
-      abortFn = up.abort;
+      imgBg.st.abort = up.abort; imgEn.st.abort = up.abort;
       try {
         await up.promise;
         saved = true;
@@ -275,7 +292,7 @@ export function eventFormView(ctx) {
         setBusy(saveBtn, false);
         lockables.forEach((x) => { x.disabled = false; });
         cancelLink.removeAttribute('aria-disabled');
-        upl.hideProgress();
+        busyUpl.forEach((u) => u.hideProgress());
         if (err.code === 'aborted') return;
         handleError(err);
       }
@@ -285,14 +302,16 @@ export function eventFormView(ctx) {
       if (err.status === 401) return;
       const items = [];
       if (err.status === 400 && err.fields) {
-        const map = { title: [title, 'Заглавие'], description: [desc, 'Описание'], titleEn: [titleEn, 'Заглавие (английски)'], descriptionEn: [descEn, 'Описание (английски)'], eventAt: [eventAt, 'Дата на събитието'], startsAt: [startsAt, 'Показвай от'], expiresAt: [expiresAt, 'Скрий след'] };
+        const map = { title: [title, 'Заглавие'], description: [desc, 'Описание'], titleEn: [titleEn, 'Title (English)'], descriptionEn: [descEn, 'Description (English)'], eventAt: [eventAt, 'Дата на събитието'], startsAt: [startsAt, 'Показвай от'], expiresAt: [expiresAt, 'Скрий след'] };
         for (const [k, msg] of Object.entries(err.fields)) {
           const m = map[k];
-          if (m) { if (m[0] === titleEn || m[0] === descEn) enBox.open = true; m[0].setError(msg); items.push({ id: m[0].id, label: m[1], msg }); } else items.push({ id: title.id, msg });
+          if (m) { const lg = (m[0] === titleEn || m[0] === descEn) ? 'en' : 'bg'; m[0].setError(msg); items.push({ id: m[0].id, label: m[1], msg, focus: lg ? () => { langBox.select(lg, false); m[0].input.focus(); } : undefined }); } else if (k === 'imageEn') { uplEn.setError(msg); langBox.select('en', false); items.push({ id: title.id, label: 'Снимка (English)', msg, focus: () => { langBox.select('en', false); } }); } else if (k === 'image') { upl.setError(msg); langBox.select('bg', false); items.push({ id: title.id, label: 'Снимка', msg }); } else items.push({ id: title.id, msg });
         }
         summary.show(items);
+        const first = Object.keys(err.fields)[0];
+        if (first === 'titleEn' || first === 'descriptionEn' || first === 'imageEn') langBox.select('en', false); else if (first === 'title' || first === 'description' || first === 'image') langBox.select('bg', false);
       } else if (err.status === 413 || err.status === 415) {
-        upl.setError(err.message);
+        const w = err.field === 'imageEn' ? uplEn : upl; w.setError(err.message);
       } else if (err.code === 'network') {
         toast('Няма връзка. Промените не са записани.', { type: 'err' });
       } else {

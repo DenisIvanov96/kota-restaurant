@@ -1,6 +1,6 @@
 import { h, icon, groupSpaces } from './util.js';
 import { get, put, post, ApiError } from './api.js';
-import { badge, alertBox, btn, skeleton, loadError, reportError, toast, confirmDialog, field, passwordField, setBusy, enGroup, EN_HELP } from './ui.js';
+import { badge, alertBox, btn, skeleton, loadError, reportError, toast, confirmDialog, field, passwordField, setBusy, langTabs, EN_HELP } from './ui.js';
 
 export function settingsView(ctx) {
   const el = h('div');
@@ -24,18 +24,18 @@ export function settingsView(ctx) {
     const phone = field({ label: 'Телефон за резервации', type: 'tel', inputmode: 'tel', max: 30, value: s.reservationPhone, helper: 'Показва се най-горе на сайта и в „Контакти“. Оставете празно, за да го скриете.', autocomplete: 'off' });
     const addr = field({ label: 'Адрес', multiline: true, rows: 2, max: 200, value: s.address, helper: 'Оставете празно, за да се скрие.' });
     const hours = field({ label: 'Работно време', multiline: true, rows: 5, max: 500, value: s.openingHours, helper: 'Всеки ред се показва на нов ред на сайта. Пример: Пон–Пет 11:00–23:00' });
-    const addrEn = field({ label: 'Адрес (английски)', multiline: true, rows: 2, max: 200, value: s.addressEn || '', helper: EN_HELP });
-    const hoursEn = field({ label: 'Работно време (английски)', multiline: true, rows: 5, max: 500, value: s.openingHoursEn || '', helper: EN_HELP });
-    addrEn.input.setAttribute('aria-label', 'Адрес на английски');
-    hoursEn.input.setAttribute('aria-label', 'Работно време на английски');
-    const enBox = enGroup([addrEn, hoursEn]);
+    const addrEn = field({ label: 'Address (English)', multiline: true, rows: 2, max: 200, value: s.addressEn || '', helper: EN_HELP });
+    const hoursEn = field({ label: 'Opening hours (English)', multiline: true, rows: 5, max: 500, value: s.openingHoursEn || '', helper: EN_HELP });
+    const upd = () => { if (langBox) langBox.update(); };
+    for (const f of [addr, hours, addrEn, hoursEn]) f.input.addEventListener('input', upd);
+    const langBox = langTabs({ label: 'Език на адреса и работното време', panels: { bg: [addr.el, hours.el], en: [addrEn.el, hoursEn.el] }, filled: (l) => (l === 'en' ? !!(addrEn.value.trim() || hoursEn.value.trim()) : !!(addr.value.trim() || hours.value.trim())) });
     const insta = field({ label: 'Instagram профил', type: 'url', inputmode: 'url', max: 200, value: s.instagramUrl || '', placeholder: 'https://www.instagram.com/вашият-профил', autocomplete: 'off', autocapitalize: 'none', helper: 'Връзка към профила ви в Instagram. Оставете празно, ако нямате профил.' });
     const cur = field({ label: 'Валутен символ', max: 5, value: s.currencySymbol, cls: 'a-field--narrow', helper: 'Показва се след цената, например €.' });
     const snap = () => JSON.stringify([phone.value, addr.value, hours.value, addrEn.value, hoursEn.value, cur.value, insta.value]);
     let base = snap();
     siteDirty = () => snap() !== base;
     const save = btn({ label: 'Запази', variant: 'primary', type: 'submit' });
-    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Информация за сайта' }), phone.el, addr.el, hours.el, enBox, insta.el, cur.el, h('div', { class: 'a-actionrow' }, save));
+    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Информация за сайта' }), phone.el, langBox.el, insta.el, cur.el, h('div', { class: 'a-actionrow' }, save));
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       [phone, addr, hours, addrEn, hoursEn, cur, insta].forEach((f) => f.setError(''));
@@ -53,13 +53,14 @@ export function settingsView(ctx) {
         if (r.instagramUrl !== undefined) insta.value = r.instagramUrl;
         if (r.addressEn !== undefined) addrEn.value = r.addressEn;
         if (r.openingHoursEn !== undefined) hoursEn.value = r.openingHoursEn;
+        upd();
         base = snap();
         toast('Настройките са запазени.');
       } catch (err) {
         if (err.status === 400 && err.fields) {
           const m = { reservationPhone: phone, address: addr, openingHours: hours, addressEn: addrEn, openingHoursEn: hoursEn, currencySymbol: cur, instagramUrl: insta };
           let first = null;
-          for (const [k, msg] of Object.entries(err.fields)) if (m[k]) { if (m[k] === addrEn || m[k] === hoursEn) enBox.open = true; m[k].setError(msg); first = first || m[k]; }
+          for (const [k, msg] of Object.entries(err.fields)) if (m[k]) { if (m[k] === addrEn || m[k] === hoursEn) langBox.select('en', false); else if (m[k] === addr || m[k] === hours) langBox.select('bg', false); m[k].setError(msg); first = first || m[k]; }
           if (first) first.input.focus();
         } else reportError(err);
       } finally { setBusy(save, false); }

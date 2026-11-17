@@ -1,6 +1,6 @@
 import { h, icon, clear, formatSize, kindLabel, formatStamp, centsToInput, parsePrice, nextId } from './util.js';
 import { get, post, put, patch, del, upload } from './api.js';
-import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, modal, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, filePreview, setBusy, enGroup, EN_HELP } from './ui.js';
+import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, modal, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, filePreview, setBusy, langTabs, EN_HELP } from './ui.js';
 import { renderMenuPreview, previewScroller, langToggle } from './preview.js';
 
 const MODE_LABEL = { structured: 'Структурирано меню', file: 'Файл' };
@@ -19,6 +19,8 @@ export function menuView() {
   let saved = '';       // serialised saved draft
   let errors = {};      // key -> message
   let tab = 'structured';
+  let lang = 'bg';      // editor language tab (bg | en)
+  let langBox = null;
   let guardActive = true;
 
   const view = { dirty: () => false };
@@ -30,6 +32,14 @@ export function menuView() {
   const fromDraft = (draft) => draft.categories.map((c, i) => mkCat(c, wide() || i === 0));
   const serialize = () => JSON.stringify(cats.map((c) => [c.name, c.nameEn, c.items.map((i) => [i.name, i.nameEn, i.description, i.descriptionEn, i.price.trim(), i.available])]));
   const isDirty = () => serialize() !== saved;
+  const hasLang = (l) => { const k = l === 'en' ? 'nameEn' : 'name'; return cats.some((c) => c[k].trim() || c.items.some((i) => i[k].trim())); };
+  const setLang = (l) => { if (l !== lang) { lang = l; if (langBox) langBox.select(l, false, true); } };
+  const keyLang = (key) => (/\.(nameEn|descriptionEn)$/.test(key) ? 'en' : /\.description$/.test(key) ? 'bg' : null);
+  // switch the language tab to one that actually contains an error field
+  const focusErrLang = (keys) => {
+    if (keys.some((k) => { const l = keyLang(k); return !l || l === lang; })) return;
+    const l = keyLang(keys[0] || ''); if (l) setLang(l);
+  };
 
   async function load(first) {
     if (first) body.replaceChildren(skeleton(3));
@@ -63,7 +73,12 @@ export function menuView() {
     summary = errorSummary();
     editorHost = h('div', { class: 'a-editor' });
     announcer = h('p', { class: 'a-vh', 'aria-live': 'polite' });
-    structPanel = h('div', { role: 'tabpanel', id: 'panel-structured', 'aria-labelledby': 'tab-structured' }, statusHost, summary.el, editorHost, announcer);
+    langBox = langTabs({
+      label: 'Език на имената и описанията', shared: [h('p', { class: 'a-help', text: 'Цени, наличност и подредба са общи за двата езика. Име — задължително поне на един език.' }), editorHost],
+      filled: (l) => hasLang(l),
+      onChange: (l) => { lang = l; renderEditor(); },
+    });
+    structPanel = h('div', { role: 'tabpanel', id: 'panel-structured', 'aria-labelledby': 'tab-structured' }, statusHost, summary.el, langBox.el, announcer);
     fileHost = h('div');
     filePanel = h('div', { role: 'tabpanel', id: 'panel-file', 'aria-labelledby': 'tab-file' }, fileHost);
     body.append(modeHost, h('section', { class: 'a-card a-card--flush' }, h('h2', { class: 'a-pad', text: 'Редактиране' }), tabBar, tabsHost, structPanel, filePanel));
@@ -137,6 +152,15 @@ export function menuView() {
   const vName = (s) => { const t = s.trim(); return !t ? 'Въведете име.' : t.length > 100 ? 'Максимум 100 знака.' : ''; };
   const vPrice = (s) => { const c = parsePrice(s); return c === null ? 'Въведете цена, например 12,50.' : c > 10000000 ? 'Цената е твърде висока.' : ''; };
   const vNameEn = (s) => (s.trim().length > 100 ? 'Максимум 100 знака.' : '');
+  // name rules: at least one language, max 100 each. Returns { name?, nameEn? } (required error lives under "name").
+  const nameErrs = (o) => {
+    const e = {};
+    if (!o.name.trim() && !o.nameEn.trim()) e.name = 'Въведете име поне на един език.';
+    else { if (o.name.trim().length > 100) e.name = 'Максимум 100 знака.'; if (o.nameEn.trim().length > 100) e.nameEn = 'Максимум 100 знака.'; }
+    return e;
+  };
+  const shownNameErr = (o, pre, L) => (L === 'en' ? (errors[`${pre}nameEn`] || (errors[`${pre}name`] && !o.name.trim() && !o.nameEn.trim() ? errors[`${pre}name`] : '')) : errors[`${pre}name`] || '');
+  const recheckName = (o, pre) => { const e = nameErrs(o); for (const k of ['name', 'nameEn']) { if (e[k]) errors[`${pre}${k}`] = e[k]; else delete errors[`${pre}${k}`]; } };
   const vDesc = (s) => (s.length > 500 ? 'Максимум 500 знака.' : '');
 
   function validateAll() {
@@ -144,14 +168,13 @@ export function menuView() {
     const list = [];
     cats.forEach((c, ci) => {
       let bad = false;
-      const m = vName(c.name);
-      if (m) { errors[`c${c.k}.name`] = m; list.push({ cat: c, key: `c${c.k}.name`, label: `Категория ${ci + 1}`, msg: m }); bad = true; }
-      const me = vNameEn(c.nameEn);
-      if (me) { errors[`c${c.k}.nameEn`] = me; list.push({ cat: c, key: `c${c.k}.nameEn`, label: `Категория ${ci + 1} — Име (английски)`, msg: me }); bad = true; }
+      const ne = nameErrs(c);
+      for (const [f, lab] of [['name', `Категория ${ci + 1}`], ['nameEn', `Категория ${ci + 1} — Име (английски)`]]) if (ne[f]) { errors[`c${c.k}.${f}`] = ne[f]; list.push({ cat: c, key: `c${c.k}.${f}`, label: lab, msg: ne[f] }); bad = true; }
       c.items.forEach((it, ii) => {
-        for (const [f, fn, val, lab] of [['name', vName, it.name, 'Име'], ['price', vPrice, it.price, 'Цена'], ['description', vDesc, it.description, 'Описание'], ['nameEn', vNameEn, it.nameEn, 'Име (английски)'], ['descriptionEn', vDesc, it.descriptionEn, 'Описание (английски)']]) {
+        const ie = nameErrs(it);
+        for (const [f, fn, val, lab] of [['name', () => ie.name || '', it.name, 'Име'], ['price', vPrice, it.price, 'Цена'], ['description', vDesc, it.description, 'Описание'], ['nameEn', () => ie.nameEn || '', it.nameEn, 'Име (английски)'], ['descriptionEn', vDesc, it.descriptionEn, 'Описание (английски)']]) {
           const mm = fn(val);
-          if (mm) { errors[`i${it.k}.${f}`] = mm; list.push({ cat: c, key: `i${it.k}.${f}`, label: `${c.name.trim() || `Категория ${ci + 1}`}, ястие ${ii + 1} — ${lab}`, msg: mm }); bad = true; }
+          if (mm) { errors[`i${it.k}.${f}`] = mm; list.push({ cat: c, key: `i${it.k}.${f}`, label: `${(c.name.trim() || c.nameEn.trim()) || `Категория ${ci + 1}`}, ястие ${ii + 1} — ${lab}`, msg: mm }); bad = true; }
         }
       });
       if (bad) c.open = true;
@@ -163,6 +186,7 @@ export function menuView() {
   function validateAndShow() {
     const list = validateAll();
     if (!list.length) { summary.hide(); return true; }
+    focusErrLang(list.map((x) => x.key));
     renderEditor();
     summary.show(list.map((x) => ({ id: ids[x.key], label: x.label, msg: x.msg })).filter((x) => x.id));
     return false;
@@ -211,6 +235,7 @@ export function menuView() {
     } catch (e) {
       if (e.status === 400 && e.fields) {
         const list = mapServerFields(e.fields);
+        focusErrLang(list.filter((x) => x.key).map((x) => x.key));
         renderEditor();
         summary.show(list.map((x) => ({ id: x.key ? ids[x.key] : null, msg: x.msg })).map((x) => ({ id: x.id || 'main', msg: x.msg })));
         e.handled = true;
@@ -267,7 +292,7 @@ export function menuView() {
   }
 
   function previewClick() {
-    const model = (en) => cats.map((c) => ({ name: (en && c.nameEn.trim()) || c.name.trim(), items: c.items.map((i) => ({ name: (en && i.nameEn.trim()) || i.name.trim(), description: (en && i.descriptionEn.trim()) || i.description, priceCents: parsePrice(i.price) || 0, available: i.available })) }));
+    const model = (en) => cats.map((c) => ({ name: en ? (c.nameEn.trim() || c.name.trim()) : (c.name.trim() || c.nameEn.trim()), items: c.items.map((i) => ({ name: en ? (i.nameEn.trim() || i.name.trim()) : (i.name.trim() || i.nameEn.trim()), description: en ? (i.descriptionEn.trim() ? i.descriptionEn : i.description) : (i.description.trim() ? i.description : i.descriptionEn), priceCents: parsePrice(i.price) || 0, available: i.available })) }));
     const frame = h('div', { class: 'preview-frame public-theme w-390' });
     const seg = h('div', { class: 'a-seg', role: 'group', 'aria-label': 'Ширина на прегледа' });
     for (const [wc, label] of [['w-390', 'Телефон'], ['w-960', 'Компютър']]) {
@@ -305,7 +330,7 @@ export function menuView() {
     if (data.mode === 'file') statusHost.append(h('p', { class: 'a-help a-statusbar__note', text: 'Публикуването запазва версията, но клиентите виждат файла, докато не смените режима.' }));
   }
 
-  const changed = () => renderStatus();
+  const changed = () => { renderStatus(); if (langBox) langBox.update(); };
 
   // ---------------------------------------------------------------- editor
   function announce(text) { announcer.textContent = ''; setTimeout(() => { announcer.textContent = text; }, 30); }
@@ -335,6 +360,7 @@ export function menuView() {
       const add = btn({ label: 'Добави категория', variant: 'secondary', icon: 'plus', cls: 'a-btn--block a-btn--outline', onClick: addCat });
       if (cats.length >= MAX_CATS) { add.disabled = true; editorHost.append(add, h('p', { class: 'a-error' }, icon('alert'), h('span', { text: 'Най-много 50 категории.' }))); } else editorHost.append(add);
     }
+    if (langBox) langBox.update();
     if (focusKey) { const f = editorHost.querySelector(`[data-fk="${focusKey}"]`); if (f) f.focus(); }
   }
 
@@ -347,23 +373,20 @@ export function menuView() {
 
   function catCard(c, ci) {
     const bodyId = nextId('catbody');
-    let touched = !!c.name;
-    const catLabel = () => (c.name || '').trim() || 'Без име';
+    const L = lang;
+    const nk = L === 'en' ? 'nameEn' : 'name';
+    let touched = !!c[nk];
+    const pre = `c${c.k}.`;
+    const catLabel = () => (c.name || '').trim() || (c.nameEn || '').trim() || 'Без име';
     const labelled = [];
     const relabel = () => labelled.forEach(([el, fn]) => el.setAttribute('aria-label', fn()));
-    const nameF = field({ label: 'Име на категория', hideLabel: true, required: true, max: 100, value: c.name, placeholder: 'Име на категория, напр. Салати', cls: 'a-cat__name',
-      onInput: () => { touched = true; c.name = nameF.value; relabel(); if (errors[`c${c.k}.name`]) { const m = vName(c.name); errors[`c${c.k}.name`] = m; nameF.setError(m); } changed(); },
-      onBlur: () => { if (!touched && !errors[`c${c.k}.name`]) return; const m = vName(nameF.value); if (m) errors[`c${c.k}.name`] = m; else delete errors[`c${c.k}.name`]; nameF.setError(m); } });
+    const nameF = field({ label: L === 'en' ? 'Category name (English)' : 'Име на категория', hideLabel: true, max: 100, value: c[nk], placeholder: L === 'en' ? (c.name || 'Category name, e.g. Salads') : (c.nameEn ? c.nameEn : 'Име на категория, напр. Салати'), cls: 'a-cat__name',
+      onInput: () => { touched = true; c[nk] = nameF.value; relabel(); if (errors[`${pre}name`] || errors[`${pre}nameEn`]) { recheckName(c, pre); nameF.setError(shownNameErr(c, pre, L)); } changed(); },
+      onBlur: () => { if (!touched && !errors[`${pre}name`] && !errors[`${pre}nameEn`]) return; recheckName(c, pre); nameF.setError(shownNameErr(c, pre, L)); } });
     nameF.input.dataset.fk = `cat-${c.k}-name`;
-    ids[`c${c.k}.name`] = nameF.id;
-    const nameEnF = field({ label: 'Име на категорията (английски)', max: 100, value: c.nameEn, helper: EN_HELP,
-      onInput: (a) => { c.nameEn = a.value; if (errors[`c${c.k}.nameEn`]) { const m = vNameEn(c.nameEn); if (m) errors[`c${c.k}.nameEn`] = m; else delete errors[`c${c.k}.nameEn`]; a.setError(m); } changed(); } });
-    nameEnF.input.setAttribute('aria-label', 'Име на категорията на английски');
-    ids[`c${c.k}.nameEn`] = nameEnF.id;
-    if (errors[`c${c.k}.nameEn`]) nameEnF.setError(errors[`c${c.k}.nameEn`]);
-    const catEn = enGroup([nameEnF]);
-    if (errors[`c${c.k}.nameEn`]) catEn.open = true;
-    if (errors[`c${c.k}.name`]) nameF.setError(errors[`c${c.k}.name`]);
+    nameF.input.setAttribute('aria-label', L === 'en' ? 'Име на категория на английски' : 'Име на категория');
+    ids[`${pre}name`] = nameF.id; ids[`${pre}${nk}`] = nameF.id;
+    nameF.setError(shownNameErr(c, pre, L));
     const toggle = h('button', { type: 'button', class: 'a-btn a-btn--icon a-chev', 'aria-expanded': String(c.open), 'aria-controls': bodyId, 'aria-label': `${c.open ? 'Свий' : 'Разгъни'} категорията`, 'data-fk': `cat-${c.k}-toggle` }, icon('chevron'));
     const bodyEl = h('div', { class: 'a-cat__body', id: bodyId, hidden: !c.open });
     toggle.addEventListener('click', () => {
@@ -379,7 +402,7 @@ export function menuView() {
     const delBtn = iconBtn({ ic: 'trash', aria: 'Изтрий категорията', cls: 'a-btn--icon-danger', onClick: async () => {
       const untouched = !c.id && !c.name.trim() && !c.nameEn.trim() && !c.items.length;
       if (!untouched) {
-        const ok = await confirmDialog({ title: 'Изтриване на категория', body: c.items.length ? para('Изтриване на „', [c.name.trim() || 'Без име'], `“ и всичките му ${c.items.length} ястия?`) : para('Изтриване на „', [c.name.trim() || 'Без име'], '“?'), confirmLabel: 'Изтрий категорията', danger: true });
+        const ok = await confirmDialog({ title: 'Изтриване на категория', body: c.items.length ? para('Изтриване на „', [catLabel()], `“ и всичките му ${c.items.length} ястия?`) : para('Изтриване на „', [catLabel()], '“?'), confirmLabel: 'Изтрий категорията', danger: true });
         if (!ok) return;
       }
       cats.splice(cats.indexOf(c), 1);
@@ -389,7 +412,6 @@ export function menuView() {
     relabel();
     const count = h('span', { class: 'a-help a-cat__count', text: `(${c.items.length} ${c.items.length === 1 ? 'ястие' : 'ястия'})` });
     const head = h('div', { class: 'a-cat__head' }, nameF.el, h('div', { class: 'a-cat__btns' }, toggle, count, up, down, delBtn));
-    bodyEl.append(catEn);
     c.items.forEach((it, ii) => bodyEl.append(dishCard(c, it, ii)));
     const addDish = btn({ label: 'Добави ястие', variant: 'secondary', icon: 'plus', cls: 'a-btn--block', onClick: () => {
       const it = mkItem({ name: '', description: '', priceCents: 0, available: true });
@@ -402,28 +424,33 @@ export function menuView() {
   function dishCard(c, it, ii) {
     const ek = (f) => `i${it.k}.${f}`;
     let relabelDish = () => {};
-    const dishLabel = () => (it.name || '').trim() || 'Без име';
+    const L = lang;
+    const nk = L === 'en' ? 'nameEn' : 'name';
+    const dk = L === 'en' ? 'descriptionEn' : 'description';
+    const pre = `i${it.k}.`;
+    const dishLabel = () => (it.name || '').trim() || (it.nameEn || '').trim() || 'Без име';
+    const touched = {}; for (const f of ['name', 'price', 'description', 'nameEn', 'descriptionEn']) touched[f] = !!it[f];
+    const showName = (a) => a.setError(shownNameErr(it, pre, L));
+    const onName = (a) => {
+      touched[nk] = true; it[nk] = a.value; relabelDish();
+      if (errors[ek('name')] || errors[ek('nameEn')]) { recheckName(it, pre); showName(a); }
+      changed();
+    };
     const mk = (f, fn, setter) => (a) => {
       touched[f] = true;
       setter(a.value);
-      if (f === 'name') relabelDish();
       if (errors[ek(f)]) { const m = fn(a.value); if (m) errors[ek(f)] = m; else delete errors[ek(f)]; a.setError(m); }
       changed();
     };
-    const touched = {}; for (const f of ['name', 'price', 'description', 'nameEn', 'descriptionEn']) touched[f] = !!it[f];
     const blur = (f, fn) => (a) => { if (!touched[f] && !errors[ek(f)]) return; const m = fn(a.value); if (m) errors[ek(f)] = m; else delete errors[ek(f)]; a.setError(m); };
-    const nameF = field({ label: 'Име на ястието', required: true, max: 100, value: it.name, onInput: mk('name', vName, (v) => { it.name = v; }), onBlur: blur('name', vName) });
+    const nameF = field({ label: L === 'en' ? 'Dish name (English)' : 'Име на ястието', max: 100, value: it[nk], placeholder: L === 'en' ? it.name : it.nameEn, helper: L === 'en' ? 'По избор. Ако е празно, се показва българското име.' : undefined, onInput: onName,
+      onBlur: (a) => { if (!touched.name && !touched.nameEn && !errors[ek('name')] && !errors[ek('nameEn')]) return; recheckName(it, pre); showName(a); } });
     nameF.input.dataset.fk = `dish-${it.k}-name`;
     const priceF = field({ label: 'Цена', inputmode: 'decimal', value: it.price, suffix: symbol(), helper: '0 или празно = без цена', cls: 'a-price', onInput: mk('price', vPrice, (v) => { it.price = v; }), onBlur: blur('price', vPrice) });
-    const descF = field({ label: 'Описание', multiline: true, rows: 2, max: 500, value: it.description, onInput: mk('description', vDesc, (v) => { it.description = v; }), onBlur: blur('description', vDesc) });
-    const nameEnF = field({ label: 'Име (английски)', max: 100, value: it.nameEn, helper: EN_HELP, onInput: mk('nameEn', vNameEn, (v) => { it.nameEn = v; }), onBlur: blur('nameEn', vNameEn) });
-    const descEnF = field({ label: 'Описание (английски)', multiline: true, rows: 2, max: 500, value: it.descriptionEn, helper: EN_HELP, onInput: mk('descriptionEn', vDesc, (v) => { it.descriptionEn = v; }), onBlur: blur('descriptionEn', vDesc) });
-    const enAria = () => { const n = dishLabel(); nameEnF.input.setAttribute('aria-label', `Име на английски: ${n}`); descEnF.input.setAttribute('aria-label', `Описание на английски: ${n}`); };
-    enAria();
-    ids[ek('nameEn')] = nameEnF.id; ids[ek('descriptionEn')] = descEnF.id;
-    const dishEn = enGroup([nameEnF, descEnF]);
-    ids[ek('name')] = nameF.id; ids[ek('price')] = priceF.id; ids[ek('description')] = descF.id;
-    for (const [f, a] of [['name', nameF], ['price', priceF], ['description', descF], ['nameEn', nameEnF], ['descriptionEn', descEnF]]) if (errors[ek(f)]) { a.setError(errors[ek(f)]); if (f.endsWith('En')) dishEn.open = true; }
+    const descF = field({ label: L === 'en' ? 'Description (English)' : 'Описание', multiline: true, rows: 2, max: 500, value: it[dk], placeholder: L === 'en' ? it.description : it.descriptionEn, helper: L === 'en' ? EN_HELP : undefined, onInput: mk(dk, vDesc, (v) => { it[dk] = v; }), onBlur: blur(dk, vDesc) });
+    ids[ek('name')] = nameF.id; ids[ek(nk)] = nameF.id; ids[ek('price')] = priceF.id; ids[ek(dk)] = descF.id;
+    showName(nameF);
+    for (const [f, a] of [['price', priceF], [dk, descF]]) if (errors[ek(f)]) a.setError(errors[ek(f)]);
     const offHelp = h('p', { class: 'a-help', hidden: it.available, text: 'Показва се като „Няма в наличност“' });
     const sw = makeSwitch({ label: `Налично: ${dishLabel()}`, checked: it.available });
     sw.addEventListener('click', () => { it.available = sw.isChecked(); offHelp.hidden = it.available; changed(); });
@@ -441,27 +468,37 @@ export function menuView() {
       c.items.splice(c.items.indexOf(it), 1); renderEditor(`cat-${c.k}-toggle`); changed();
     } });
     relabelDish = () => {
-      const n = dishLabel(); enAria();
+      const n = dishLabel();
       sw.setAttribute('aria-label', `Налично: ${n}`); up.setAttribute('aria-label', `Премести „${n}“ нагоре`);
       down.setAttribute('aria-label', `Премести „${n}“ надолу`); del2.setAttribute('aria-label', `Изтрий ястието „${n}“`);
     };
-    return h('div', { class: 'a-dish' }, h('div', { class: 'a-dish__top' }, nameF.el, priceF.el), descF.el, dishEn, h('div', { class: 'a-dish__bottom' }, h('div', null, sw, offHelp), h('div', { class: 'a-dish__act' }, up, down, del2)));
+    return h('div', { class: 'a-dish' }, h('div', { class: 'a-dish__top' }, nameF.el, priceF.el), descF.el, h('div', { class: 'a-dish__bottom' }, h('div', null, sw, offHelp), h('div', { class: 'a-dish__act' }, up, down, del2)));
   }
 
   // ---------------------------------------------------------------- files
   let fileAlert = null;
+  const LANG_NAME = { bg: 'Български файл', en: 'English файл' };
+  const fileLang = (f) => (f.lang === 'en' ? 'en' : 'bg');
   function renderFiles() {
     if (!fileHost) return;
     clear(fileHost);
     fileHost.append(h('h3', { class: 'a-sub', text: 'Файлове на менюто' }));
     if (fileAlert) fileHost.append(alertBox('error', fileAlert, { role: 'alert' }));
+    fileHost.append(h('p', { class: 'a-help', text: 'За всеки език може да е публикуван по един файл. Ако няма файл за избрания език, клиентите виждат другия.' }));
+    for (const l of ['bg', 'en']) fileHost.append(fileSection(l));
+  }
+
+  function fileSection(l) {
+    const sec = h('section', { class: 'a-fileslang', 'aria-labelledby': `files-h-${l}`, lang: l });
+    sec.append(h('h4', { id: `files-h-${l}`, text: LANG_NAME[l] }));
+    const files = data.files.filter((f) => fileLang(f) === l);
     const box = h('div', { class: 'a-filebox' });
     const extra = h('div');
     let abort = null;
     const upl = createUpload({ exts: ['pdf', 'jpg', 'jpeg', 'png', 'webp'], maxMB: 15, onCancel: () => abort && abort(),
       onChange: () => { clear(extra); if (!upl.file) return; extra.append(filePreview(upl), h('div', { class: 'a-actionrow' }, btn({ label: 'Отказ', variant: 'secondary', onClick: () => upl.clear() }), uploadBtn)); } });
-    const uploadBtn = btn({ label: 'Качи', variant: 'primary', onClick: async () => {
-      const fd = new FormData(); fd.append('file', upl.file);
+    const uploadBtn = btn({ label: l === 'en' ? 'Качи английски файл' : 'Качи български файл', variant: 'primary', onClick: async () => {
+      const fd = new FormData(); fd.append('file', upl.file); fd.append('lang', l);
       upl.showProgress(0); setBusy(uploadBtn, true, 'Качване…');
       const up = upload('POST', '/api/admin/menu/files', fd, { onProgress: (p) => upl.showProgress(p), onSent: () => upl.showProcessing() });
       abort = up.abort;
@@ -476,11 +513,12 @@ export function menuView() {
       }
     } });
     box.append(upl.el, extra);
-    if (!data.files.length) fileHost.append(h('p', null, h('strong', { text: 'Още няма качени файлове.' }), ' Качете снимка или PDF на менюто.'));
-    fileHost.append(box);
+    if (!files.length) sec.append(h('p', null, h('strong', { text: 'Още няма качени файлове.' }), l === 'en' ? ' Незадължително — без него се показва българският.' : ' Качете снимка или PDF на менюто.'));
+    sec.append(box);
     const list = h('div', { class: 'a-list', role: 'list' });
-    for (const f of data.files) list.append(fileRow(f));
-    fileHost.append(list);
+    for (const f of files) list.append(fileRow(f));
+    sec.append(list);
+    return sec;
   }
 
   function fileRow(f) {
@@ -496,10 +534,10 @@ export function menuView() {
     const acts = h('div', { class: 'a-menu__act' }, h('a', { href: f.fileUrl, target: '_blank', rel: 'noopener', class: 'a-btn a-btn--secondary' }, icon('eye'), h('span', { text: 'Преглед' })));
     if (!f.published) {
       acts.append(btn({ label: 'Публикувай', variant: 'primary', onClick: async () => {
-        const other = data.files.find((x) => x.published);
+        const other = data.files.find((x) => x.published && fileLang(x) === fileLang(f));
         const run = async () => { await patch(`/api/admin/menu/files/${f.id}/published`, { published: true }); };
         if (other) {
-          const ok = await confirmDialog({ title: 'Смяна на публикувания файл', body: para('Текущо публикуваният файл „', [other.originalName], '“ ще бъде заменен. Само един файл може да е публикуван.'), confirmLabel: 'Публикувай', run });
+          const ok = await confirmDialog({ title: 'Смяна на публикувания файл', body: para('Текущо публикуваният файл „', [other.originalName], '“ ще бъде заменен. Само един файл на език може да е публикуван.'), confirmLabel: 'Публикувай', run });
           if (!ok) return;
         } else { try { await run(); } catch (e) { reportError(e); return; } }
         toast('Файлът е публикуван.'); fileAlert = null; await refreshMeta();
@@ -509,7 +547,7 @@ export function menuView() {
         try { await patch(`/api/admin/menu/files/${f.id}/published`, { published: false }); toast('Файлът е скрит.'); await refreshMeta(); } catch (e) { reportError(e); }
       } }));
     } else acts.append(h('p', { class: 'a-help', text: 'За да скриете този файл, публикувайте друг или превключете към Структурирано меню.' }));
-    acts.append(btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий файла ${f.originalName}`, onClick: async () => {
+    acts.append(btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий файла ${f.originalName} (${fileLang(f) === 'en' ? 'английски' : 'български'})`, onClick: async () => {
       const ok = await confirmDialog({
         title: 'Изтриване на файл', body: para('Сигурни ли сте, че искате да изтриете „', [f.originalName], '“? Това не може да бъде върнато.'), confirmLabel: 'Изтрий файла', danger: true,
         run: async () => { try { await del(`/api/admin/menu/files/${f.id}`); } catch (e) { if (e.code === 'in_use') { fileAlert = 'Този файл се показва на клиентите. Първо публикувайте друг файл или превключете на Структурирано меню.'; renderFiles(); } throw e; } },

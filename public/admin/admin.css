@@ -417,3 +417,14 @@ body:has(.a-actionbar) .a-toasts { bottom: calc(64px + 72px + env(safe-area-inse
 .a-cal__day.is-today { border-color: var(--a-primary); }
 .a-cal__day.is-selected { background: var(--a-text); color: #fff; }
 .a-cal__foot { display: flex; gap: 8px; justify-content: space-between; margin-top: 12px; }
+
+/* BG / EN language tabs */
+.a-lang { margin: 12px 0; }
+.a-langtabs { padding: 0; margin-bottom: 12px; overflow-x: visible; }
+.a-langtab { min-height: 48px; min-width: 44px; padding: 0 18px; font-size: 1rem; }
+.a-langtab:focus-visible { outline: 3px solid var(--a-focus); outline-offset: -3px; }
+.a-tabdot { width: 10px; height: 10px; border-radius: 50%; background: var(--a-primary); display: inline-block; flex: none; }
+.a-langhint { margin: 0 0 12px; padding: 8px 12px; border-left: 4px solid var(--a-border); background: var(--a-primary-tint); border-radius: 4px; font-size: .9rem; }
+.a-langpanel[hidden] { display: none; }
+.a-fileslang { margin: 8px 0 16px; }
+.a-fileslang > h4 { margin: 12px 0 8px; }

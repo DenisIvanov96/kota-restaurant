@@ -435,9 +435,57 @@ export function filePreview(upl) {
 
 // ---- English (optional) sub-section: collapsible, open when any field already has text.
 export const EN_HELP = 'По избор. Ако е празно, на английската версия се показва българският текст.';
-export function enGroup(fields, title = 'English / Английски') {
-  const det = h('details', { class: 'a-en' });
-  det.open = fields.some((f) => f.value);
-  det.append(h('summary', { class: 'a-en__sum', text: title }), h('div', { class: 'a-en__body' }, ...fields.map((f) => f.el)));
-  return det;
+// ---- Bulgarian / English tab switcher (replaces the old English fold-out).
+// panels: { bg: [nodes], en: [nodes] }; filled(lang) -> bool drives the dot and the empty hint.
+export const LANG_HINT = 'не е попълнено — ще се покаже другият език';
+export function langTabs({ panels, shared, filled, label = 'Език на съдържанието', onChange, hintFor }) {
+  const uid = nextId('lt');
+  let current = 'bg';
+  const bar = h('div', { class: 'a-tabs a-langtabs', role: 'tablist', 'aria-label': label });
+  const wrap = h('div', { class: 'a-lang' }, bar);
+  const defs = [['bg', 'Български'], ['en', 'English']];
+  const tabs = {}; const pans = {}; const dots = {}; const hints = {};
+  for (const [lang, name] of defs) {
+    const dot = h('span', { class: 'a-tabdot', hidden: true, 'aria-hidden': 'true' });
+    const sr = h('span', { class: 'a-vh', hidden: true, text: ' (попълнено)' });
+    const t = h('button', { type: 'button', role: 'tab', id: `${uid}-t-${lang}`, class: 'a-tab a-langtab', lang: lang === 'en' ? 'en' : 'bg', 'aria-controls': `${uid}-p-${lang}`, 'aria-selected': 'false', tabindex: '-1' }, h('span', { text: name }), dot, sr);
+    t._sr = sr;
+    t.addEventListener('click', () => select(lang, false));
+    t.addEventListener('keydown', (e) => {
+      const keys = { ArrowRight: 1, ArrowLeft: -1, Home: 'bg', End: 'en' };
+      if (!(e.key in keys)) return;
+      e.preventDefault();
+      select(typeof keys[e.key] === 'string' ? keys[e.key] : (lang === 'bg' ? 'en' : 'bg'), true);
+    });
+    tabs[lang] = t; dots[lang] = dot; bar.append(t);
+    hints[lang] = h('p', { class: 'a-langhint', hidden: true, text: hintFor ? hintFor(lang) : LANG_HINT });
+    if (shared) { hints[lang].id = `${uid}-h-${lang}`; continue; }
+    pans[lang] = h('div', { role: 'tabpanel', id: `${uid}-p-${lang}`, class: 'a-langpanel', 'aria-labelledby': `${uid}-t-${lang}`, lang: lang === 'en' ? 'en' : 'bg' }, hints[lang], ...(panels[lang] || []));
+    wrap.append(pans[lang]);
+  }
+  if (shared) {
+    const p = h('div', { role: 'tabpanel', id: `${uid}-p-bg`, class: 'a-langpanel', 'aria-labelledby': `${uid}-t-bg` }, hints.bg, hints.en, ...shared);
+    pans.bg = p; pans.en = p; tabs.en.setAttribute('aria-controls', `${uid}-p-bg`);
+    wrap.append(p);
+  }
+  function update() {
+    for (const [lang] of defs) {
+      const f = !!filled(lang);
+      dots[lang].hidden = !f; tabs[lang]._sr.hidden = !f; hints[lang].hidden = f || (!!shared && lang !== current);
+    }
+  }
+  function select(lang, focus, silent) {
+    current = lang;
+    for (const [l] of defs) {
+      tabs[l].setAttribute('aria-selected', String(l === lang));
+      tabs[l].tabIndex = l === lang ? 0 : -1;
+      if (!shared) pans[l].hidden = l !== lang;
+    }
+    if (shared) { pans.bg.setAttribute('aria-labelledby', `${uid}-t-${lang}`); pans.bg.setAttribute('lang', lang); update(); }
+    if (focus) tabs[lang].focus();
+    if (onChange && !silent) onChange(lang);
+  }
+  select('bg', false, true);
+  update();
+  return { el: wrap, select, update, get lang() { return current; }, tabs, panels: pans };
 }
