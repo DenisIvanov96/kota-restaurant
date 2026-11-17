@@ -21,8 +21,17 @@ export function createAdmin(dataDir, username = 'owner', password = PASSWORD) {
     { cwd: ROOT, env: { ...process.env, ADMIN_PASSWORD: password, DATA_DIR: dataDir }, stdio: 'pipe' });
 }
 
+// Optional port remap for environments where a foreign process holds one of 3201-3209, e.g. QA_PORT_MAP=3201=3209.
+const PORT_MAP = Object.fromEntries((process.env.QA_PORT_MAP || '').split(',').filter(Boolean).map((s) => s.split('=').map(Number)));
+export const mapPort = (p) => PORT_MAP[p] ?? p;
+
 /** Start the server as a child process. env may contain KOTA_NOW, NODE_ENV, HOST, TRUST_PROXY ... */
 export async function startServer({ port, dataDir, now, env = {}, inheritHost = false }) {
+  port = mapPort(port);
+  // Refuse to run against a foreign server that already answers on this port (a stale process would silently be tested instead).
+  let busy = false;
+  try { await fetch(`http://127.0.0.1:${port}/api/public/site`); busy = true; } catch { /* free */ }
+  if (busy) throw new Error(`port ${port} is already in use by another process; free it or set QA_PORT_MAP (e.g. ${port}=3209)`);
   const e = { ...process.env, PORT: String(port), DATA_DIR: dataDir, ...env };
   delete e.KOTA_NOW; delete e.NODE_ENV; delete e.HOST; delete e.COOKIE_SECURE;
   if (env.NODE_ENV) e.NODE_ENV = env.NODE_ENV;

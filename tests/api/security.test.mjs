@@ -296,13 +296,13 @@ describe('security (dev mode server)', () => {
       '....//....//package.json', '..%5c..%5cpackage.json', 'kota.db', '..%2fkota.db', '%00', 'a.png%00.html', '0'.repeat(32) + '.png', 'A'.repeat(32) + '.PNG', '.env'];
     for (const base of ['/media/', '/api/admin/media/']) {
       for (const e of evil) {
-        const r = base.startsWith('/api') ? await admin.get(base + e) : await rawGet(3201, base + e);
+        const r = base.startsWith('/api') ? await admin.get(base + e) : await rawGet(Number(new URL(srv.url).port), base + e);
         const status = r.status;
         assert.ok([400, 401, 404].includes(status), `${base}${e} -> ${status}`);
       }
     }
     for (const p of ['/media/../package.json', '/media/../../server/src/app.js', '/api/admin/media/../../../package.json', '/media/./../data/kota.db']) {
-      const r = await rawGet(3201, p, { cookie: admin.cookie });
+      const r = await rawGet(Number(new URL(srv.url).port), p, { cookie: admin.cookie });
       assert.ok(r.status === 404 || r.status === 400 || r.status === 401, `${p} -> ${r.status}`);
       assert.doesNotMatch(r.body.toString(), /"name": "kota-restaurant"|createApp|SQLite format/);
     }
@@ -432,7 +432,7 @@ describe('security (dev mode server)', () => {
     const e = (await anon.get('/api/public/events')).data.events.find((x) => x.title === 'pub');
     assert.deepEqual(Object.keys(e).sort(), ['description', 'eventAt', 'id', 'imageUrl', 'title']);
     const s = (await anon.get('/api/public/site')).data;
-    assert.deepEqual(Object.keys(s).sort(), ['address', 'currencySymbol', 'lang', 'openingHours', 'reservationPhone']); // `lang` added by T-14 (documented in ARCHITECTURE.md, D-27)
+    assert.deepEqual(Object.keys(s).sort(), ['address', 'currencySymbol', 'instagramUrl', 'lang', 'openingHours', 'reservationPhone']); // `lang` added by T-14 (D-27); `instagramUrl` added by T-26 (D-36, public by design: it is shown on the site)
     assert.equal(s.lang, 'bg');
     await admin.del(`${EV}/${ev.data.id}`);
   });

@@ -65,8 +65,8 @@ await step('CSP', async () => {
   }
   const r = await get('/', HTML);
   R.check('CSP2 exact full policy string on /', (r.h.get('content-security-policy') || '') === wanted, r.h.get('content-security-policy'));
-  const html = ['/', '/daily-menu', '/privacy', '/no-such-page', '/admin/'];
-  for (const p of html) { const b = txt(await get(p, HTML)); R.check(`CSP3 ${p}: no inline <style>/<script> body, no style="" attributes, no external stylesheet/script/font link`, !/<style\b/i.test(b) && !/<script(?![^>]*\bsrc=)[^>]*>[^<]/i.test(b) && !/\sstyle="/i.test(b) && !/(href|src)="https?:\/\//i.test(b.replace(/xmlns="[^"]*"/g, '')), ''); }
+  const html = ['/', '/daily-menu', '/privacy', '/reservation', '/no-such-page', '/admin/'];
+  for (const p of html) { const b = txt(await get(p, HTML)); R.check(`CSP3 ${p}: no inline <style>/<script> body, no style="" attributes, no external stylesheet/script/font link (the only allowed external href is the https://(www.)instagram.com/ icon link, D-36)`, !/<style\b/i.test(b) && !/<script(?![^>]*\bsrc=)[^>]*>[^<]/i.test(b) && !/\sstyle="/i.test(b) && !/(href|src)="https?:\/\/(?!(?:www\.)?instagram\.com\/")/i.test(b.replace(/xmlns="[^"]*"/g, '')), ''); }
 });
 
 // ============================================================ B. HTML / JSON 404
@@ -144,7 +144,7 @@ await step('SU', async () => {
     if (s.err) R.fail(`SU11 SITE_URL=${JSON.stringify(v)} should start as unset`, String(s.err.message).slice(0, 100));
     else { try { const t = await (await fetch(s.url + '/', { headers: HTML })).text(); R.check(`SU11 SITE_URL=${JSON.stringify(v)} treated as unset (og:url "/")`, meta(t, 'property', 'og:url') === '/' && !tokenRe.test(t)); } finally { await s.stop(); } }
   }
-  R.check('SU12 only the 3 meta pages carry the token in source (git grep)', (() => { const o = require_gitgrep('__SITE_URL__', 'public').split('\n').map((l) => l.split(':')[0]); return [...new Set(o)].sort().join(',') === 'public/daily-menu.html,public/index.html,public/privacy.html'; })());
+  R.check('SU12 only the 4 meta pages (index, daily-menu, privacy, reservation) carry the token in source (git grep)', (() => { const o = require_gitgrep('__SITE_URL__', 'public').split('\n').map((l) => l.split(':')[0]); return [...new Set(o)].sort().join(',') === 'public/daily-menu.html,public/index.html,public/privacy.html,public/reservation.html'; })());
 });
 
 // ============================================================ D. OG / Twitter meta, image, favicons
@@ -306,8 +306,8 @@ for (const vp of VPS) await step(`E4[${vp.name}]`, async () => {
 // --- E5: map link
 async function mapState(page) {
   return page.evaluate(() => {
-    const dd = [...document.querySelectorAll('#contact-list dd')]; const a = document.querySelector('#contact-list a.map-link');
-    return { n: document.querySelectorAll('a.map-link').length, href: a?.getAttribute('href') ?? null, abs: a?.href ?? null, target: a?.target, rel: a?.rel, text: a?.textContent.replace(/\s+/g, ' ').trim(), name: a?.innerText, addrText: document.querySelector('.address-text')?.textContent ?? null, imgs: document.querySelectorAll('#contact img, #contact script, #contact iframe').length, xss: window.__xss, contactHidden: document.getElementById('contact').hidden, dds: dd.length, svg: !!a?.querySelector('svg[aria-hidden="true"]'), iframe: document.querySelectorAll('iframe').length };
+    const dd = [...document.querySelectorAll('#location-list dd')]; const a = document.querySelector('#location-list a.map-link');
+    return { n: document.querySelectorAll('a.map-link').length, href: a?.getAttribute('href') ?? null, abs: a?.href ?? null, target: a?.target, rel: a?.rel, text: a?.textContent.replace(/\s+/g, ' ').trim(), name: a?.innerText, addrText: document.querySelector('.address-text')?.textContent ?? null, imgs: document.querySelectorAll('#location img, #location script, #location iframe').length, xss: window.__xss, contactHidden: document.getElementById('location').hidden || document.getElementById('contact').hidden, dds: dd.length, svg: !!a?.querySelector('svg[aria-hidden="true"]'), iframe: document.querySelectorAll('iframe').length };
   });
 }
 for (const vp of VPS) for (const lang of ['bg', 'en']) {
@@ -354,7 +354,9 @@ await step('E6', async () => {
       const { context, page, log } = await newPage(browser, { width: vp.width, height: vp.height });
       await page.goto(base + `/?lang=${lang}`, { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
       const st = await mapState(page);
-      R.check(`E6a[${label} ${lang} ${vp.name}] no map link, no address row; contact section still shows phone/hours`, st.n === 0 && st.addrText === null && st.dds >= 2 && st.contactHidden === false, JSON.stringify({ n: st.n, dds: st.dds, ch: st.contactHidden }));
+      // D-37 (intended change): the Location section is always visible; an empty/blank address falls back to the default address (and its map link)
+      const defAddr = lang === 'en' ? '85 Ralevitsa St, Sofia' : 'ул. Ралевица 85, София';
+      R.check(`E6a[${label} ${lang} ${vp.name}] empty address => default address "${defAddr}" + exactly one map link to it; hours row still shown; Location/Contact visible`, st.n === 1 && st.addrText === defAddr && st.href === MAP_BASE + encodeURIComponent(defAddr) && st.dds >= 2 && st.contactHidden === false, JSON.stringify({ n: st.n, a: st.addrText, h: st.href, dds: st.dds, ch: st.contactHidden }));
       R.check(`E6b[${label} ${lang} ${vp.name}] no console errors`, log.console.length === 0 && log.pageErrors.length === 0);
       await context.close();
     }
@@ -391,7 +393,7 @@ for (const vp of VPS) await step(`E7[${vp.name}]`, async () => {
     const u = st.abs ? new URL(st.abs) : null;
     const lookOk = st.n === 1 && u && u.protocol === 'https:' && u.hostname === 'www.google.com' && u.pathname === '/maps/search/' && !u.hash && [...u.searchParams.keys()].join(',') === 'api,query' && u.searchParams.get('query') === shown && st.href === MAP_BASE + encodeURIComponent(shown) && st.target === '_blank' && /noopener/.test(st.rel);
     R.check(`E7b[${lang} ${vp.name}] payload ${JSON.stringify(pl).slice(0, 40)}: link stays https://www.google.com/maps/search/ with query == payload (single encoded param, scheme/host unchanged)`, lookOk, `${st.href}`);
-    const inj = await page.evaluate(() => ({ xss: window.__xss, imgs: document.querySelectorAll('#contact img, #contact script, #contact iframe, #contact [onerror], #contact [onmouseover]').length, anchors: [...document.querySelectorAll('#contact a')].map((a) => a.getAttribute('href')), pwn: document.querySelectorAll('#contact a:not(.map-link)[href*="evil"]').length }));
+    const inj = await page.evaluate(() => ({ xss: window.__xss, imgs: document.querySelectorAll('#location img, #location script, #location iframe, #location [onerror], #location [onmouseover]').length, anchors: [...document.querySelectorAll('#location a, #contact a')].map((a) => a.getAttribute('href')), pwn: document.querySelectorAll('main a:not(.map-link)[href*="evil"]').length }));
     R.check(`E7c[${lang} ${vp.name}] payload ${JSON.stringify(pl).slice(0, 40)}: no script ran, no injected elements/attributes, address shown as inert text, no other anchors to evil host`, inj.xss === undefined && inj.imgs === 0 && inj.pwn === 0 && (st.addrText || '').replace(/\s+/g, ' ').trim() === shown.replace(/\s+/g, ' ').trim(), JSON.stringify({ inj, t: st.addrText }));
     // hover + click, make sure no navigation of the current page and popup is Google
     await page.locator('a.map-link').hover();

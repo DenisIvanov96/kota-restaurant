@@ -7,6 +7,7 @@ and talk to it over HTTP or Playwright. They never import server code. The clock
 ## Requirements
 - Node >= 22.13, `npm ci` done. Playwright must be resolvable (`require('playwright')`, pre-installed globally in the QA environment; it is NOT a project dependency).
 - Free ports 3201-3209. Do not run two suites at the same time (they reuse ports).
+- Optional: `QA_PORT_MAP=3201=3209` remaps a port that a foreign process holds (the harness refuses to start when something already answers on the port).
 - Optional: `QA_SCRATCH=/some/dir` (temp data dirs + `shots/` screenshots + `*-results.json`; default `$TMPDIR/kota-qa`).
 
 ## Run
@@ -21,6 +22,8 @@ node --disable-warning=ExperimentalWarning tests/e2e/a11y.mjs     # keyboard foc
 node --disable-warning=ExperimentalWarning tests/e2e/design.mjs   # design fixes D1..D11
 node --disable-warning=ExperimentalWarning tests/e2e/reflow.mjs   # header reflow 320/340/360, tab order, renderer lang override (port 3205)
 node --disable-warning=ExperimentalWarning tests/e2e/i18n.mjs     # public БГ/EN switch, admin English fields, rapid-toggle race (ports 3209, 3208)
+node --disable-warning=ExperimentalWarning tests/e2e/feedback1.mjs  # T-29 sticky top bar, /reservation, Location, Instagram, OG (ports 3204, 3206, 3207)
+node --disable-warning=ExperimentalWarning tests/e2e/admin-dates.mjs # T-29 BG date/time pickers under en-US, Instagram settings (port 3208)
 node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch polish: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link + injection (ports 3201-3203, ~4 min)
 ```
 
@@ -31,11 +34,13 @@ node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch 
 - `api/publication.test.mjs` - events (enable/disable/expiry/future/images) and daily menus (today/tomorrow/yesterday, Sofia midnight, DST, replace) with clock advance.
 - `api/menu.test.mjs` - structured draft/publish/discard, file mode, mode switch, live-file protection, restart persistence.
 - `api/i18n.test.mjs` - `?lang` resolution/fallback, En-field leakage, admin En auth/CSRF/limits, migration 002 on a pre-i18n DB (port 3209).
+- `api/feedback1.test.mjs` - migration 003 matrix, instagramUrl contract, /reservation route (port 3206).
+- `e2e/feedback1.mjs`, `e2e/admin-dates.mjs` - see Run.
 - `e2e/launch.mjs` - fonts self-hosted + zero third-party requests, CSP exact string, HTML/JSON 404, SITE_URL token replacement and validation, OG/Twitter meta, favicons, privacy page, footer link, map link and address injection.
 - `e2e/*.mjs` - see above.
 
 ## Notes
 - Fonts are self-hosted since D-29; `launch.mjs` asserts zero requests to non-localhost hosts. `lib/browser.mjs` still collects failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` as environmental noise (legacy; any such request would now be a defect): failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` are collected separately as environmental noise and ignored.
-- No defects are open; BUG-1..11 are fixed (T-25: none found) and their checks pass.
+- Open defects at 9fd7c8d: BUG-12 (major), BUG-13..15 (minor); see `docs/TESTING.md` (T-29). BUG-1..11 are fixed.
 - `admin.mjs` dismisses persistent error toasts before pressing Save (they cover the sticky save bar at 390 px, BUG-5), as a user would.
 - Production-mode checks use `NODE_ENV=production` with default `HOST`; `KOTA_NOW` is ignored there (verified).

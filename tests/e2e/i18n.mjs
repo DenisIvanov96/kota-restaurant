@@ -77,7 +77,7 @@ for (const vp of VPS) {
     await clickLang(page, 'en'); await settle(page);
     const en = await bodyText(page);
     R.check(`HS2[${tag}] / EN: no horizontal scroll`, (await noHScroll(page)).ok, JSON.stringify(await noHScroll(page)));
-    R.check(`RT1[${tag}] / BG->EN: UI strings english (nav, hero, headings, contact labels), content english`, ['Menu', 'Daily Special', 'Book a table', 'About', 'Contact', 'Opening hours', 'Jazz night', 'Live music', 'Salads', 'Shopska salad', 'Vitosha St 1, Sofia', 'Skip to content', 'For reservation:'].every((s) => en.includes(s)) && en.includes('Fresh food'), en.slice(0, 300).replace(/\n/g, '|'));
+    R.check(`RT1[${tag}] / BG->EN: UI strings english (nav, hero, headings, contact labels), content english`, ['Menu', 'Daily Special', 'Reservation', 'Location', 'About', 'Contact', 'Opening hours', 'Jazz night', 'Live music', 'Salads', 'Shopska salad', 'Vitosha St 1, Sofia', 'Skip to content', 'For reservations:'].every((s) => en.includes(s)) && en.includes('Fresh food'), en.slice(0, 300).replace(/\n/g, '|'));
     R.check(`RT2[${tag}] / EN: <html lang=en>, title, meta description, aria-pressed, URL ?lang=en, localStorage`, (await lang(page)) === 'en' && (await page.title()) === 'Kota1 Restaurant' && /fresh food and a warm welcome/i.test(await page.locator('meta[name=description]').getAttribute('content')) && (await page.locator('.lang-btn[data-lang=en]').getAttribute('aria-pressed')) === 'true' && (await search(page)) === '?lang=en' && (await page.evaluate(() => localStorage.getItem('kota_lang'))) === 'en', JSON.stringify({ t: await page.title(), s: await search(page) }));
     const cy = await uiCyrillic(page);
     R.check(`CY1[${tag}] / EN: no Cyrillic UI strings (text, aria-label, alt, title, meta) outside the deliberate BG-fallback content`, cy.length === 0, JSON.stringify(cy));
@@ -175,7 +175,7 @@ await step('XSS', async () => {
   R.check('XSS1 EN mode: En payloads (event title/desc, category, dish name/desc, address, hours) did not execute (window.__xss undefined)', xss === undefined, `window.__xss=${xss}`);
   R.check('XSS2 EN event title/description shown as literal text', titles.includes(XSS_T) && descs.some((d) => d.includes('<script>window.__xss=2</script><b>not bold</b>')), JSON.stringify({ titles, descs }));
   R.check('XSS3 EN dish/category/address/hours payloads literal text (visible as typed)', t.includes(XSS_DISH) && t.includes(XSS_CAT) && t.includes(XSS_ADDR) && t.includes(XSS_HRS) && t.includes('<script>window.__xss=5</script>x'));
-  const inj = await page.locator('img[src="x"], svg[onload], .event-desc b, .event-card script, #menu-content script, #contact script, #contact img, .dish svg, .cat-title img').count();
+  const inj = await page.locator('img[src="x"], svg[onload], .event-desc b, .event-card script, #menu-content script, #location script, #location img, #contact script, #contact img, .dish svg, .cat-title img').count();
   R.check('XSS4 EN: no injected <img src=x>/<svg onload>/<script>/<b> elements in the DOM', inj === 0, String(inj));
   R.check('XSS5 EN XSS run: no CSP violation events and no page errors', (await page.collectCsp()).length === 0 && log.pageErrors.length === 0, await logEv(page, log));
   await clickLang(page, 'bg'); await settle(page); await clickLang(page, 'en'); await settle(page);
@@ -283,7 +283,7 @@ async function raceIndex(id, { start, delay, clicks, final }) {
     await page.waitForTimeout(4000); await page.waitForLoadState('networkidle').catch(() => {});
     const st = await page.evaluate(() => ({
       html: document.documentElement.lang, ev: [...document.querySelectorAll('.event-title')].map((n) => n.textContent), evh: document.getElementById('event-heading')?.textContent,
-      cats: [...document.querySelectorAll('.cat-title')].map((n) => n.textContent), addr: [...document.querySelectorAll('#contact-list dd')].map((n) => (n.querySelector('.address-text') || n).textContent), hdr: document.getElementById('menu-heading').textContent, pressed: document.querySelector('.lang-btn[aria-pressed=true]').dataset.lang,
+      cats: [...document.querySelectorAll('.cat-title')].map((n) => n.textContent), addr: [...document.querySelectorAll('#location-list dd')].map((n) => (n.querySelector('.address-text') || n).textContent), hdr: document.getElementById('menu-heading').textContent, pressed: document.querySelector('.lang-btn[aria-pressed=true]').dataset.lang,
       price: document.querySelector('.dish-price')?.textContent, url: location.search, nEvSections: document.querySelectorAll('#event').length,
     }));
     const wantEn = final === 'en';

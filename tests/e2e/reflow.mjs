@@ -29,8 +29,8 @@ try {
     // focus order
     await page.evaluate(() => document.body.focus());
     const seq = [];
-    for (let i = 0; i < 6; i++) { await page.keyboard.press('Tab'); seq.push(await page.evaluate(() => { const e = document.activeElement; return e.matches('a.skip-link') ? 'skip-link' : e.matches('a.logo') ? 'logo' : e.matches('a.btn-special-sm') ? 'pill' : e.dataset?.lang ? e.dataset.lang : e.matches('button.nav-toggle') ? 'toggle' : (e.className || e.tagName); })); }
-    R.check(`RF-focus ${id}: tab order skip-link > logo > pill > БГ > EN > hamburger`, seq.join('>') === 'skip-link>logo>pill>bg>en>toggle', seq.join('>'));
+    for (let i = 0; i < 7; i++) { await page.keyboard.press('Tab'); seq.push(await page.evaluate(() => { const e = document.activeElement; return e.matches('a.skip-link') ? 'skip-link' : e.matches('#top-bar a') ? 'topbar' : e.matches('a.logo') ? 'logo' : e.matches('a.btn-special-sm') ? 'pill' : e.dataset?.lang ? e.dataset.lang : e.matches('button.nav-toggle') ? 'toggle' : (e.className || e.tagName); })); }
+    R.check(`RF-focus ${id}: tab order skip-link > top-bar reservation link (D-34, always present, above the header) > logo > pill > БГ > EN > hamburger`, seq.join('>') === 'skip-link>topbar>logo>pill>bg>en>toggle', seq.join('>'));
     // visual order: row-major positions follow DOM order
     const after = (a, b) => b.l >= a.r - 1 || b.t >= a.t + a.h - 1; // next control is to the right on the same row, or on a lower row
     R.check(`RF-visual-order ${id}: visual reading order (same row left-to-right, then next row) equals DOM order`, m.every((x, i) => i === 0 || after(m[i - 1], x)), m.map((x) => `${x.l}-${x.r}@y${x.t}`).join(' '));

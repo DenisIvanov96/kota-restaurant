@@ -73,7 +73,8 @@ await step('E', async () => {
   R.check('EV1 saving empty form => client validation error summary (title required), nothing created', (await page.getByText('Въведете заглавие.').count()) >= 1 && (await api.get('/api/admin/events')).data.events.length === 0);
   await page.locator('input.a-input').first().fill('Джаз вечер');
   await page.locator('textarea').first().fill('Жива музика\nВход свободен');
-  await page.locator('input[type=datetime-local]').nth(0).fill('2026-06-20T20:00');
+  // D-35: typed Bulgarian date + 24h time (the native datetime-local input no longer exists); API format asserted in EV3
+  await page.locator('.a-dt-date').nth(0).fill('20.06.2026'); await page.locator('.a-dt-time').nth(0).fill('20:00');
   await page.locator('input[type=file]').first().setInputFiles(file('poster.png', 'image/png', makePng(400, 250, [30, 160, 90])));
   await page.waitForTimeout(300);
   R.check('EV2 image chosen => preview thumbnail appears', (await page.locator('.a-upload img, .a-upload canvas, .a-preview img, .a-previewcard img').count()) >= 1);
@@ -134,7 +135,7 @@ await step('E', async () => {
   await page.screenshot({ path: path.join(shots, 'admin-event-400-390.png'), fullPage: true });
   await page.unroute('**/api/admin/events/*');
   // REAL server-side rejection reachable through UI: description 2000 chars is client-limited; use event date that the client allows but server rejects (year 99999?)
-  await page.locator('input[type=datetime-local]').nth(2).evaluate((e) => { e.value = ''; });
+  await page.locator('.a-dt-date').nth(2).fill(''); await page.locator('.a-dt-time').nth(2).fill('');
   // oversize image: client-side limit 5MB; send >5MB via UI to see 413 handling
   await page.locator('input[type=file]').first().setInputFiles(file('big.png', 'image/png', Buffer.concat([makePng(10, 10), Buffer.alloc(5.5 * 1024 * 1024)]))).catch(() => {});
   await page.waitForTimeout(400);
@@ -198,7 +199,7 @@ await step('D', async () => {
     await go(page, '#/events'); await go(page, '#/daily-menu'); await page.waitForSelector('h3:has-text("Избери файл")');
     await page.locator('input[type=file]').first().setInputFiles(file(name, type, buf));
     await page.getByRole('button', { name: 'Напред' }).click();
-    await page.locator('input[type=date]').fill(date);
+    await page.locator('.a-dt-date').fill(date.split('-').reverse().join('.'));
     await page.getByRole('button', { name: 'Напред' }).click();
     await page.getByRole('button', { name: 'Напред' }).click();
     await page.getByRole('button', { name: 'Публикувай', exact: true }).click();
@@ -213,7 +214,7 @@ await step('D', async () => {
   // conflict -> replace
   await page.getByRole('button', { name: 'Качи ново меню' }).click();
   await page.locator('input[type=file]').first().setInputFiles(file('repl.png', 'image/png', makePng(120, 120, [9, 9, 9])));
-  await page.getByRole('button', { name: 'Напред' }).click(); await page.locator('input[type=date]').fill('2026-06-15');
+  await page.getByRole('button', { name: 'Напред' }).click(); await page.locator('.a-dt-date').fill('15.06.2026');
   R.check('DM4 selecting an occupied date shows info note', (await page.getByText('вече има меню').count()) >= 1);
   await page.getByRole('button', { name: 'Напред' }).click(); await page.getByRole('button', { name: 'Напред' }).click();
   await page.getByRole('button', { name: 'Публикувай', exact: true }).click();
@@ -241,7 +242,7 @@ await step('D', async () => {
   R.check('DM8 .html file refused by UI (message visible, Напред disabled)', (await page.getByRole('button', { name: 'Напред' }).isDisabled()) && /формат|поддържа|PDF|JPG/i.test(await page.locator('.a-step').innerText()), (await page.locator('.a-step').innerText()).slice(0, 150));
   // server 415: renamed file passes client (ext ok) but server rejects by magic
   await page.locator('input[type=file]').first().setInputFiles(file('fake.pdf', 'application/pdf', Buffer.from('<html>not a pdf</html>')));
-  await page.getByRole('button', { name: 'Напред' }).click(); await page.locator('input[type=date]').fill('2026-07-01');
+  await page.getByRole('button', { name: 'Напред' }).click(); await page.locator('.a-dt-date').fill('01.07.2026');
   await page.getByRole('button', { name: 'Напред' }).click(); await page.getByRole('button', { name: 'Напред' }).click();
   await page.getByRole('button', { name: 'Публикувай', exact: true }).click(); await page.waitForTimeout(800);
   const txt = await page.locator('.a-step').innerText();

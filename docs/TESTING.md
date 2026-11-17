@@ -5,24 +5,76 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
-| npm test (backend) | 545c0ad | 53/53 |
-| api security / publication / menu | 545c0ad | 42/42 · 21/21 · 17/17 (93/93 incl. i18n; security CSP constant updated to the D-29 policy) |
-| api i18n (T-17) | 545c0ad | 13/13 |
-| e2e public | 545c0ad | 89/89 |
-| e2e a11y | 545c0ad | 48/48 |
-| e2e admin | 545c0ad | 117/117 |
-| e2e design | 545c0ad | 22/22 |
-| e2e i18n (T-17) | 545c0ad | 240/240 (RACE1-4 address check now reads the `.address-text` node) |
-| e2e reflow (T-20) | 545c0ad | 88/88 |
-| e2e launch (T-25, new: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link/injection; 390/768/1280, BG+EN) | 545c0ad | 915/915 |
-| width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run at 545c0ad; header CSS unchanged, only footer/map/static-page rules added) |
+| npm test (backend) | 9fd7c8d | 56/56 |
+| api security / publication / menu | 9fd7c8d | 42/42 · 21/21 · 17/17 (S8e now expects the public `instagramUrl` key) |
+| api i18n (T-17) | 9fd7c8d | 12/13: FAIL `I13` (BUG-12: migration 003 seeds the default EN address over a stored BG address) |
+| api feedback1 (T-29, new: migration 003 matrix, instagramUrl contract, /reservation route) | 9fd7c8d | 13/15: FAIL `M4`, `M5` (BUG-12) |
+| e2e public | 9fd7c8d | 89/89 (C2 -> #location, U5 -> new always-on top bar / Location) |
+| e2e a11y | 9fd7c8d | 48/48 |
+| e2e admin | 9fd7c8d | 117/117 (date steps use the `.a-dt-date`/`.a-dt-time` pickers) |
+| e2e design | 9fd7c8d | 22/22 |
+| e2e i18n (T-17) | 9fd7c8d | 240/240 (RT1 strings + RACE address selector updated, intended) |
+| e2e reflow (T-20) | 9fd7c8d | 88/88 (RF-focus: top-bar link is now the first stop after the skip link) |
+| e2e launch (T-25) | 9fd7c8d | 916/916 (E5/E6/E7 -> #location, CSP3 Instagram href allowed, SU12 4 pages) |
+| e2e feedback1 (T-29, new: sticky top bar, /reservation, Location, Instagram, OG) | 9fd7c8d | 775/775 |
+| e2e admin-dates (T-29, new: BG date/time pickers under an en-US browser, Instagram settings live) | 9fd7c8d | 83/86: FAIL `TY3` (BUG-15), `VAL4` (BUG-13), `VAL8` (BUG-14) |
+| width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run; the 320 px top-bar reflow is covered by `feedback1.mjs` TB*) |
 
-All suites above were run sequentially at 545c0ad (full tier: server `app.js`/`server.js` and shared `i18n.js`, `dom.js`, `style.css`, all HTML heads changed). Earlier per-suite commits (0c81447 ... 2ef9c11) are superseded.
+All suites above were run sequentially at 9fd7c8d (full tier: server `store.js`, `routes/admin/general.js`, migration 003 and shared `i18n.js`, `common.js`, `style.css`, all page HTML changed). Earlier per-suite commits are superseded.
+
 
 Historical note: server code was identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## Owner feedback round 1 + release regression (T-29) - 2026-11-17, `9fd7c8d` (full tier)
+
+Verdict: **FAIL** - 0 blocker, 1 major (BUG-12), 3 minor (BUG-13, BUG-14, BUG-15). Everything else passed; no product file was changed by QA.
+
+### Environment note (not a product defect)
+A foreign server process (PID 3065, `DATA_DIR=/tmp/kota-qa/launch-OaiLmK`, started 09:35 from `tests/e2e/launch.mjs`, parent PID 1) was still listening on port 3201 and silently answered the `public`, `launch` and `security` suites: the first baseline run showed false failures (U2/U4/T1/T2/T3, `launch` could not start). It was NOT killed (not QA's process). `tests/lib/harness.mjs` now refuses to start when something already answers on the port and supports `QA_PORT_MAP=3201=3209` to run around a stuck port. All numbers below were run with `QA_PORT_MAP=3201=3209`. The foreign process should be stopped by whoever started it.
+
+### Outdated expectations changed (each verified against `docs/ARCHITECTURE.md` "Owner feedback round 1" before changing)
+| Test | Why the old expectation is obsolete | New expectation |
+|---|---|---|
+| public `C2` | D-37 moved address + hours from `#contact` to `#location` | address/hours in `#location`, phone still in `#contact`, address not in `#contact` |
+| public `U5` | D-34: top bar always present; D-37: Location always visible, Contact keeps Instagram | bar "Резервации" -> `/reservation` (label hidden), default address in Location, Contact visible with Instagram, nav "Локация" |
+| launch `E5*`, `E6a`, `E6c`, `E7b/c` | map link + address live in `#location-list` | selectors `#location*`; `E6a` now: empty/blank address -> default address + exactly one map link (D-37) instead of "no map link" |
+| launch `CSP3` | Instagram icon is an intentional external `https://(www.)instagram.com/` href | still forbids every other `http(s)://` href/src; `/reservation` added to the page list |
+| launch `SU12` | `reservation.html` carries `__SITE_URL__` | 4 pages |
+| admin blocks E, D | native `datetime-local`/`date` replaced by `.a-dt-date` + `.a-dt-time` (D-35) | typed `дд.мм.гггг` / `ЧЧ:ММ` |
+| admin X, M (S did not fail) | **cascades of the aborted E and D steps**, not product defects: X needs the event that E could not create; the M "Добави ястие" strict-mode violation (two category bodies) only occurred in the run where E/D had aborted mid-way; X, M and S all pass in the full run once E and D use the new pickers (117/117) | unchanged |
+| api security `S8e` | `GET /api/public/site` gains `instagramUrl` (D-36, public by design) | key list includes `instagramUrl` |
+| api i18n `I13` | migration 003 is applied on start | applied list includes `003_default_address.sql`; the address assertions are NOT weakened (see BUG-12) |
+| i18n e2e `RT1`, `RACE1-4` | hero button is now "Reservation" (D-38), bar text "For reservations:" (D-34), address lives in `#location-list` | strings/selector updated |
+| reflow `RF-focus` x12 | the always-present top-bar link sits before the header | order `skip-link > top bar > logo > pill > БГ > EN > hamburger` |
+
+### New targeted tests
+- `tests/e2e/feedback1.mjs` (ports 3204, 3206, 3207; 775 checks): sticky top bar on `/`, `/daily-menu`, `/reservation`, `/privacy`, 404 x BG/EN x 320/390/768/1280 x phone/no phone (text, tel/`/reservation?lang` link, `position: sticky; top: 0`, at y=0, height <= 52 px (the `--topbar-h` that offsets the category chips), link >= 44 px, inside viewport, stays at top 0 and on top after scrolling to the bottom, no horizontal scroll, clean console); anchors `/#menu|about|location|contact` are not hidden by the bar; language switch re-translates the bar; `/reservation` (floor plan SVG role=img + title/desc, 12 tables whose numbers and shapes match the hidden text list, legend, note, contrast of plan text, call button tel/no-phone note, location + map link, no third-party requests, keyboard stops, 390/768/1280 BG/EN, screenshots in `$QA_SCRATCH/shots/fb1-*.png`); hero + nav "Резервация"/"Локация" links on every page; Instagram icons (placeholder vs configured URL on all 5 pages, rel/target, >= 44 px, contrast >= 3, focus, new-tab, no instagram request on load, clearing); 38 lookalike/`javascript:`/userinfo/port/backslash/whitespace/over-length values rejected by the live server (stored value unchanged), 5xx/type-confusion, 401/403 matrix; XSS payloads accepted by the server cannot produce a non-instagram href or an injected element; hostile API values (`javascript:`, other hosts, non-strings) fall back to the placeholder in the renderer; Location section on a fresh DB (default address BG/EN, map link, no hours row, Contact with Instagram and no call button), after the owner clears the address, and across a restart; OG/Twitter meta of `/reservation` with and without `SITE_URL`.
+- `tests/e2e/admin-dates.mjs` (port 3208; 86 checks): browser locale **en-US**, timezone America/New_York. No native date/time inputs anywhere in the admin; no AM/PM, no mm/dd/yyyy in any text, placeholder, aria-label or value on all admin routes; typed and masked entry, paste of ISO; calendar (Monday first, Bulgarian month/weekday names and aria-labels, "Днес" = Sofia today and the server today in the wizard, month/year navigation, backdrop/Esc/"Затвори"), keyboard (arrows, Home/End, PageUp/PageDown, Shift+PageDown, month-end clamping, Enter/Space/Esc, focus return, no escape into the inert page, visible focus); 16 invalid-input combinations with Bulgarian errors and `aria-invalid`; summary + range rule; payload formats captured from the real XHR `FormData` (`YYYY-MM-DDTHH:mm`, `YYYY-MM-DD`); edit prefill; "Изчисти"; untouched edit form is not dirty; DST: `29.03.2026 03:30` (gap) is sent unchanged and stored as `04:30` per ARCHITECTURE ("moves forward 1 h"), `25.10.2026 03:30` (overlap) stays `03:30`, `28.03.2027 03:30` -> `04:30`, re-opening the event shows the stored value; daily wizard (Днес/Утре, disabled "Напред" for empty/invalid, calendar marks the server "today"), edit dialog; 390/768 layout; Settings "Instagram профил": client rejection without a request, three values the client accepts but the REAL server answers 400 (port, userinfo, > 200 chars) with the error mapped to the field, `aria-invalid`, focus and nothing stored, save/reload/clear, unsaved-changes guard.
+- `tests/api/feedback1.test.mjs` (port 3206; 15 tests): migration 003 on legacy DBs (nothing stored, blank, both stored, BG only, BG + empty EN, EN only) incl. restart idempotence; fresh DB defaults; instagramUrl accept/reject matrix, whole-request rejection, partial update, types, auth/CSRF/Origin; `/reservation` route (200 html, no-cache, CSP, HEAD, 404 sub-path, POST, `/api/reservation` JSON 404).
+
+### Defects (new)
+BUG-12 | major | backend-developer | 1) Build a DB from `001_init.sql` + `002_i18n.sql` only (a live pre-feedback deployment). 2) Set `settings.address = 'ул. Витоша 1, София'` and leave `address_en` as `''` (the 002 default, i.e. the owner never filled English). 3) Start the server (applies `003_default_address.sql`). 4) `GET /api/public/site?lang=en`. | D-37 / ARCHITECTURE: the default address is seeded "**only if the stored address is empty**"; the English site shows the owner's stored address (per-field fallback to the BG address): `ул. Витоша 1, София`. | `address` = `85 Ralevitsa St, Sofia`: migration 003 fills `address_en` independently of `address`, so every existing restaurant with a BG address and no English address now shows a different, wrong address (and a wrong Google Maps link) to English visitors. Fix: seed `address_en` only when `address` is also empty (or do not seed `address_en` at all: the client already falls back to `loc.defaultAddress`). | `tests/api/feedback1.test.mjs` `M4`, `M5` (actual `'85 Ralevitsa St, Sofia'`, expected `'ул. Витоша 1, София'`); `tests/api/i18n.test.mjs` `I13` (same, line 186); `$QA_SCRATCH/f-api.log`. `M1..M3`, `M6` pass.
+
+BUG-13 | minor | frontend-developer | Admin > new event; type `20.06.2026` in "Дата на събитието" and `25:00` in its time field; Tab away. | The time input is described by the error (`aria-describedby` -> error id) like the date input, so a screen reader announces "Невалиден час" when the time field is focused. | The time input has no `aria-describedby` (only `aria-invalid="true"`); the message is attached to the date input only (`datetime.js` `build()`: `timeIn` has no describedby handling). | `admin-dates.mjs` `VAL4` -> `aria-describedby=null`.
+
+BUG-14 | minor | frontend-developer | Admin > new event; "Показвай от": date `20.06.2026`, time `99:99`; press "Запази"; click the summary item "Показвай от: Невалиден час". | Focus goes to the invalid TIME input. | Focus goes to the DATE input (`errs.push({ id: f.id })` uses the date input id; `datetime.js` has `focusInvalid()` but `events.js` does not use it). | `admin-dates.mjs` `VAL8` -> active element `a-input a-dt-date is-invalid`.
+
+BUG-15 | minor | frontend-developer | Admin > any date field (event, daily wizard, edit dialog); type or paste `5.6.2026` (the parser documents `\d{1,2}` day/month). | The field keeps `5.6.2026` (or normalises to `05.06.2026`). | The mask drops typed dots and re-chunks the digits: `56.20.26` (typed and pasted), then an error "Въведете дата във формат дд.мм.гггг". No wrong date is ever saved, but the single-digit form cannot be entered and the text is garbled. Fix: keep dots the user types / normalise `d.m.yyyy` before masking. | `admin-dates.mjs` `TY3` -> `typed -> "56.20.26", pasted -> "56.20.26"`.
+
+### Observations (not defects)
+- DST gap: a user who enters `29.03.2026 03:30` is not warned; after saving the form shows `04:30` (backend rule, consistent everywhere and documented in ARCHITECTURE). A hint "този час не съществува" would be a UX improvement.
+- The server accepts `https:///www.instagram.com/` (extra slash); the URL parser normalises it to `https://www.instagram.com/`, so it is harmless. `https://www.instagram.com:443/x` is accepted for the same reason (default port is dropped by the parser).
+- The calendar is a native modal `<dialog>`: Tab from the last control leaves to the browser UI (not into the inert page); this is standard and not a keyboard trap.
+- A hidden `<a id="contact-call" href="tel:">` and `<a id="res-call" href="tel:">` stay in the DOM with an empty `tel:` href when there is no phone (they are `hidden`, not focusable).
+- `loadSite()` caches per language for the page lifetime: a phone changed in the admin while a visitor keeps a page open is picked up only after a reload (pre-existing behaviour).
+
+### NOT RUN (T-29)
+- Real mobile browsers/devices and a real screen reader (only Chromium headless).
+- Real Google Maps / instagram.com navigation (stubbed by `context.route`; only the URLs are asserted).
+- Width sweep 320-420 px beyond the four widths in `feedback1.mjs`.
 
 ## Standard viewports
 390x844 (phone), 768x1024 (tablet), 1280x800 (desktop) - Playwright (Chromium, headless).
