@@ -127,12 +127,19 @@ export function liveLangs(db) {
   return LANGS.filter((l) => pagesFlag(db, l) && db.prepare('SELECT 1 FROM menu_files WHERE lang = ?').get(l));
 }
 
-/** Public file-mode payload for the requested language (falls back to the other language), or null. */
-export function publicMenuPages(db, lang) {
+/** Language actually served for the requested one (falls back to the other live language) and its ordered page rows, or null. */
+export function publicMenuPageSet(db, lang) {
   const live = liveLangs(db);
   const use = live.includes(lang) ? lang : live[0];
   if (!use) return null;
-  const rows = pageRows(db, use);
+  return { lang: use, rows: pageRows(db, use) };
+}
+
+/** Public file-mode payload for the requested language (falls back to the other language), or null. */
+export function publicMenuPages(db, lang) {
+  const set = publicMenuPageSet(db, lang);
+  if (!set) return null;
+  const { lang: use, rows } = set;
   const stamp = Number(getSetting(db, stampKey(use))) || Math.max(...rows.map((r) => r.created_at));
   return {
     lang: use,
