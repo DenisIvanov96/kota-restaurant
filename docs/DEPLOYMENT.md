@@ -117,6 +117,7 @@ file access.
 | Variable | Production value | Notes |
 |---|---|---|
 | `NODE_ENV` | `production` | Enables the secure cookie default and disables test hooks. |
+| `SITE_URL` | — | Public https address (no trailing slash). Needed for social link previews. |
 | `PORT` | `3000` | Local only, behind Caddy. Keep closed in the firewall. |
 | `DATA_DIR` | `/var/lib/kota-restaurant/data` | **Must be absolute** and on persistent disk. |
 | `COOKIE_SECURE` | `true` | Session cookie gets `Secure`. Keep `true` for HTTPS. |
