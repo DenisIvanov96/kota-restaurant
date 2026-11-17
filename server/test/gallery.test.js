@@ -369,8 +369,12 @@ test('Range on a gallery video: 206 + exact Content-Range; suffix/open ranges; 4
     ({ r, buf } = await get(`bytes=0-${N + 1000}`)); // end beyond EOF is clamped
     assert.equal(r.status, 206); assert.equal(r.headers.get('content-range'), `bytes 0-${N - 1}/${N}`);
 
-    ({ r } = await get(`bytes=${N + 10}-${N + 20}`));
+    ({ r, buf } = await get(`bytes=${N + 10}-${N + 20}`));
     assert.equal(r.status, 416); assert.equal(r.headers.get('content-range'), `bytes */${N}`);
+    // BUG-20: the error body is JSON and must be labelled as JSON, not as the file's type
+    assert.match(r.headers.get('content-type'), /^application\/json/);
+    assert.equal(r.headers.get('content-disposition'), null);
+    assert.equal(JSON.parse(buf.toString()).error, 'range_not_satisfiable');
 
     const hr = await fetch(url, { method: 'HEAD', headers: { Range: 'bytes=0-9' } });
     assert.equal(hr.status, 206); assert.equal(hr.headers.get('content-range'), `bytes 0-9/${N}`);

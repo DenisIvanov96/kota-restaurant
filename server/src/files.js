@@ -228,7 +228,9 @@ export function createFiles({ db, dataDir, nowMs }) {
       res.sendFile(row.stored_name, { root: uploadsDir, cacheControl: false, dotfiles: 'deny' }, (err) => {
         if (!err || res.headersSent) return;
         if (err.status === 416) { // unsatisfiable Range: say so (with Content-Range: bytes */size) instead of pretending the file is missing
-          res.status(416).set(err.headers || {}).json({ error: 'range_not_satisfiable', message: 'Невалиден диапазон.' });
+          // the headers set above describe the file, not this error body: drop them so the JSON is labelled as JSON
+          res.removeHeader('Content-Disposition');
+          res.status(416).set(err.headers || {}).type('application/json').json({ error: 'range_not_satisfiable', message: 'Невалиден диапазон.' });
           return;
         }
         next(new HttpError(404, 'not_found', 'Не е намерено.'));
