@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, pickAny, LANGS, latestSnapshot, publicMenuPages, fileUrlPublic, today, loc } from '../store.js';
+import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, pickAny, LANGS, latestSnapshot, publicMenuPages, galleryRows, fileUrlPublic, today, loc } from '../store.js';
 import { kindOf, STORED_NAME_RE } from '../files.js';
 import { isPubliclyVisible } from '../store.js';
 import { HttpError, validationError } from '../http.js';
@@ -17,6 +17,14 @@ export function publicApi({ db, nowMs, files }) {
   });
 
   r.get('/site', (req, res) => res.json({ lang: req.lang, ...publicSiteSettings(db, req.lang) }));
+
+  r.get('/gallery', (req, res) => {
+    res.json({
+      items: galleryRows(db).filter((g) => g.visible).map((g) => ({
+        id: g.id, kind: g.kind, mime: g.mime_type, url: fileUrlPublic(g.stored_name), caption: pickAny(req.lang, g.caption_bg, g.caption_en),
+      })),
+    });
+  });
 
   r.get('/events', (req, res) => {
     const now = nowMs();

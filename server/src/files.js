@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import multer from 'multer';
 import { HttpError } from './http.js';
 
-export const STORED_NAME_RE = /^[a-f0-9]{32}\.(pdf|jpg|png|webp)$/;
+export const STORED_NAME_RE = /^[a-f0-9]{32}\.(pdf|jpg|png|webp|mp4|mov|webm)$/;
 export const MB = 1024 * 1024;
 
 const TYPES = {
@@ -12,20 +12,53 @@ const TYPES = {
   jpg: { mime: 'image/jpeg', ext: 'jpg', kind: 'image', exts: ['jpg', 'jpeg'], mimes: ['image/jpeg', 'image/jpg', 'image/pjpeg'] },
   png: { mime: 'image/png', ext: 'png', kind: 'image', exts: ['png'], mimes: ['image/png'] },
   webp: { mime: 'image/webp', ext: 'webp', kind: 'image', exts: ['webp'], mimes: ['image/webp'] },
+  mp4: { mime: 'video/mp4', ext: 'mp4', kind: 'video', exts: ['mp4', 'm4v'], mimes: ['video/mp4', 'video/x-m4v'] },
+  mov: { mime: 'video/quicktime', ext: 'mov', kind: 'video', exts: ['mov'], mimes: ['video/quicktime'] },
+  webm: { mime: 'video/webm', ext: 'webm', kind: 'video', exts: ['webm'], mimes: ['video/webm'] },
 };
 export const IMAGE_TYPES = ['jpg', 'png', 'webp'];
 export const DOC_TYPES = ['pdf', 'jpg', 'png', 'webp'];
+export const GALLERY_TYPES = ['jpg', 'png', 'webp', 'mp4', 'mov', 'webm'];
+
+const MP4_BRAND = /^(iso.|mp4.|avc1|M4V[ HP])$/;
+const printable = (b) => b.every((c) => c >= 0x20 && c <= 0x7e);
+
+/**
+ * ISO-BMFF `ftyp` box at the start of the file: size (uint32 BE, 16..256, multiple of 4, not larger than the file),
+ * 'ftyp', a 4-char major brand and 4-char compatible brands (all printable ASCII). Returns the major brand or null.
+ */
+function ftypBrand(buf, fileSize) {
+  if (buf.length < 16 || buf.subarray(4, 8).toString('latin1') !== 'ftyp') return null;
+  const size = buf.readUInt32BE(0);
+  if (size < 16 || size > 256 || size % 4 !== 0 || (fileSize != null && size > fileSize)) return null;
+  // major brand (8..12) and compatible brands (16..size) are 4-char ASCII codes; 12..16 is the binary minor version
+  if (!printable([...buf.subarray(8, 12), ...buf.subarray(16, Math.min(size, buf.length))])) return null;
+  return buf.subarray(8, 12).toString('latin1');
+}
+
+/** WebM = EBML magic + DocType "webm" in the EBML header (Matroska .mkv shares the magic and is rejected). */
+function isWebm(buf) {
+  return buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3
+    && buf.subarray(0, 64).includes(Buffer.from([0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d]));
+}
 
 /** Detect type from magic bytes. */
-export function sniff(buf) {
+export function sniff(buf, fileSize) {
   if (buf.length >= 5 && buf.subarray(0, 5).toString('latin1') === '%PDF-') return TYPES.pdf;
   if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return TYPES.jpg;
   if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return TYPES.png;
   if (buf.length >= 12 && buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return TYPES.webp;
+  const brand = ftypBrand(buf, fileSize);
+  if (brand === 'qt  ') return TYPES.mov;
+  if (brand !== null && MP4_BRAND.test(brand)) return TYPES.mp4;
+  if (isWebm(buf)) return TYPES.webm;
   return null;
 }
 
-export function kindOf(mime) { return mime === 'application/pdf' ? 'pdf' : 'image'; }
+export function kindOf(mime) {
+  if (mime === 'application/pdf') return 'pdf';
+  return String(mime).startsWith('video/') ? 'video' : 'image';
+}
 
 export function sanitizeName(name) {
   let n = String(name || 'file');
@@ -44,7 +77,7 @@ export function sanitizeName(name) {
 }
 
 export const MAX_UPLOAD_BYTES = 50 * MB;
-const HEAD_BYTES = 16;
+const HEAD_BYTES = 64;
 
 /** Reads the first bytes of a file (for magic-byte sniffing) without loading it into memory. */
 async function readHead(filePath) {
@@ -119,10 +152,11 @@ export function createFiles({ db, dataDir, nowMs }) {
 
     /** Validate (magic bytes from the file head) and move an uploaded temp file into uploads/. Returns staged info; caller must insertRow or discard. */
     async stage(file, allowed, field = 'file') {
-      const type = sniff(await readHead(file.path));
+      const type = sniff(await readHead(file.path), file.size);
       const fail = (msg) => new HttpError(415, 'unsupported_type', msg, { fields: { [field]: msg } });
       if (!type || !allowed.includes(type.ext === 'jpg' ? 'jpg' : type.ext)) {
-        throw fail(allowed.includes('pdf') ? 'Позволени са само PDF, JPG, PNG и WebP файлове.' : 'Позволени са само JPG, PNG и WebP изображения.');
+        throw fail(allowed.includes('mp4') ? 'Позволени са само JPG, PNG, WebP снимки и MP4, MOV, WebM видео.'
+          : allowed.includes('pdf') ? 'Позволени са само PDF, JPG, PNG и WebP файлове.' : 'Позволени са само JPG, PNG и WebP изображения.');
       }
       const declaredExt = path.extname(String(file.originalname || '')).slice(1).toLowerCase();
       if (!type.exts.includes(declaredExt)) throw fail('Разширението на файла не съответства на съдържанието му.');
@@ -156,7 +190,8 @@ export function createFiles({ db, dataDir, nowMs }) {
         UNION SELECT image_en_file_id FROM events WHERE image_en_file_id IS NOT NULL
         UNION SELECT file_id FROM daily_menus WHERE file_id IS NOT NULL
         UNION SELECT file_en_id FROM daily_menus WHERE file_en_id IS NOT NULL
-        UNION SELECT file_id FROM menu_files)`).all();
+        UNION SELECT file_id FROM menu_files
+        UNION SELECT file_id FROM gallery_items)`).all();
       for (const r of rows) {
         db.prepare('DELETE FROM files WHERE id = ?').run(r.id);
         await unlink(r.stored_name).catch(() => {});
@@ -191,7 +226,12 @@ export function createFiles({ db, dataDir, nowMs }) {
         'Content-Disposition': `inline; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(row.original_name)}`,
       });
       res.sendFile(row.stored_name, { root: uploadsDir, cacheControl: false, dotfiles: 'deny' }, (err) => {
-        if (err && !res.headersSent) next(new HttpError(404, 'not_found', 'Не е намерено.'));
+        if (!err || res.headersSent) return;
+        if (err.status === 416) { // unsatisfiable Range: say so (with Content-Range: bytes */size) instead of pretending the file is missing
+          res.status(416).set(err.headers || {}).json({ error: 'range_not_satisfiable', message: 'Невалиден диапазон.' });
+          return;
+        }
+        next(new HttpError(404, 'not_found', 'Не е намерено.'));
       });
     },
   };

@@ -34,6 +34,7 @@ export function generalRoutes({ db, nowMs, files }) {
       published: pagesFlag(db, l), count: db.prepare('SELECT COUNT(*) AS n FROM menu_files WHERE lang = ?').get(l).n,
     }]));
     const snap = latestSnapshot(db);
+    const gal = db.prepare('SELECT COUNT(*) AS count, COALESCE(SUM(visible), 0) AS visible FROM gallery_items').get();
     res.json({
       today: t,
       now: loc(now),
@@ -45,6 +46,7 @@ export function generalRoutes({ db, nowMs, files }) {
         hasUnpublishedChanges: hasUnpublishedChanges(db),
         pages,
       },
+      gallery: { count: gal.count, visible: gal.visible },
     });
   });
 
@@ -60,19 +62,22 @@ export function generalRoutes({ db, nowMs, files }) {
       addressEn: { max: 200 },
       openingHoursEn: { max: 500 },
       currencySymbol: { max: 5 },
+      aboutBg: { max: 2000, nullable: true },
+      aboutEn: { max: 2000, nullable: true },
       instagramUrl: { max: 200, check: isInstagramUrl, msg: 'Въведете валиден https адрес от instagram.com (до 200 символа) или оставете празно.' },
     };
     const next = { ...cur };
     const fields = {};
     for (const [k, s] of Object.entries(spec)) {
       if (!has(b, k)) continue;
+      if (s.nullable && b[k] === null) { next[k] = null; continue; }
       if (typeof b[k] !== 'string') { fields[k] = 'Невалидна стойност.'; continue; }
       const v = normText(b[k]);
       if (v.length > s.max) fields[k] = `Най-много ${s.max} символа.`;
       else if (s.re && !s.re.test(v)) fields[k] = s.msg;
       else if (s.check && !s.check(v)) fields[k] = s.msg;
       else if (k === 'currencySymbol' && v === '') fields[k] = 'Въведете символ.';
-      else next[k] = v;
+      else next[k] = s.nullable && v === '' ? null : v;
     }
     if (Object.keys(fields).length) throw validationError(fields);
     setSetting(db, 'reservation_phone', next.reservationPhone);
@@ -82,6 +87,8 @@ export function generalRoutes({ db, nowMs, files }) {
     setSetting(db, 'opening_hours_en', next.openingHoursEn);
     setSetting(db, 'currency_symbol', next.currencySymbol);
     setSetting(db, 'instagram_url', next.instagramUrl);
+    setSetting(db, 'about_bg', next.aboutBg ?? '');
+    setSetting(db, 'about_en', next.aboutEn ?? '');
     res.json(siteSettings(db));
   });
 

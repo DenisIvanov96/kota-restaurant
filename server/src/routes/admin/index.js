@@ -5,6 +5,7 @@ import { generalRoutes } from './general.js';
 import { eventRoutes } from './events.js';
 import { dailyMenuRoutes } from './dailyMenus.js';
 import { menuRoutes } from './menu.js';
+import { galleryRoutes } from './gallery.js';
 
 export function adminApi(ctx) {
   const r = express.Router();
@@ -18,5 +19,6 @@ export function adminApi(ctx) {
   r.use('/events', eventRoutes(ctx));
   r.use('/daily-menus', dailyMenuRoutes(ctx));
   r.use('/menu', menuRoutes(ctx));
+  r.use('/gallery', galleryRoutes(ctx));
   return r;
 }

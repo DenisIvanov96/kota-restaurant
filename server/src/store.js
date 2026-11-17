@@ -21,6 +21,8 @@ export function siteSettings(db) {
     openingHoursEn: getSetting(db, 'opening_hours_en') ?? '',
     currencySymbol: getSetting(db, 'currency_symbol') ?? '€',
     instagramUrl: getSetting(db, 'instagram_url') ?? '',
+    aboutBg: getSetting(db, 'about_bg') || null,
+    aboutEn: getSetting(db, 'about_en') || null,
   };
 }
 
@@ -49,6 +51,7 @@ export function publicSiteSettings(db, lang) {
     openingHours: pick(lang, s.openingHours, s.openingHoursEn),
     currencySymbol: s.currencySymbol,
     instagramUrl: s.instagramUrl,
+    about: pickAny(lang, s.aboutBg, s.aboutEn),
   };
 }
 
@@ -148,6 +151,14 @@ export function publicMenuPages(db, lang) {
   };
 }
 
+// ----- gallery (D-51) -----
+export const MAX_GALLERY_ITEMS = 25;
+
+export function galleryRows(db) {
+  return db.prepare(`SELECT g.*, f.stored_name, f.mime_type, f.size_bytes FROM gallery_items g JOIN files f ON f.id = g.file_id
+    ORDER BY g.position, g.id`).all();
+}
+
 /** True if stored file is referenced by currently public content. */
 export function isPubliclyVisible(db, storedName, now) {
   const f = db.prepare('SELECT id FROM files WHERE stored_name = ?').get(storedName);
@@ -156,6 +167,7 @@ export function isPubliclyVisible(db, storedName, now) {
       AND (starts_at IS NULL OR starts_at <= ?) AND (expires_at IS NULL OR expires_at > ?)`).get(f.id, f.id, now, now);
   if (ev) return true;
   if (db.prepare('SELECT 1 FROM daily_menus WHERE (file_id = ? OR file_en_id = ?) AND published = 1 AND menu_date = ?').get(f.id, f.id, today(now))) return true;
+  if (db.prepare('SELECT 1 FROM gallery_items WHERE file_id = ? AND visible = 1').get(f.id)) return true;
   if (getSetting(db, 'menu_mode') === 'file') {
     const page = db.prepare('SELECT lang FROM menu_files WHERE file_id = ?').get(f.id);
     if (page && pagesFlag(db, page.lang)) return true;

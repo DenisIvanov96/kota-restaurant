@@ -97,7 +97,7 @@ test('migration 003: fills empty addresses on an existing DB, never overwrites, 
   try {
     const row = (k) => s.db.prepare('SELECT value FROM settings WHERE key = ?').get(k).value;
     assert.equal(row('address'), ''); assert.equal(row('address_en'), '');
-    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 6);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 7);
   } finally { await s.close(); }
 
   // non-empty values preserved (including bg set / en empty)
@@ -140,7 +140,7 @@ test('migration 004 (BUG-12 corrective): clears a wrongly seeded EN default only
     try {
       const row = (k) => s.db.prepare('SELECT value FROM settings WHERE key = ?').get(k).value;
       const out = [row('address'), row('address_en')];
-      assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 6);
+      assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 7);
       return out;
     } finally { await s.close(); }
   };
