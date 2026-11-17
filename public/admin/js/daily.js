@@ -298,6 +298,7 @@ export function dailyView(ctx) {
     const dateF = dateField({ label: 'Дата', required: true, today, value: m.date });
     const uplBg = createUpload({ exts: EXTS, maxMB: 10, onCancel: () => abort && abort() });
     const uplEn2 = createUpload({ exts: EXTS, maxMB: 10, onChange: () => drawEn(), onCancel: () => abort && abort() });
+    let abort = null;
     let removeEn = false;
     const enNote = h('div');
     const enBox = h('div', { class: 'a-field' });
@@ -332,8 +333,8 @@ export function dailyView(ctx) {
           if (e.code === 'aborted') return 'keep';
           if (e.status === 409) { dateF.setError('На тази дата вече има меню.'); dateF.input.focus(); return 'keep'; }
           if (e.status === 400 && e.fields && e.fields.date) { dateF.setError(e.fields.date); return 'keep'; }
-          if (e.status === 400 && e.fields && (e.fields.file || e.fields.fileEn)) { (e.fields.fileEn ? uplEn2 : uplBg).setError(e.fields.fileEn || e.fields.file); return 'keep'; }
-          if (e.status === 413 || e.status === 415) { (e.field === 'fileEn' ? uplEn2 : uplBg).setError(e.message); return 'keep'; }
+          if ([400, 413, 415].includes(e.status) && e.fields && (e.fields.file || e.fields.fileEn)) { (e.fields.fileEn ? uplEn2 : uplBg).setError(e.fields.fileEn || e.fields.file); return 'keep'; }
+          if (e.status === 413 || e.status === 415) { uplBg.setError(e.message); return 'keep'; }
           throw e;
         }
         return undefined;

@@ -302,7 +302,7 @@ export function eventFormView(ctx) {
     function handleError(err) {
       if (err.status === 401) return;
       const items = [];
-      if (err.status === 400 && err.fields) {
+      if ([400, 413, 415].includes(err.status) && err.fields && Object.keys(err.fields).length) {
         const map = { title: [title, 'Заглавие'], description: [desc, 'Описание'], titleEn: [titleEn, 'Title (English)'], descriptionEn: [descEn, 'Description (English)'], eventAt: [eventAt, 'Дата на събитието'], startsAt: [startsAt, 'Показвай от'], expiresAt: [expiresAt, 'Скрий след'] };
         for (const [k, msg] of Object.entries(err.fields)) {
           const m = map[k];
@@ -312,7 +312,8 @@ export function eventFormView(ctx) {
         const first = Object.keys(err.fields)[0];
         if (first === 'titleEn' || first === 'descriptionEn' || first === 'imageEn') langBox.select('en', false); else if (first === 'title' || first === 'description' || first === 'image') langBox.select('bg', false);
       } else if (err.status === 413 || err.status === 415) {
-        const w = err.field === 'imageEn' ? uplEn : upl; w.setError(err.message);
+        upl.setError(err.message); langBox.select('bg', false);
+        summary.show([{ id: title.id, label: 'Снимка', msg: err.message }]);
       } else if (err.code === 'network') {
         toast('Няма връзка. Промените не са записани.', { type: 'err' });
       } else {
