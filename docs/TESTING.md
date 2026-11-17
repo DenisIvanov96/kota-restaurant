@@ -5,32 +5,64 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
-| npm test (backend, `server/test/*.test.js`) | 8b5c0c6 | 92/92 |
-| api security / publication / menu | 8b5c0c6 | 43/43 · 21/21 · 17/17 (S5d/S5e now 50 MB, new S5j) |
-| api i18n / feedback1 / langs | 8b5c0c6 | 13/13 · 20/20 · 28/28 (migrations 001..006; langs LF1-3 rewritten for pages) |
-| api uploads (T-43, new: 50 MB boundary on every upload route, tmp dir always empty, abort, memory, 16-way race on the 10-page limit) | 8b5c0c6 | 14/14 (full api run 173/173; UP8 added afterwards and run alone) |
-| api cleanup (T-43, new: D-45 daily-menu auto-cleanup) | 8b5c0c6 | 6/6 |
-| api download (T-43, new: ZIP download D-48, incl. 10 x 50 MB) | 8b5c0c6 | 9/9 |
-| api migration006 (T-43, new: D-47 legacy menu_files) | 8b5c0c6 | 3/3 |
-| e2e public | 8b5c0c6 | 90/90 |
-| e2e admin | 8b5c0c6 | 118/118 |
-| e2e langs | 8b5c0c6 | 185/185 (F-FILES rewritten for the page manager) |
-| e2e i18n | 8b5c0c6 | 240/240 (FM1-FM5 rewritten for `.menu-pages`; lightbox zoom button selector excludes prev/next) |
-| e2e pages (T-43, new: 10-file select, reorder/delete/publish, public pages, lightbox, downloads/ZIP, print, a11y) | 8b5c0c6 | 72/72 |
-| e2e a11y | 8b5c0c6 | 48/48 |
-| e2e design | 8b5c0c6 | 22/22 |
-| e2e reflow | 8b5c0c6 | 88/88 |
-| e2e launch | 8b5c0c6 | 916/916 |
-| e2e feedback1 | 8b5c0c6 | 775/775 |
-| e2e admin-dates | 8b5c0c6 | 100/100 |
+| npm test (backend, `server/test/*.test.js`) | e521e80 | 93/93 (at 25bcdfb with T-47: 113/113) |
+| api security (T-46: +3 endpoint entries for the admin ZIP, S1a now 36 endpoints) | e521e80 | 43/43 |
+| api publication / menu | e521e80 | 21/21 · 17/17 |
+| api i18n / feedback1 / langs | e521e80 | 13/13 · 20/20 · 28/28 |
+| api uploads / cleanup / migration006 | e521e80 | 14/14 · 6/6 · 3/3 |
+| api download (T-46, rewritten for D-49: admin-only ZIP, 401/404/400, no fallback, public route 404, streaming, 10 x 50 MB) | e521e80 | 12/12 |
+| api total (`tests/api/*.test.mjs`, final test files) | e521e80 | 177/177 (at 25bcdfb with T-47: 166/177, all 11 failures are T-47 expectation changes, see T-46 section) |
+| e2e public | e521e80 | 90/90 (F1b/F2 rewritten for D-49) |
+| e2e admin | e521e80 | 118/118 |
+| e2e langs | e521e80 | 185/185 |
+| e2e i18n | e521e80 | 240/240 (FM1-FM3, DP1 rewritten for D-49) |
+| e2e pages (rewritten for D-49: no public download, admin ZIP/per-page downloads, 0-page absence, daily image/PDF, lightbox) | e521e80 | 81/81 |
+| e2e contact (T-46, new: D-50 Social media item beside phone) | e521e80 | 85/85 |
+| e2e a11y | e521e80 | 48/48 |
+| e2e design | e521e80 | 22/22 |
+| e2e reflow | e521e80 | 88/88 |
+| e2e launch | e521e80 | 916/916 |
+| e2e feedback1 | e521e80 | **774/775 - FAIL LOC3[bg 390] (BUG-19)**; 775/775 at 3b33a4d |
+| e2e admin-dates | e521e80 | 100/100 |
 | width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run) |
 
-All suites ran sequentially at 8b5c0c6 in T-43 (full tier: schema 006, uploads, shared code `render.js`/`i18n.js`/`components.css`/`store.js`/`files.js` changed). a11y, design, reflow, feedback1, admin-dates and launch were run unmodified; the other suites were updated for intended changes first (see the T-43 section).
+All suites ran sequentially at e521e80 in T-46 (full tier; see the T-46 section). T-43 baseline: all suites ran sequentially at 8b5c0c6 (full tier: schema 006, uploads, shared code `render.js`/`i18n.js`/`components.css`/`store.js`/`files.js` changed). a11y, design, reflow, feedback1, admin-dates and launch were run unmodified; the other suites were updated for intended changes first (see the T-43 section).
 
 Historical note: server code was identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## Admin-only menu download (T-44) + Instagram beside phone (T-45) - T-46, 2026-11-17, `e521e80` (full tier)
+
+Verdict: **FAIL** - 1 minor defect open (BUG-19). Everything else passed. Run in a checkout at `e521e80`; the main checkout moved to `25bcdfb` (T-47) after the e521e80 runs finished (server file mtimes vs. log mtimes checked), and the API suites were re-run at `e521e80` in a throw-away `git worktree` with the final test files. Commands: `tests/README.md` (sequential, ports 3201-3209, `QA_SCRATCH=/tmp/claude-0/kota-qa`).
+
+### Acceptance checks (all executed, all PASS unless noted)
+- Public endpoint gone: `GET`/`HEAD /api/public/menu/download` (no lang, bg, en) -> 404 with no pages, with 3 live pages in file mode, and with an admin cookie; POST/PUT/DELETE/PATCH -> 4xx; `?lang=fr` -> 400 from the generic public lang check (never a ZIP). `download.test.mjs` DL1, `pages.mjs` D1b.
+- Admin endpoint `GET /api/admin/menu/pages/download?lang=`: no session / forged / logged-out cookie -> 401 `unauthorized` (GET and HEAD, also with an invalid lang: auth precedes validation); with session -> 200 `application/zip`, `attachment; filename="kota1-menu-<lang>.zip"`, `no-store`, exact Content-Length, entries in page order, bytes identical, `unzip -t` and Python `zipfile.testzip` clean, CRC32 re-computed independently; works for UNPUBLISHED pages and in structured mode; no fallback (empty EN while BG has pages -> 404, EN ZIP only EN pages); 404 `not_found` for a language with no pages (bg, en, default); 400 `validation` + `fields.lang` for 10 bad values; delete-mid-download completes as a valid ZIP; 5 client aborts leave no fd/tmp leaks; missing file on disk -> 404; 10 x 50 MB ZIP streams (RSS +5 MB). DL1-DL12. Added the 3 URLs to the S1 auth matrix in `security.test.mjs`.
+- Public site BG + EN, file mode (1 and 10 pages, PDF page), structured mode and daily menu (image and PDF): no "Изтегли"/"Download"/"Принтирай" text, no `[download]` attribute, no `.menu-dl-btn`/`.menu-page-dl`/`.menu-print-bar`/`.print-title`, no print button, no `window.print` call (pages.mjs P1d, L1l, F1b, D1a, PR1-PR4, DM2, DM4; public.mjs F1b, F2; i18n.mjs FM1-FM3, DP1). Daily PDF open link: one link, `target=_blank rel=noopener`, `/media/*.pdf` answers 200 `application/pdf` (DM4 bg+en). Lightbox: 10-page gallery (L1a-m, AX4-6) and daily image (DM3 bg+en) still open, navigate, close.
+- Admin page manager (1280, real browser downloads): BG/EN tab each show exactly one "Изтегли менюто (ZIP)" link with the right `lang`; click downloads `kota1-menu-bg.zip` / `kota1-menu-en.zip`, valid, 10 / 2 entries, page-01 and page-10 byte-identical to the admin media; link absent with 0 pages (both languages) and appears after the first page is added; per-page "Изтегли страница N" (10 links, `download` attribute, admin media URL) downloads exactly page 2 (not 1 or 3). D1c-k, DM0, DM0b. Admin controls >= 44x44 at 390/768/1280, no h-scroll (V2).
+- Instagram (`tests/e2e/contact.mjs`, 3 viewports x BG/EN, 85 checks): "Социални мрежи" / "Social media" item after the phone item; icon link `aria-label=Instagram`, `target=_blank rel=noopener noreferrer`, href = configured URL, svg `aria-hidden`; 768/1280: same row, to the right of the phone; 390: wraps below, same left edge; reservation-button row contains only `#contact-call` (no icon/svg/instagram link); footer icon unchanged (exactly one in #contact + one in footer); no h-scroll; icon 44x44; computed contrast label 6.65, phone link 8.47, icon 8.47 (needs 4.5 / 4.5 / 3); keyboard Tab phone -> icon -> reservation button with 3px outline on the icon; click opens the URL in a new tab with `window.opener === null` (network stubbed); no phone -> social item stays, call hidden; empty / `javascript:` / foreign host / `http:` Instagram URL -> every icon links to `https://www.instagram.com/`; 6 rapid BG/EN toggles leave exactly one phone item and one social item; no console/page errors, failed requests or CSP violations. Screenshots: `/tmp/claude-0/kota-qa/shots/contact-section-{bg,en}-{390,768,1280}.png`.
+- Security tier: `security.test.mjs` 43/43 in full (final file, at `e521e80`), XSS checks in `public.mjs`/`i18n.mjs`/`feedback1.mjs`/`launch.mjs` pass; `launch.mjs` asserts zero third-party requests; S9 secrets grep passes.
+
+### Updated test expectations for the intended change (checked against D-49/D-50 first)
+`tests/api/download.test.mjs` (rewritten: public 404, admin ZIP), `tests/api/security.test.mjs` (+3 auth-matrix entries), `tests/e2e/pages.mjs` (D1 admin downloads, PR print section replaced by D-49 absence checks, DM daily checks, AX2/AX3, V1 selectors, admin browser context accepts downloads), `tests/e2e/public.mjs` F1b/F2, `tests/e2e/i18n.mjs` FM1/FM2/FM3/DP1. New: `tests/e2e/contact.mjs`. The `@media print` stylesheet is still asserted only as harmless (print emulation shows only `#menu`); the "KOTA 1" print title assertions were removed because the element was removed (D-49). No unrelated assertion weakened.
+
+### Defects
+BUG-19 | minor | frontend-developer | At 390x844, BG, default content (phone set, address, hours, no events), open `/`, tap the menu toggle, tap "Локация" | the "Локация" heading ends up visible below the sticky top bar (`top >= bar bottom`) | page lands at max scroll: `#location` top = 0.27 px, h2 top = 32 px while the sticky bar bottom = 52 px, so the heading is ~20 px under the bar; `element.scrollIntoView()` on the same state gives the correct `#location` top 64 px (scroll-padding), so the nav-click path overshoots when the content after Location is only slightly taller than the viewport | `tests/e2e/feedback1.mjs` LOC3[bg 390] FAIL: `{"t":32.265625,"bar":52,"hash":"#location"}`; same suite at `3b33a4d` 775/775 (there Location is capped higher: content after it 749 px, section top 95 px); trigger is the taller stacked Contact section of D-50 (390 px: phone, social item, button) which changes the page's max scroll; debug probe: scrollY 1015 = max 1015, scrollIntoView -> 951; the same click on "Меню" lands correctly (top 64). EN/768/1280 pass. Not caused by the download change.
+
+### Observations (not defects)
+- `?lang[]=en` (array syntax) on the admin ZIP route is ignored and treated as the default `bg` (Express query parsing); same pre-existing behaviour as other routes.
+- A bad `?lang` on the removed public route returns the public router's generic 400 rather than 404; GET/HEAD without a bad lang are 404 as specified.
+- Repo hygiene (for the PM): my T-46 test edits were swept into commits `508f557` (WIP checkpoint) and the T-47 commit before I handed back; `docs/DESIGN.md` showed as modified in the working tree while I worked (not mine). I did not commit anything.
+
+### T-47 expectation changes (seen only at `25bcdfb`, NOT T-44/T-45 defects; not fixed here, gallery testing is a separate task)
+`tests/api/*.test.mjs` at `25bcdfb`: 166/177, the 11 failures are: migration list now includes `007` (feedback1 N1-N5 and F1 "001..006", i18n I13, langs LG1, migration006 MG1) and `/api/public/site` / settings carry the new `about` field (feedback1 F8 key list, security S8e public whitelist). `npm test` at `25bcdfb` 113/113. e2e suites were not re-run at `25bcdfb`.
+
+### NOT RUN
+- e2e suites at `25bcdfb` (T-47 code) - out of scope for T-46.
+- Real Safari/iOS, real Windows/macOS browsers; downloads were exercised in Chromium only.
+- Production/HTTPS deployment behaviour.
 
 ## Owner feedback round 3 + menu download + release regression (T-43) - 2026-11-17, `8b5c0c6` (full tier)
 
