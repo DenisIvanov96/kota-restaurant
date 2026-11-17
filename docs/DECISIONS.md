@@ -35,3 +35,8 @@
 | D-31 | 2026-11-17 | HTML 404 page (status 404) for page requests; JSON 404 stays for API | User request | User |
 | D-32 | 2026-11-17 | Open Graph/Twitter meta with `SITE_URL` env token replacement | Social link previews need absolute URLs; domain not chosen yet | PM |
 | D-33 | 2026-11-17 | Privacy notice draft page; map as an outbound link, not an embed | GDPR basics; an embedded map would load Google on every visit | PM |
+| D-34 | 2026-11-17 | Reservation phone bar always visible & sticky on all public pages | Owner request | User |
+| D-35 | 2026-11-17 | Custom dd.mm.yyyy + 24h pickers in admin; browser locale ignored | Owner saw US AM/PM format from native inputs | User |
+| D-36 | 2026-11-17 | `instagramUrl` setting + Instagram icon link (placeholder to instagram.com when empty) | Owner request | User |
+| D-37 | 2026-11-17 | Always-visible Location section; default address seeded if empty | Owner couldn't find location; address given by owner | User |
+| D-38 | 2026-11-17 | `/reservation` page with sample floor plan, call button, location; real plan later | Owner request | User |
