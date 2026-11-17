@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { createApp } from './app.js';
+import { createApp, parseSiteUrl } from './app.js';
 
 const env = process.env;
 const production = env.NODE_ENV === 'production';
@@ -18,7 +18,10 @@ const cookieSecure = env.COOKIE_SECURE !== undefined ? env.COOKIE_SECURE === 'tr
 const tp = env.TRUST_PROXY;
 const trustProxy = tp === undefined || tp === '' || tp === 'false' ? false : (/^\d+$/.test(tp) ? Number(tp) : tp === 'true' ? 1 : tp);
 
-const app = createApp({ dataDir, now, cookieSecure, trustProxy });
+let siteUrl;
+try { siteUrl = parseSiteUrl(env.SITE_URL); } catch (e) { console.error(e.message); process.exit(1); }
+
+const app = createApp({ dataDir, now, cookieSecure, trustProxy, siteUrl });
 const server = app.listen(port, host, () => console.log(`Kota1 server listening on http://${host}:${port} (data: ${dataDir})`));
 
 function shutdown(signal) {
