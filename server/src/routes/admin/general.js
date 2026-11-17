@@ -24,13 +24,14 @@ export function generalRoutes({ db, nowMs, files }) {
     for (const e of db.prepare('SELECT * FROM events ORDER BY event_at IS NULL, event_at, id').all()) {
       const s = eventStatus(e, now);
       counts[s]++;
-      if (s === 'active') counts.activeTitles.push(e.title);
+      if (s === 'active') counts.activeTitles.push(e.title || e.title_en);
     }
     const dm = (d) => {
       const row = db.prepare('SELECT id, published FROM daily_menus WHERE menu_date = ?').get(d);
       return row ? { id: row.id, published: !!row.published } : null;
     }; 
-    const pf = db.prepare('SELECT m.id, f.original_name FROM menu_files m JOIN files f ON f.id = m.file_id WHERE m.published = 1 LIMIT 1').get();
+    const pfs = db.prepare("SELECT m.id, m.lang, f.original_name FROM menu_files m JOIN files f ON f.id = m.file_id WHERE m.published = 1 ORDER BY m.lang = 'bg' DESC, m.id DESC").all();
+    const pf = pfs[0];
     const snap = latestSnapshot(db);
     res.json({
       today: t,
@@ -42,6 +43,7 @@ export function generalRoutes({ db, nowMs, files }) {
         structuredPublishedAt: snap ? loc(snap.publishedAt) : null,
         hasUnpublishedChanges: hasUnpublishedChanges(db),
         publishedFile: pf ? { id: pf.id, originalName: pf.original_name } : null,
+        publishedFiles: pfs.map((x) => ({ id: x.id, lang: x.lang, originalName: x.original_name })),
       },
     });
   });

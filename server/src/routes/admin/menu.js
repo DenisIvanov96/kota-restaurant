@@ -4,19 +4,21 @@ import { tx } from '../../db.js';
 import {
   getSetting, setSetting, siteSettings, readDraft, latestSnapshot, hasUnpublishedChanges, fileUrlAdmin, loc,
 } from '../../store.js';
-import { HttpError, validationError, notFound, parseBool, parseId, normText } from '../../http.js';
+import { HttpError, validationError, notFound, parseBool, parseId, normText, has } from '../../http.js';
 
 export function menuRoutes({ db, nowMs, files }) {
   const r = express.Router();
   const upload = uploadSingle('file', 15 * MB);
 
   const draftObj = () => ({ updatedAt: loc(Number(getSetting(db, 'draft_updated_at')) || null), categories: readDraft(db) });
-  const SELECT = `SELECT m.id, m.published, m.created_at, f.stored_name, f.mime_type, f.original_name, f.size_bytes
+  const SELECT = `SELECT m.id, m.lang, m.published, m.created_at, f.stored_name, f.mime_type, f.original_name, f.size_bytes
     FROM menu_files m JOIN files f ON f.id = m.file_id`;
   const fileObj = (m) => ({
-    id: m.id, fileUrl: fileUrlAdmin(m.stored_name), mimeType: m.mime_type, kind: kindOf(m.mime_type),
+    id: m.id, lang: m.lang, fileUrl: fileUrlAdmin(m.stored_name), mimeType: m.mime_type, kind: kindOf(m.mime_type),
     originalName: m.original_name, sizeBytes: m.size_bytes, published: !!m.published, createdAt: loc(m.created_at),
   });
+  // In file mode a published file is "in use" only while it is the last published file (any language).
+  const otherPublished = (id) => !!db.prepare('SELECT 1 FROM menu_files WHERE published = 1 AND id <> ?').get(id);
   const fileById = (id) => db.prepare(`${SELECT} WHERE m.id = ?`).get(id);
 
   r.get('/', (req, res) => {
@@ -54,9 +56,9 @@ export function menuRoutes({ db, nowMs, files }) {
       const cp = `categories[${ci}]`;
       if (!c || typeof c !== 'object' || Array.isArray(c)) { errors[cp] = 'Невалидна категория.'; return null; }
       const id = optId(c.id, seenCat, `${cp}.id`);
-      const name = typeof c.name === 'string' ? normText(c.name) : '';
-      if (name.length < 1 || name.length > 100) errors[`${cp}.name`] = 'Името е задължително (1–100 символа).';
+      const name = optText(c.name, 100, `${cp}.name`, 'Името е до 100 символа.');
       const nameEn = optText(c.nameEn, 100, `${cp}.nameEn`, 'Английското име е до 100 символа.');
+      if (!name && !nameEn && !errors[`${cp}.name`] && !errors[`${cp}.nameEn`]) errors[`${cp}.name`] = 'Името е задължително (на български или на английски, 1–100 символа).';
       const items = Array.isArray(c.items) ? c.items : (c.items === undefined ? [] : null);
       if (items === null) { errors[`${cp}.items`] = 'Очаква се списък.'; return null; }
       if (items.length > 200) errors[`${cp}.items`] = 'Най-много 200 артикула в категория.';
@@ -66,12 +68,12 @@ export function menuRoutes({ db, nowMs, files }) {
           const ip = `${cp}.items[${ii}]`;
           if (!it || typeof it !== 'object' || Array.isArray(it)) { errors[ip] = 'Невалиден артикул.'; return null; }
           const iid = optId(it.id, seenItem, `${ip}.id`);
-          const iname = typeof it.name === 'string' ? normText(it.name) : '';
-          if (iname.length < 1 || iname.length > 100) errors[`${ip}.name`] = 'Името е задължително (1–100 символа).';
+          const iname = optText(it.name, 100, `${ip}.name`, 'Името е до 100 символа.');
           const desc = it.description === undefined || it.description === null ? '' : normText(it.description);
           if (typeof desc !== 'string' || desc.length > 500) errors[`${ip}.description`] = 'Описанието е до 500 символа.';
           const inameEn = optText(it.nameEn, 100, `${ip}.nameEn`, 'Английското име е до 100 символа.');
           const descEn = optText(it.descriptionEn, 500, `${ip}.descriptionEn`, 'Английското описание е до 500 символа.');
+          if (!iname && !inameEn && !errors[`${ip}.name`] && !errors[`${ip}.nameEn`]) errors[`${ip}.name`] = 'Името е задължително (на български или на английски, 1–100 символа).';
           if (!Number.isInteger(it.priceCents) || it.priceCents < 0 || it.priceCents > 10000000) errors[`${ip}.priceCents`] = 'Цената трябва да е цяло число от 0 до 10 000 000 (стотинки).';
           const av = it.available === undefined ? true : parseBool(it.available);
           if (av === undefined) errors[`${ip}.available`] = 'Стойност true или false.';
@@ -149,9 +151,11 @@ export function menuRoutes({ db, nowMs, files }) {
   // ----- files -----
   r.post('/files', upload, async (req, res) => {
     if (!req.file) throw validationError({ file: 'Изберете файл.' });
+    const lang = has(req.body, 'lang') ? req.body.lang : 'bg';
+    if (lang !== 'bg' && lang !== 'en') throw validationError({ lang: 'Допустими стойности: bg, en.' });
     const id = await files.withUpload(req.file, DOC_TYPES, 'file', (staged) => tx(db, () => {
       const fid = files.insertRow(staged);
-      return Number(db.prepare('INSERT INTO menu_files(file_id, published, created_at) VALUES (?,0,?)').run(fid, nowMs()).lastInsertRowid);
+      return Number(db.prepare('INSERT INTO menu_files(file_id, lang, published, created_at) VALUES (?,?,0,?)').run(fid, lang, nowMs()).lastInsertRowid);
     }));
     res.status(201).json(fileObj(fileById(id)));
   });
@@ -162,11 +166,11 @@ export function menuRoutes({ db, nowMs, files }) {
     if (!ex) throw notFound('Файлът не е намерен.');
     const p = parseBool(req.body && req.body.published);
     if (p === undefined) throw validationError({ published: 'Стойност true или false.' });
-    if (!p && ex.published && getSetting(db, 'menu_mode') === 'file') {
+    if (!p && ex.published && getSetting(db, 'menu_mode') === 'file' && !otherPublished(id)) {
       throw new HttpError(409, 'in_use', 'Този файл е публичното меню. Първо превключете на структурирано меню.');
     }
     tx(db, () => {
-      if (p) db.prepare('UPDATE menu_files SET published = 0 WHERE id <> ?').run(id);
+      if (p) db.prepare('UPDATE menu_files SET published = 0 WHERE id <> ? AND lang = ?').run(id, ex.lang);
       db.prepare('UPDATE menu_files SET published = ? WHERE id = ?').run(p ? 1 : 0, id);
     });
     res.json(fileObj(fileById(id)));
@@ -176,7 +180,7 @@ export function menuRoutes({ db, nowMs, files }) {
     const id = parseId(req.params.id);
     const ex = db.prepare('SELECT * FROM menu_files WHERE id = ?').get(id);
     if (!ex) throw notFound('Файлът не е намерен.');
-    if (ex.published && getSetting(db, 'menu_mode') === 'file') {
+    if (ex.published && getSetting(db, 'menu_mode') === 'file' && !otherPublished(id)) {
       throw new HttpError(409, 'in_use', 'Този файл е публичното меню и не може да бъде изтрит.');
     }
     const old = tx(db, () => {

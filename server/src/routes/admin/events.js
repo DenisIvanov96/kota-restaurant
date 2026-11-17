@@ -1,5 +1,5 @@
 import express from 'express';
-import { uploadSingle, IMAGE_TYPES, MB } from '../../files.js';
+import { uploadFields, IMAGE_TYPES, MB } from '../../files.js';
 import { tx } from '../../db.js';
 import { eventStatus, fileUrlAdmin, loc } from '../../store.js';
 import { sofiaLocalToUtc } from '../../time.js';
@@ -7,12 +7,14 @@ import { validationError, notFound, parseBool, parseId, has, normText } from '..
 
 export function eventRoutes({ db, nowMs, files }) {
   const r = express.Router();
-  const upload = uploadSingle('image', 5 * MB);
+  const upload = uploadFields(['image', 'imageEn'], 5 * MB);
 
-  const SELECT = 'SELECT e.*, f.stored_name FROM events e LEFT JOIN files f ON f.id = e.image_file_id';
+  const SELECT = `SELECT e.*, f.stored_name, fe.stored_name AS stored_name_en FROM events e
+    LEFT JOIN files f ON f.id = e.image_file_id LEFT JOIN files fe ON fe.id = e.image_en_file_id`;
   const toObj = (e) => ({
     id: e.id, title: e.title, titleEn: e.title_en ?? '', description: e.description, descriptionEn: e.description_en ?? '',
     imageUrl: e.stored_name ? fileUrlAdmin(e.stored_name) : null,
+    imageEnUrl: e.stored_name_en ? fileUrlAdmin(e.stored_name_en) : null,
     eventAt: loc(e.event_at), startsAt: loc(e.starts_at), expiresAt: loc(e.expires_at),
     enabled: !!e.enabled, status: eventStatus(e, nowMs()), createdAt: loc(e.created_at), updatedAt: loc(e.updated_at),
   });
@@ -23,8 +25,8 @@ export function eventRoutes({ db, nowMs, files }) {
     const out = {};
     if (has(body, 'title')) {
       const t = typeof body.title === 'string' ? normText(body.title) : '';
-      if (t.length < 1 || t.length > 120) fields.title = 'Заглавието е задължително (1–120 символа).'; else out.title = t;
-    } else if (ex) out.title = ex.title; else fields.title = 'Заглавието е задължително.';
+      if (t.length > 120) fields.title = 'Заглавието е до 120 символа.'; else out.title = t;
+    } else out.title = ex ? ex.title : '';
     if (has(body, 'description')) {
       const d = typeof body.description === 'string' ? normText(body.description) : null;
       if (d === null || d.length > 2000) fields.description = 'Описанието е до 2000 символа.'; else out.description = d;
@@ -37,6 +39,10 @@ export function eventRoutes({ db, nowMs, files }) {
         const v = body[k] === null ? '' : normText(body[k]);
         if (typeof v !== 'string' || v.length > max) fields[k] = msg; else out[col] = v === '' ? null : v;
       } else out[col] = ex ? ex[col] : null;
+    }
+    // a title is required in at least one language (BG or EN)
+    if (!fields.title && !fields.titleEn && !out.title && !out.title_en) {
+      fields.title = 'Заглавието е задължително (на български или на английски, до 120 символа).';
     }
     for (const [k, col] of [['eventAt', 'event_at'], ['startsAt', 'starts_at'], ['expiresAt', 'expires_at']]) {
       if (has(body, k)) {
@@ -62,13 +68,18 @@ export function eventRoutes({ db, nowMs, files }) {
     res.json({ events: db.prepare(`${SELECT} ORDER BY e.created_at DESC, e.id DESC`).all().map(toObj) });
   });
 
+  // Runs fn(stagedBg|null, stagedEn|null) with both uploads validated/staged; staged files are discarded if fn throws.
+  const withUploads = (req, fn) => files.withUpload(req.uploads.image, IMAGE_TYPES, 'image',
+    (sBg) => files.withUpload(req.uploads.imageEn, IMAGE_TYPES, 'imageEn', (sEn) => fn(sBg, sEn)));
+
   r.post('/', upload, async (req, res) => {
     const v = parse(req.body);
-    const id = await files.withUpload(req.file, IMAGE_TYPES, 'image', (staged) => tx(db, () => {
-      const fid = staged ? files.insertRow(staged) : null;
+    const id = await withUploads(req, (sBg, sEn) => tx(db, () => {
+      const fid = sBg ? files.insertRow(sBg) : null;
+      const fidEn = sEn ? files.insertRow(sEn) : null;
       const now = nowMs();
-      return Number(db.prepare(`INSERT INTO events(title, title_en, description, description_en, image_file_id, event_at, starts_at, expires_at, enabled, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(v.title, v.title_en, v.description, v.description_en, fid, v.event_at, v.starts_at, v.expires_at, v.enabled, now, now).lastInsertRowid);
+      return Number(db.prepare(`INSERT INTO events(title, title_en, description, description_en, image_file_id, image_en_file_id, event_at, starts_at, expires_at, enabled, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(v.title, v.title_en, v.description, v.description_en, fid, fidEn, v.event_at, v.starts_at, v.expires_at, v.enabled, now, now).lastInsertRowid);
     }));
     res.status(201).json(toObj(get(id)));
   });
@@ -79,15 +90,19 @@ export function eventRoutes({ db, nowMs, files }) {
     if (!ex) throw notFound('Събитието не е намерено.');
     const v = parse(req.body, ex);
     const removeImage = parseBool(req.body.removeImage) === true;
-    let oldName = null;
-    await files.withUpload(req.file, IMAGE_TYPES, 'image', (staged) => tx(db, () => {
+    const removeImageEn = parseBool(req.body.removeImageEn) === true;
+    const oldNames = [];
+    await withUploads(req, (sBg, sEn) => tx(db, () => {
       let imageId = ex.image_file_id;
-      if (staged) imageId = files.insertRow(staged); else if (removeImage) imageId = null;
-      db.prepare(`UPDATE events SET title=?, title_en=?, description=?, description_en=?, image_file_id=?, event_at=?, starts_at=?, expires_at=?, enabled=?, updated_at=? WHERE id=?`)
-        .run(v.title, v.title_en, v.description, v.description_en, imageId, v.event_at, v.starts_at, v.expires_at, v.enabled, nowMs(), id);
-      if (ex.image_file_id && imageId !== ex.image_file_id) oldName = files.deleteRow(ex.image_file_id);
+      let imageEnId = ex.image_en_file_id;
+      if (sBg) imageId = files.insertRow(sBg); else if (removeImage) imageId = null;
+      if (sEn) imageEnId = files.insertRow(sEn); else if (removeImageEn) imageEnId = null;
+      db.prepare(`UPDATE events SET title=?, title_en=?, description=?, description_en=?, image_file_id=?, image_en_file_id=?, event_at=?, starts_at=?, expires_at=?, enabled=?, updated_at=? WHERE id=?`)
+        .run(v.title, v.title_en, v.description, v.description_en, imageId, imageEnId, v.event_at, v.starts_at, v.expires_at, v.enabled, nowMs(), id);
+      if (ex.image_file_id && imageId !== ex.image_file_id) oldNames.push(files.deleteRow(ex.image_file_id));
+      if (ex.image_en_file_id && imageEnId !== ex.image_en_file_id) oldNames.push(files.deleteRow(ex.image_en_file_id));
     }));
-    if (oldName) await files.unlink(oldName);
+    for (const n of oldNames) if (n) await files.unlink(n);
     res.json(toObj(get(id)));
   });
 
@@ -104,11 +119,11 @@ export function eventRoutes({ db, nowMs, files }) {
     const id = parseId(req.params.id);
     const ex = get(id);
     if (!ex) throw notFound('Събитието не е намерено.');
-    const old = tx(db, () => {
+    const olds = tx(db, () => {
       db.prepare('DELETE FROM events WHERE id = ?').run(id);
-      return ex.image_file_id ? files.deleteRow(ex.image_file_id) : null;
+      return [ex.image_file_id, ex.image_en_file_id].filter(Boolean).map((fid) => files.deleteRow(fid));
     });
-    if (old) await files.unlink(old);
+    for (const n of olds) if (n) await files.unlink(n);
     res.status(204).end();
   });
   return r;

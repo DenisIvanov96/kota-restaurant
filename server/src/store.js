@@ -26,8 +26,19 @@ export function siteSettings(db) {
 
 // ----- languages (public site) -----
 export const LANGS = ['bg', 'en'];
-/** English text if non-empty (lang=en), otherwise the Bulgarian text. */
-export const pick = (lang, bg, en) => (lang === 'en' && typeof en === 'string' && en.trim() !== '' ? en : bg);
+const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
+/** Text of the requested language if non-empty, otherwise the other language's text (fallback both directions, D-39). */
+export const pick = (lang, bg, en) => {
+  const [first, second] = lang === 'en' ? [en, bg] : [bg, en];
+  if (nonEmpty(first)) return first;
+  if (nonEmpty(second)) return second;
+  return typeof bg === 'string' ? bg : '';
+};
+/** Same fallback for nullable values (e.g. file rows): requested language first, else the other. */
+export const pickAny = (lang, bg, en) => {
+  const [first, second] = lang === 'en' ? [en, bg] : [bg, en];
+  return first || second || null;
+};
 
 /** Public (language-resolved) site settings; same shape as before. */
 export function publicSiteSettings(db, lang) {
@@ -104,10 +115,10 @@ export function publicFileInfo(row, publishedAt) {
 export function isPubliclyVisible(db, storedName, now) {
   const f = db.prepare('SELECT id FROM files WHERE stored_name = ?').get(storedName);
   if (!f) return false;
-  const ev = db.prepare(`SELECT 1 FROM events WHERE image_file_id = ? AND enabled = 1
-      AND (starts_at IS NULL OR starts_at <= ?) AND (expires_at IS NULL OR expires_at > ?)`).get(f.id, now, now);
+  const ev = db.prepare(`SELECT 1 FROM events WHERE (image_file_id = ? OR image_en_file_id = ?) AND enabled = 1
+      AND (starts_at IS NULL OR starts_at <= ?) AND (expires_at IS NULL OR expires_at > ?)`).get(f.id, f.id, now, now);
   if (ev) return true;
-  if (db.prepare('SELECT 1 FROM daily_menus WHERE file_id = ? AND published = 1 AND menu_date = ?').get(f.id, today(now))) return true;
+  if (db.prepare('SELECT 1 FROM daily_menus WHERE (file_id = ? OR file_en_id = ?) AND published = 1 AND menu_date = ?').get(f.id, f.id, today(now))) return true;
   if (getSetting(db, 'menu_mode') === 'file' &&
       db.prepare('SELECT 1 FROM menu_files WHERE file_id = ? AND published = 1').get(f.id)) return true;
   return false;

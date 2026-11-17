@@ -63,6 +63,32 @@ export function uploadSingle(field, maxBytes) {
   };
 }
 
+/** Like uploadSingle but for several named single-file fields; result in req.uploads = { field: file }. */
+export function uploadFields(fieldNames, maxBytes) {
+  const m = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: maxBytes, files: fieldNames.length, fields: 20, fieldSize: 16 * 1024, parts: 30 },
+  }).fields(fieldNames.map((name) => ({ name, maxCount: 1 })));
+  return (req, res, next) => {
+    m(req, res, (err) => {
+      if (!err) {
+        req.body ||= {};
+        req.uploads = {};
+        for (const [k, arr] of Object.entries(req.files || {})) if (arr && arr[0]) req.uploads[k] = arr[0];
+        return next();
+      }
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return next(new HttpError(413, 'file_too_large', `Файлът е твърде голям (макс. ${Math.round(maxBytes / MB)} MB).`, err.field ? { fields: { [err.field]: 'Файлът е твърде голям.' } } : {}));
+      }
+      if (err instanceof multer.MulterError) {
+        const f = err.field || fieldNames[0];
+        return next(new HttpError(400, 'bad_upload', 'Невалидно качване на файл.', { fields: { [f]: 'Невалидно качване на файл.' } }));
+      }
+      return next(new HttpError(400, 'bad_upload', 'Невалидна multipart заявка.'));
+    });
+  };
+}
+
 export function createFiles({ db, dataDir, nowMs }) {
   const uploadsDir = path.join(dataDir, 'uploads');
   fs.mkdirSync(uploadsDir, { recursive: true });

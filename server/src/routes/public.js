@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, LANGS, latestSnapshot, publicFileInfo, fileUrlPublic, today, loc } from '../store.js';
+import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, pickAny, LANGS, latestSnapshot, publicFileInfo, fileUrlPublic, today, loc } from '../store.js';
 import { kindOf, STORED_NAME_RE } from '../files.js';
 import { isPubliclyVisible } from '../store.js';
 import { HttpError, validationError } from '../http.js';
@@ -20,14 +20,15 @@ export function publicApi({ db, nowMs }) {
 
   r.get('/events', (req, res) => {
     const now = nowMs();
-    const rows = db.prepare(`SELECT e.*, f.stored_name FROM events e LEFT JOIN files f ON f.id = e.image_file_id
+    const rows = db.prepare(`SELECT e.*, f.stored_name, fe.stored_name AS stored_name_en FROM events e
+      LEFT JOIN files f ON f.id = e.image_file_id LEFT JOIN files fe ON fe.id = e.image_en_file_id
       WHERE e.enabled = 1 AND (e.starts_at IS NULL OR e.starts_at <= ?) AND (e.expires_at IS NULL OR e.expires_at > ?)
       ORDER BY e.event_at IS NULL, e.event_at, e.starts_at IS NULL, e.starts_at, e.id`).all(now, now);
     res.json({
       lang: req.lang,
       events: rows.map((e) => ({
         id: e.id, title: pick(req.lang, e.title, e.title_en), description: pick(req.lang, e.description, e.description_en),
-        imageUrl: e.stored_name ? fileUrlPublic(e.stored_name) : null,
+        imageUrl: ((n) => (n ? fileUrlPublic(n) : null))(pickAny(req.lang, e.stored_name, e.stored_name_en)),
         eventAt: loc(e.event_at),
       })),
     });
@@ -35,8 +36,10 @@ export function publicApi({ db, nowMs }) {
 
   r.get('/daily-menu', (req, res) => {
     const t = today(nowMs());
-    const row = db.prepare(`SELECT d.*, f.stored_name, f.mime_type FROM daily_menus d JOIN files f ON f.id = d.file_id
-      WHERE d.menu_date = ? AND d.published = 1`).get(t);
+    const d = db.prepare('SELECT * FROM daily_menus WHERE menu_date = ? AND published = 1').get(t);
+    const fid = d ? pickAny(req.lang, d.file_id, d.file_en_id) : null;
+    const f = fid ? db.prepare('SELECT stored_name, mime_type FROM files WHERE id = ?').get(fid) : null;
+    const row = f ? { ...d, ...f } : null;
     res.json({
       lang: req.lang,
       today: t,
@@ -51,8 +54,9 @@ export function publicApi({ db, nowMs }) {
       const snap = latestSnapshot(db);
       if (snap) out.structured = { publishedAt: loc(snap.publishedAt), categories: resolveCategories(snap.categories, req.lang) };
     } else {
-      const row = db.prepare(`SELECT m.created_at, f.stored_name, f.mime_type FROM menu_files m JOIN files f ON f.id = m.file_id
-        WHERE m.published = 1 LIMIT 1`).get();
+      const rows = db.prepare(`SELECT m.lang, m.created_at, f.stored_name, f.mime_type FROM menu_files m JOIN files f ON f.id = m.file_id
+        WHERE m.published = 1 ORDER BY m.id DESC`).all();
+      const row = rows.find((x) => x.lang === req.lang) || rows[0];
       if (row) out.file = publicFileInfo(row, row.created_at);
     }
     res.json(out);

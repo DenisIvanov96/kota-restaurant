@@ -27,7 +27,7 @@ test('migration 002 on an existing DB: old data survives and reads with fallback
 
   const s = await loggedIn({ dataDir });
   try {
-    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 4);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 5);
     for (const lang of ['bg', 'en']) {
       const ev = (await pub(s, `events?lang=${lang}`)).data;
       assert.equal(ev.lang, lang);
