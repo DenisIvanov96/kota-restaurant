@@ -502,3 +502,105 @@ Hamburger 48x48; hero buttons 56px; nav items 44-52px; category chips 44px; ligh
 ## D-addendum (PM, after design review T-9)
 - **Preview frames must respond to the frame width, not the viewport (D-25).** `.preview-frame` gets `container-type: inline-size`; every responsive rule of the public components used in previews (event card two-column layout, menu `columns: 2`) must also exist as a container query (`@container (min-width: 768px)`) so a 390px "Телефон" frame shows the phone layout on a desktop screen. Public pages keep working (body/page wrapper can be the container, or keep the @media rules and add @container rules that apply only inside `.preview-frame`). The "Компютър" preview may scale down (CSS `zoom`/transform) or scroll horizontally inside the dialog; it must not be squeezed.
 - Mobile public nav panel intentionally omits "Обедно меню" because the pill is always visible in the header (accepted, D-26). Logo link hit area ≥ 44px high.
+
+---
+
+# PART E - Gallery + About (D-51..D-53)
+
+Existing tokens only (public `--*`, admin `--a-*`). No new colours, fonts or radii. Contrast values below were computed numerically (WCAG 2.x). Functional spec: `docs/ARCHITECTURE.md` "Gallery + editable About us".
+
+## E1. Public nav change (every public page)
+- Order: Меню (`/#menu`) · Обедно меню (`/daily-menu`) · Събитие (`/#event`, only when events exist) · **Галерия (`/gallery`)** · Контакти (`/#contact`). "Галерия" takes the slot of "За нас" (which is removed; `#about` section stays on index).
+- Style = the other nav items (A2). On `/gallery` the item has `aria-current="page"` (glow + 2px `--accent` underline); on other pages it is a plain link. On `/gallery` the other items use `/#…` anchors and "Обедно меню" `/daily-menu`, as on the daily-menu page; the `Събитие` item is omitted there (same rule as daily-menu).
+- Width check: same number of items as before ("Галерия" 7 letters vs "За нас" 6), so desktop/tablet (>= 768) inline nav and the mobile header row (logo + pill + burger, ~340px at 390) are unchanged. In the mobile panel the item is one more 52px row, left padding 16px; worst case 5 rows = 260px, fits one screen. No change to the always-visible "Обедно меню" pill.
+
+## E2. Public page `/gallery` (`public/gallery.html`)
+Header, top bar, skip link, footer identical to index/daily-menu. Page band as in A5 (`.page-band`, radial bg, padding 48px 16px 32px; mobile 32px 16px 24px, centered).
+- **h1** "Галерия" + `<span class="en" lang="en">/ Gallery</span>` (eyebrow style from A5.1: Oswald 500, `.3em`, uppercase, `--muted`, 0.85rem... for the h1 use Oswald 700 uppercase `.06em`, `--glow`, clamp(1.75rem, 7vw, 3rem), glow text-shadow like `.logo`; `.en` per A1 rule).
+- **Intro** (one line, `--muted`, 1.05rem/1.6, max-width 52ch, centered): "Снимки и видео от Kota1." (BG only; no extra EN line).
+- **Grid** (`<ul class="gallery-grid">`, list semantics, inside `.section` max 960px, padding 0 16px 48px): CSS grid, gap 8px (mobile) / 16px (>= 600).
+  | Width | Columns | Tile width (approx) |
+  |---|---|---|
+  | 390 (< 600) | 2 | ~171px |
+  | 768 (600-1023) | 3 | ~230px |
+  | 1280 (>= 1024) | 3 (container 960px) | ~299px |
+  Use `grid-template-columns: repeat(auto-fill...)` is **not** used; explicit 2 / 3 columns at the breakpoints so rows stay aligned.
+- **Item** `<li class="g-item">` = `<button type="button" class="g-tile">` + optional `<p class="g-cap">`. Tile: `aspect-ratio: 4 / 3`, `width:100%`, `overflow:hidden`, bg `--bg-3`, 1px `--line` border, radius `--radius-card` (4px), padding 0. Media (`img` / `video`): `width:100%; height:100%; object-fit: cover` (cropping is accepted in the grid; the lightbox always shows the whole picture, uncropped). Images `loading="lazy"`, `decoding="async"`, `alt=""` is wrong here since the button needs a name: the **button** gets `aria-label` = caption if present, else "Снимка {n} от {m}" / "Видео {n} от {m}", and the inner img has `alt=""`.
+- **Video tile:** `<video muted playsinline preload="metadata" tabindex="-1" aria-hidden="true">` with `src` = `url + "#t=0.001"` so iOS paints the first frame; `pointer-events:none`. **Play badge** `.g-play` centered: 56px circle, bg `rgba(18,17,16,.78)`, 2px solid `--glow` border, glow-coloured triangle icon 24px (optically shifted 2px right). Glow on that bg 13.7:1. Not by colour alone: the badge shape plus a text chip bottom-left "Видео" (`--text` on `rgba(18,17,16,.78)`, Oswald 500 0.75rem uppercase `.1em`, padding 2px 8px, radius 2px; contrast >= 13:1). The accessible name already says "Видео".
+- **Caption** `.g-cap`: under the tile, margin-top 8px, `--muted` (6.65:1 on `--bg`), Source Sans 3 400, 0.95rem/1.4, clamp to 2 lines (`-webkit-line-clamp: 2`), left aligned, `overflow-wrap:anywhere`. Items without a caption have no `<p>` (no empty space). Full caption is read in the lightbox.
+- **States.** Hover (pointer only): border `--accent`; with `prefers-reduced-motion: no-preference` the media scales 1.03 in 200 ms, otherwise no transform. Focus-visible: `outline: 3px solid var(--glow); outline-offset: 3px` on the tile (not clipped: the `<li>` has no overflow hidden; keep the outline outside the tile's own overflow by putting it on the button, which is the overflow box, so use `outline-offset: 2px` and `z-index:1`). Active: `translateY(1px)`. Whole tile is the target (>= 171x128).
+- **Loading:** 6 skeleton tiles (`.skeleton`, 4:3, bg `--bg-3` shimmer, no shimmer under reduced motion) with `role="status"` + visually hidden "Зареждане…".
+- **Empty** (`items: []`): `.state-box` (A5.2) centered, title "Скоро ще добавим снимки." with `<span class="en" lang="en">/ Photos coming soon.</span>`, `role="status"`, button "Към началото" (`.btn`, `/`).
+- **Error:** `.state-box` "Галерията не може да се зареди." / "The gallery could not be loaded." + "Опитай отново" (`.btn`), `role="alert"`.
+- Heading order: h1 only in page band; no h2 needed. `<title>`: "Галерия — Kota1".
+
+## E3. Lightbox for image and video (extend `public/js/lightbox.js`, A5.2 look kept)
+Item shape gains `kind` (`image|video`), `caption`, `mime`. Dialog is a column: **bar (top) / media area (flex 1) / caption (bottom)**; `<dialog>` `display:flex; flex-direction:column; height:100dvh`.
+- **Bar:** unchanged buttons (prev, counter, next, zoom, close; 48x48, `--bg-2` bg, `--text`, 1px `--accent` border). **Counter** `.lb-pos` text "3 / 12" (existing `page.of` string; `role="status" aria-live="polite"`; Oswald 500 1rem, `--text`; `n/m` always from the full visible list). Zoom button is **hidden** (`hidden`) for videos.
+- **Image:** as today (fit to width/height, zoom toggle). Max height is the media area (`min-height:0; flex:1`), `object-fit: contain`, so portrait photos fit without scrolling until zoomed.
+- **Video:** one reusable `<video class="lb-video" controls playsinline preload="metadata">` (no `autoplay`, no `muted` attribute, so the user presses play and gets sound; `controlslist="nodownload"` optional). Sized `max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; background:#000`, centered in the media area (landscape fills the width on mobile; portrait iPhone video fills the height). Native controls only (accessible, supports fullscreen and seeking). Swap `img`/`video` by `hidden`; set `src` on show.
+- **Pausing:** on prev/next, swipe, close, Escape, backdrop tap: `video.pause()`; on `close` also `removeAttribute('src')` + `video.load()` to stop network. Navigating to a video never autoplays. When the video element is the event target, **ArrowLeft/ArrowRight must not navigate** (they seek natively) and **horizontal swipe is ignored** (touch starting on `video`), so users can scrub; prev/next buttons stay the way to move. Esc still closes.
+- **Caption** `.lb-cap`: below the media, centered, padding 12px 16px calc(12px + safe-area-inset-bottom), `--text` on `rgba(18,17,16,.96)` (>= 14:1), Source Sans 3 400 1rem/1.5, max-width 62ch, `max-height: 6.5rem; overflow:auto` (300 chars max), `overflow-wrap:anywhere`. Hidden when no caption (no empty bar). The same text is the image `alt` / video `aria-label`, so it is not read twice: caption element is `aria-hidden="true"` only if it duplicates the alt, otherwise leave it readable (simplest: image `alt=""` when a caption is shown, caption element readable).
+- **Focus:** on open, focus goes to the close button as today; focus ring `3px --glow`. On close focus returns to the tile that opened it. Reduced motion: no transition on slide/fade (none are specified anyway).
+- Buttons disabled at the ends keep the existing disabled look (opacity .4, still visible).
+- Event/menu lightbox callers are unaffected (items without `kind` = image).
+
+## E4. About section on the home page (owner-written text)
+Section `#about` keeps its heading and place (A1). Body = one `<p>` per paragraph. **Split the text on blank lines (`\n{2,}`) into paragraphs; a single `\n` inside a paragraph is a line break (`white-space: pre-line` on the `<p>`).** Rendered with `textContent` only. Empty paragraphs are dropped.
+- Typography: `--text`, Source Sans 3 400, 1.0625rem (17px) / 1.7, `max-width: 62ch` (existing `.about p` rule), left aligned (centered column only if the section is already centered; keep today's alignment). Paragraph spacing: `margin: 0 0 1.1em` (about 19px), last paragraph margin 0. `overflow-wrap:anywhere` for long words/URLs; no justify, no hyphen tricks.
+- Long texts (up to 2000 chars, about 25 lines at 62ch) need no "read more": show everything.
+- Fallback: when the API returns `about: null` show the built-in default i18n text unchanged.
+
+## E5. Admin: sidebar/tab bar and Галерия section `#/gallery`
+- **Navigation:** new item **Галерия** (icon `image`) between "Основно меню" and "Настройки". Route `#/gallery`, `document.title` "Галерия — Kota1 админ", focus to h1 (B1).
+- **Bottom tab bar** with 6 tabs: each tab = 1/6 width (65px at 390, 60px at 360; target 65x64, still >= 44). To fit: tab padding 0 2px, labels 12px/700, `letter-spacing:0`, `line-height:1.1`, two-line wrap allowed ("Обедно меню", "Основно меню" wrap; "Настройки" ~56px bold at 12px fits in 61px). If "Настройки" would clip at 360px, apply `font-size: 11px` only below 380px (floor 11px). Active styling unchanged.
+- **Sidebar** (>= 768): one extra 52px item; nothing else changes.
+- **Dashboard:** summary card/line "Галерия: {count} / 25, видими: {visible}" (14px muted) with button "Управление на галерията" (secondary); out of detail scope otherwise.
+
+### E5.1 Page layout
+h1 "Галерия". Under it, `.page-head`-style row: counter chip + helper.
+1. **Counter** `.a-count`: text "**N / 25**" (Source Sans 3 700 18px, `--a-text`) with label "снимки и видео" (14px `--a-muted`, 7.54:1 on white). At 25/25 an `.a-alert--warning` "Достигнахте максимума от 25. Изтрийте нещо, за да качите ново." (`role="status"`). The counter is `aria-live="polite"`.
+2. **Upload card** (reuse `.a-upload` B2.7, idle look): dashed area, button "Избери снимки или видео" (primary), helper "JPG, PNG, WebP, MP4, MOV, WebM. До 50 MB на файл. Можете да изберете няколко." `<input type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm">`; drag-and-drop on >= 1024 as extra. **Disabled at 25/25**: button `disabled` (opacity .55) with the warning above (text carries the reason). If the selection would exceed the free slots, upload the first `free` files and show `.a-alert--warning` "Качени са само {k} от {n} файла — достигнат е максимумът от 25."
+   - Client validation per file (before sending): type -> "„{име}“: този тип файл не се поддържа."; size > 50 MB -> "„{име}“: файлът е твърде голям ({size} MB). Максимум 50 MB." Invalid files are skipped with an inline `.a-alert--error` list (`role="alert"`); valid ones continue.
+   - **Sequential upload queue** `<ul class="a-queue">` under the upload area: one row per file: name (truncate, `title`), `<progress>` (B2.7 style, 16px) + "Качване… 63%" / "Обработване…" / "Готово" (check icon, `--a-ok`) / "Грешка: {message}" (alert icon, `--a-danger`) + per-row "Опитай отново" / and one "Откажи" (aborts current and clears the rest) while running. Row text 15px; the queue has `aria-live="polite"` for "Качен е файл {k} от {n}". 409 `gallery_full` -> row error "Галерията е пълна (25)." and the rest of the queue is dropped. 413/415 messages as B2.7. Finished rows disappear 4 s after the list refreshes; errors stay until dismissed ("Затвори", 44px). Success toast after the batch: "Качени са {n} файла."
+3. **List** `<ul class="a-gal-list">` of rows in position order, below the upload card; h2 "Качено" visible only when there are items.
+
+### E5.2 List row `.a-gal` (card: `--a-surface`, 1px `--a-line`, radius 12px, padding 16px, margin-bottom 12px)
+Layout >= 600: grid `96px 1fr auto`, gap 16px; mobile: stacked blocks.
+- **Thumbnail** 96x96 (mobile 72x72, top-left, text block to its right), radius 8px, `object-fit:cover`, bg `--a-neutral-tint`. Image: `<img alt="">` (decorative, name is in the row heading text). Video: `<video muted playsinline preload="metadata" tabindex="-1" aria-hidden="true">` (src + `#t=0.001`) with a 28px play badge (white triangle on `rgba(31,26,20,.75)` circle, bottom-right 4px) so kind is shown by icon too. Thumbnail is a button "Преглед" opening `fileUrl` in a new tab (`rel=noopener`; target >= 72px).
+- **Header line:** "№ {position}" bold + `.a-badge` kind: "Снимка" (neutral badge) / "Видео" (info badge) + size "{x.y} MB" 14px muted + badge visibility: **"Видимо"** (soft green, filled dot) / **"Скрито"** (neutral, hollow dot). 
+- **Fields** (two stacked, labels 15px/700): "Надпис (български)" and "Надпис (English)" — text inputs 48px, max 300, helper none, counter "{n}/300" right aligned (B2.2, danger at limit), optional ("не е задължително" in the label's helper). Saved on **blur if changed** (`PATCH`), with a small inline status line under the field "Запазване…" -> "Запазено" (✓, `--a-ok`) -> fades out after 2 s (static text under reduced motion); error: inline alert icon + server message + field keeps value. No save button per row (fewer taps); the status text is `aria-live="polite"`. Keyboard: Enter in the field also commits.
+- **Visible switch** (`.a-switch`, B2.2, label "Вкл."/"Изкл."), accessible name "Показвай в галерията (№ {n})"; `PATCH visible`; spinner while saving; revert + error toast on failure; toast not needed on success (badge changes). Hidden items: whole row thumbnail gets `opacity .6` **plus** the "Скрито" badge (never colour/opacity alone).
+- **Reorder:** two icon buttons "Нагоре" (arrow-up) and "Надолу" (arrow-down), `.a-btn--icon` 48x48, `aria-label` "Премести № {n} нагоре/надолу"; disabled (opacity .55, `aria-disabled`) at the first/last row. Click -> `PUT /order`, optimistic swap, focus stays on the same button of the moved row (re-focus after re-render), live region announces "№ {n} е преместен на позиция {k}.". No drag-and-drop required.
+- **Delete:** `.a-btn--ghost-danger` "Изтрий" with trash icon (48px) -> confirm dialog B2.6: title "Изтриване от галерията", body "Сигурни ли сте, че искате да изтриете този файл{ „надпис“}? Файлът ще бъде изтрит. Това не може да бъде върнато." buttons "Отказ" (focused) / "Изтрий файла" (danger). Toast "Файлът е изтрит." Focus then moves to the next row's heading, or the upload button if the list is empty.
+- **Mobile layout (< 600):** row 1: thumbnail 72 + header line (№, badges) to the right; row 2: caption fields full width; row 3: switch (full row, 48px); row 4: buttons in one flex row: [Нагоре][Надолу] (48x48 each, gap 8px) and "Изтрий" pushed to the right. All gaps >= 8px.
+- **Desktop >= 600:** column 3 (auto) holds, stacked: switch, then a row of [Нагоре][Надолу][Изтрий]; fields sit in column 2 under the header line.
+- **Loading:** 3 skeleton rows (B2.8). **Empty:** `.a-empty` "Още няма качени снимки или видео." / "Качете първите файлове с бутона по-горе." (no extra button; the upload card is directly above). **Error:** `.a-alert--error` "Галерията не може да се зареди." + "Опитай отново".
+
+## E6. Admin Настройки: card "Текст „За нас“" (new card, placed after "Информация за сайта", before "Смяна на парола")
+Card title (h2 style, B1 card titles): **Текст „За нас“**. Helper (14px `--a-muted`): "Показва се в секция „За нас“ на началната страница. Оставете празно, за да се показва стандартният текст. Празен ред започва нов абзац."
+- **Tabs** (reuse B7.2 tabs, `role="tablist"`, 48px, selected 3px `--a-primary` underline + bold): **Български** · **English**. Arrow-left/right move between tabs (roving tabindex), Home/End; each tab `aria-controls` its panel (`role="tabpanel"`, `aria-labelledby`). A tab whose text is filled carries a small "✓" glyph + visually hidden "(попълнен)"; an empty one shows nothing (so the owner sees at a glance which language has text).
+- **Panel:** label (visible) "Текст на български" / "Text in English", textarea (B2.2; min 8 rows, about 200px; resize vertical; 16px), `maxlength` 2000, `aria-describedby` = counter. **Counter** `{n}/2000` right-aligned 14px `--a-muted`; at >= 1900 bold; at 2000 `--a-danger` bold + text "Достигнат е максимумът." (not colour alone). Live announcement only at 1900 and 2000 (`aria-live="polite"` on a separate hidden status node, not on every keystroke).
+- **Fallback note** under the textarea of each tab (14px muted): "Ако оставите този език празен, ще се показва другият." (shown on both).
+- **Save:** one button "Запази текста" (primary; both tabs saved in one `PUT /settings` with `aboutBg`/`aboutEn`; empty/whitespace-only -> `null`), busy "Запазване…", toast "Текстът е запазен." Mobile full width. Dirty state: unsaved-changes guard B2.10 applies to this card's textarea only through `beforeunload`. Optional link "Виж на сайта" (ghost, new tab `/#about`).
+- Error: 400 `fields.aboutBg/aboutEn` -> inline error under the matching tab's textarea and a "!" icon on that tab (plus text in the error summary naming the language: "Текст „За нас“ (English): …"); if the failing tab is hidden, focus switches to it.
+
+## E7. New strings (BG first)
+Public: `nav.gallery` "Галерия" / "Gallery"; `gallery.title` "Галерия" / "Gallery"; `gallery.intro` "Снимки и видео от Kota1."; `gallery.empty` "Скоро ще добавим снимки." / "Photos coming soon."; `gallery.error` "Галерията не може да се зареди." / "The gallery could not be loaded."; `gallery.photoN` "Снимка {n} от {m}" / "Photo {n} of {m}"; `gallery.videoN` "Видео {n} от {m}" / "Video {n} of {m}"; `gallery.video` "Видео" / "Video". Lightbox counter reuses `page.of`.
+Admin strings are inline above (BG only).
+
+## E8. Accessibility check (Part E)
+| Pair | Ratio |
+|---|---|
+| `--text` on `--bg-2` | 14.18 |
+| `--muted` captions on `--bg` | 6.65 (on `--bg-3` 5.63) |
+| `--glow` play icon on `--bg` | 13.72 |
+| `--accent` hover border on `--bg` | 8.47 (UI >= 3) |
+| admin `--a-muted` on white | 7.54 |
+| admin `--a-primary` on white / on `--a-primary-tint` | 6.33 / 5.74 |
+| admin `--a-ok` / `--a-danger` on white | 6.29 / 6.54 |
+| admin `--a-border` on white (inputs, upload dashed) | 3.93 |
+- Targets: public tile >= 171x128; lightbox buttons 48x48; admin tab bar tabs 60-65 x 64; icon buttons 48x48, gaps >= 8px.
+- Focus rings per section 4 (public glow, admin blue). Reduced motion: no hover scale, no shimmer, no fade-out of status text; `scroll-behavior:auto`.
+- Information never by colour alone: kind (icon + text), visibility (badge text + switch text), upload status (icon + text).
+- Videos: native controls; no autoplay; muted only in decorative tiles (hidden from AT).
