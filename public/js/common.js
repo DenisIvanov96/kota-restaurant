@@ -128,6 +128,13 @@ export function realignHash() {
   if (!location.hash || location.hash.length < 2) return;
   try {
     const t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
-    if (t) t.scrollIntoView();
+    if (t) {
+      // One instant jump (never smooth): a smooth scroll in flight while the room/layout changes overshoots (BUG-19/21).
+      const root = document.documentElement;
+      const prev = root.style.scrollBehavior;
+      root.style.scrollBehavior = 'auto';
+      t.scrollIntoView({ behavior: 'instant', block: 'start' });
+      root.style.scrollBehavior = prev;
+    }
   } catch { /* ignore */ }
 }
