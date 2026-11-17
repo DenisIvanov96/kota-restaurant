@@ -55,7 +55,7 @@ function maskDate(raw, deleting) {
     const segs = raw.trim().split(/\D+/);
     const trailing = segs.length > 1 && segs[segs.length - 1] === '';
     if (trailing) segs.pop();
-    const ok = segs.length >= 2 && segs.length <= 3 && segs[0] && segs.every((x, i) => x.length <= (i < 2 ? 2 : 4)) && segs.slice(0, -1).every((x) => x);
+    const ok = (segs.length >= 2 || trailing) && segs.length <= 3 && segs[0] && segs.every((x, i) => x.length <= (i < 2 ? 2 : 4)) && segs.slice(0, -1).every((x) => x);
     if (ok) {
       const out = segs.map((x, i) => (i < segs.length - 1 && x.length === 1 ? '0' + x : x));
       let r = out.join('.');
