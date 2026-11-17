@@ -29,6 +29,7 @@ node --disable-warning=ExperimentalWarning tests/e2e/pages.mjs    # T-43 multi-p
 node --disable-warning=ExperimentalWarning tests/e2e/contact.mjs  # T-46 Contacts: "Социални мрежи" Instagram item beside the phone, 390/768/1280, BG/EN (port 3201)
 node --disable-warning=ExperimentalWarning tests/e2e/gallery.mjs  # T-50 gallery + editable About: admin upload/reorder/visibility/delete/25-25, public grid, video lightbox, nav on 6 pages, XSS, a11y (ports 3201-3203, 3202; needs ffmpeg)
 node --disable-warning=ExperimentalWarning tests/e2e/bug19.mjs    # T-50 BUG-19/BUG-21 anchors: same-page nav, cross-page nav and direct /#section load land below the sticky bar (port 3201)
+BASE_DIR=<extracted git archive of cdcd451, node_modules symlinked> node --disable-warning=ExperimentalWarning tests/e2e/bug22.mjs  # T-51 BUG-22 header fit 768-959, 960+ unchanged vs BASE_DIR, same-page smooth scroll, admin 'Виж на сайта' (ports 3201-3204)
 node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch polish: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link + injection (ports 3201-3203, ~4 min)
 ```
 

@@ -5,6 +5,12 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
+| **T-51 (D-54 narrow retest of BUG-19..22; only the rows below were run)** | 85a7d38 | |
+| api gallery (GA11b / BUG-20) | 85a7d38 | 17/17 |
+| api security | 85a7d38 | 43/43 |
+| e2e bug19 (BUG-19 same-page + cross-page, BUG-21 direct /#section incl. /#about) | 85a7d38 | 194/194 |
+| e2e feedback1 (LOC3) | 85a7d38 | 775/775 |
+| e2e bug22 (new: BUG-22 768-959 header fit BG/EN +/- event, 960/1024/1280 unchanged vs cdcd451, same-page smooth scroll, admin "Виж на сайта") | 85a7d38 | 66/66 |
 | **T-50 (D-54 narrow scope: only the suites below were run; all others are deferred, see the T-50 section)** | cdcd451 | |
 | api gallery (new, `gallery.test.mjs`: D-51..D-53 API) | cdcd451 | **16/17 - FAIL GA11b (BUG-20)** |
 | api security (S1a now 41 endpoints incl. 5 gallery routes) | cdcd451 | 43/43 |
@@ -42,6 +48,16 @@ Historical note: server code was identical to `0c81447` through `c376609` (`git 
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## BUG-19..22 retest - T-51, 2026-11-17, product code `85a7d38` (narrow tier, D-54)
+
+Verdict: **PASS** - BUG-19, BUG-20, BUG-21 and BUG-22 verified fixed; no new defect. Only the fixes and what they touch were run (no full regression; that is for the pre-go-live run). Ports 3201-3204 (all free before the run, harness refuses busy ports; no leftover servers after).
+- BUG-20: `gallery.test.mjs` 17/17 (GA11b now passes), `security.test.mjs` 43/43 (server/** changed).
+- BUG-19: `bug19.mjs` 194/194 (same-page nav 8 sizes x BG/EN, cross-page nav from 4 pages x 3 viewports, direct loads) and `feedback1.mjs` 775/775 (LOC3[bg 390/768/1280] pass).
+- BUG-21: direct `/#about` loads at 390/768/1280 BG/EN in `bug19.mjs` B21d; plus new `bug22.mjs` B21a: the real admin "Виж на сайта" link (opens a new tab) lands with the About heading below the bar at 1280/768/390 (h2 top 112/112/96 px, bar 52).
+- BUG-22: new `tests/e2e/bug22.mjs`: widths 768/800/850/900/959, BG and EN, no event and one enabled event: no horizontal scroll, EN button right edge <= viewport (768 BG+event: sw 768, EN right 751; 959: 942), links do not overlap the language switch, also /gallery, /daily-menu, /reservation, /privacy at 768 and 959. 960/1024/1280 BG/EN header metrics (font, letter spacing, gap, every link box, header height) identical to the pre-fix tree `cdcd451` (extracted with `git archive`, run with `BASE_DIR=<dir>`); the same pre-fix tree reproduces the defect at 768 BG+event (sw 795), so the comparison is meaningful. Same-page nav clicks (Локация/Контакти/Събитие/Меню, 1280/900/768, BG/EN, with event): 24/24 still scroll smoothly (position intermediate 90 ms after the click) and land with the heading below the bar.
+- Changed by QA: new `tests/e2e/bug22.mjs`, `tests/lib/harness.mjs` (`startServer` accepts an optional `cwd`, default unchanged). Run: `BASE_DIR=/path/to/extracted/cdcd451 node --disable-warning=ExperimentalWarning tests/e2e/bug22.mjs` (without `BASE_DIR` the 960/1280 comparison is reported as skipped).
+- Not run (D-54): everything else; 768-959 behaviour was checked in Chromium only, at height 1024 (nav layout does not depend on height).
 
 ## Gallery + editable About text + BUG-19 retest - T-50, 2026-11-17, product code `cdcd451` (narrow tier, D-54)
 

@@ -26,7 +26,7 @@ const PORT_MAP = Object.fromEntries((process.env.QA_PORT_MAP || '').split(',').f
 export const mapPort = (p) => PORT_MAP[p] ?? p;
 
 /** Start the server as a child process. env may contain KOTA_NOW, NODE_ENV, HOST, TRUST_PROXY ... */
-export async function startServer({ port, dataDir, now, env = {}, inheritHost = false }) {
+export async function startServer({ port, dataDir, now, env = {}, inheritHost = false, cwd = ROOT }) {
   port = mapPort(port);
   // Refuse to run against a foreign server that already answers on this port (a stale process would silently be tested instead).
   let busy = false;
@@ -38,7 +38,7 @@ export async function startServer({ port, dataDir, now, env = {}, inheritHost = 
   if (now) e.KOTA_NOW = now;
   if (env.HOST) e.HOST = env.HOST;
   if (env.COOKIE_SECURE) e.COOKIE_SECURE = env.COOKIE_SECURE;
-  const child = spawn('node', ['--disable-warning=ExperimentalWarning', 'server/src/server.js'], { cwd: ROOT, env: e, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn('node', ['--disable-warning=ExperimentalWarning', 'server/src/server.js'], { cwd, env: e, stdio: ['ignore', 'pipe', 'pipe'] });
   let log = '';
   child.stdout.on('data', (d) => { log += d; });
   child.stderr.on('data', (d) => { log += d; });
