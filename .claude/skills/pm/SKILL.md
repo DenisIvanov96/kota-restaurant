@@ -36,7 +36,7 @@ Subagents start without this conversation's context, so include everything they 
 - Briefs name exact files and doc sections; never "read the docs". Point to `tests/lib/` harness for seeding.
 - Pass `effort` only as configured in agent files (they carry it); don't override.
 - Fix tasks: small, one owner, targeted tests only. Batch related small bugs into one task.
-- Ask QA for: targeted retest per fix; full regression only at release / architectural change / shared-code change (CLAUDE.md "Testing tiers").
+- Ask QA for: targeted tests of the changed parts + directly connected parts only (owner rule, CLAUDE.md "Testing tiers" 2); full regression only right before a production release or when the owner asks. In every QA brief, list the in-scope suites/features explicitly.
 - Use worktrees (`isolation: "worktree"`) only when an agent would otherwise disturb a running QA pass; tell it to `git reset --hard feature/<branch>` first.
 - Record per-agent token usage from task notifications in `docs/TASKS.md` (measured), and mark any cost figure as an estimate.
 
