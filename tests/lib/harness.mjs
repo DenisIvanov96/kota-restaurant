@@ -138,3 +138,16 @@ export function reporter(name) {
     },
   };
 }
+
+// ---------- real video fixtures via ffmpeg (T-50), cached per run in SCRATCH/fx ----------
+/** kind: mp4 | mov | webm | mkv. Returns a Buffer of a real, decodable 2 s 320x240 clip. */
+export function makeVideo(kind = 'mp4', { size = '320x240', seconds = 2, tag = '' } = {}) {
+  const dir = path.join(SCRATCH, 'fx'); fs.mkdirSync(dir, { recursive: true });
+  const out = path.join(dir, `v-${kind}-${size}-${seconds}${tag}.${kind}`);
+  if (!fs.existsSync(out)) {
+    const codec = kind === 'webm' || kind === 'mkv' ? ['-c:v', 'libvpx', '-b:v', '200k'] : ['-c:v', 'libx264', '-pix_fmt', 'yuv420p'];
+    const fmt = { mp4: 'mp4', mov: 'mov', webm: 'webm', mkv: 'matroska' }[kind];
+    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', `testsrc=size=${size}:rate=15:duration=${seconds}`, ...codec, '-f', fmt, out], { stdio: 'pipe' });
+  }
+  return fs.readFileSync(out);
+}

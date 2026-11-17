@@ -273,7 +273,7 @@ await step('IG7', async () => {
   const a2 = await admin.put('/api/admin/settings', { json: evil, csrf: false });
   const a3 = await admin.put('/api/admin/settings', { json: evil, origin: 'https://evil.example' });
   R.check('IG7e PUT instagramUrl needs a session (401), the CSRF header (403) and a same-origin Origin (403); stored value unchanged', a1.status === 401 && a2.status === 403 && a3.status === 403 && (await anon.get('/api/public/site')).data.instagramUrl === IG_SET, `${a1.status}/${a2.status}/${a3.status}`);
-  R.check('IG7f public site JSON exposes instagramUrl only as a string and no new admin-only keys', Object.keys((await anon.get('/api/public/site')).data).sort().join() === 'address,currencySymbol,instagramUrl,lang,openingHours,reservationPhone');
+  R.check('IG7f public site JSON exposes instagramUrl only as a string and no new admin-only keys (about added by T-47/D-52, public by design)', Object.keys((await anon.get('/api/public/site')).data).sort().join() === 'about,address,currencySymbol,instagramUrl,lang,openingHours,reservationPhone');
   R.check('IG7g validation message is Bulgarian and does not echo the submitted value', (await setSettings({ instagramUrl: 'https://evil.com/<img src=x onerror=1>' })).text().includes('instagram.com') && !(await setSettings({ instagramUrl: 'https://evil.com/ZZQQ9' })).text().includes('ZZQQ9'));
   await setSettings({ instagramUrl: '' });
 });

@@ -90,7 +90,7 @@ describe('migration 006 (menu pages) on a legacy database', () => {
     await srv.stop();
     srv = await startServer({ port: PORT, dataDir: dir, now: T0 }); // idempotent restart: nothing more is deleted
     const chk2 = open(dir);
-    assert.equal(chk2.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 6); assert.equal(chk2.prepare('SELECT COUNT(*) n FROM menu_files').get().n, 3);
+    assert.equal(chk2.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 7); assert.equal(chk2.prepare('SELECT COUNT(*) n FROM menu_files').get().n, 3);
     assert.equal(chk2.prepare('PRAGMA integrity_check').get().integrity_check, 'ok'); assert.deepEqual(chk2.prepare('PRAGMA foreign_key_check').all(), []);
     chk2.close();
     await srv.stop(); srv = null;

@@ -578,7 +578,7 @@ describe('migration 005 on a database created before the change', () => {
     assert.equal((await new Client(srv.url).get('/api/public/site')).status, 200);
     await srv.stop(); srv = null;
     const chk2 = new DatabaseSync(path.join(dir, 'kota.db'));
-    assert.equal(chk2.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 6); chk2.close();
+    assert.equal(chk2.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 7); chk2.close();
   });
 });
 function same2(r, buf) { return r.status === 200 && Buffer.compare(r.buf, buf) === 0; }
