@@ -157,3 +157,54 @@ export function renderFileViewer(file, opts) {
   wrap.append(frame, actions);
   return wrap;
 }
+
+/**
+ * Multi-page file menu (D-46). file: { pages:[{fileUrl,mimeType,kind,width?,height?}] } or the old
+ * single shape { fileUrl, kind } (treated as one page). Images stack full width with a shared lightbox
+ * gallery; PDFs become cards with open/download.
+ * opts: { pdf: { open, download } }
+ */
+export function renderMenuPages(file, opts = {}) {
+  const t = (k, v) => tr(k, v);
+  const pages = Array.isArray(file.pages) ? file.pages : [{ fileUrl: file.fileUrl, mimeType: file.mimeType, kind: file.kind }];
+  const total = pages.length;
+  const wrap = el('div', 'menu-pages');
+  const gallery = [];
+  const galleryIdx = new Map();
+  pages.forEach((p, i) => {
+    if (p.kind !== 'pdf') { galleryIdx.set(i, gallery.length); gallery.push({ src: p.fileUrl, alt: t('menu.pageAlt', { n: i + 1 }), n: i + 1, m: total }); }
+  });
+  pages.forEach((p, i) => {
+    const n = i + 1;
+    const fig = el('figure', 'menu-page ' + (p.kind === 'pdf' ? 'menu-page-pdf' : 'menu-page-image'));
+    if (p.kind === 'pdf') {
+      const card = el('div', 'pdf-card');
+      card.append(icon('file-pdf'));
+      card.append(el('p', '', t('menu.pdfPage', { n })));
+      const actions = el('div', 'viewer-actions');
+      const open = el('a', 'btn', (opts.pdf && opts.pdf.open) || t('pdf.openMenu'));
+      open.href = p.fileUrl; open.target = '_blank'; open.rel = 'noopener';
+      const dl = el('a', 'btn btn-ghost-dark', (opts.pdf && opts.pdf.download) || t('file.download'));
+      dl.href = p.fileUrl; dl.setAttribute('download', '');
+      actions.append(open, dl);
+      card.append(actions);
+      fig.append(card);
+    } else {
+      const btn = el('button', 'zoom-btn');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', t('menu.pageZoom', { n, m: total }));
+      const img = el('img');
+      img.src = p.fileUrl;
+      img.alt = t('menu.pageAlt', { n });
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      if (p.width > 0 && p.height > 0) { img.width = p.width; img.height = p.height; }
+      btn.append(img);
+      btn.addEventListener('click', () => openLightbox(null, null, btn, { items: gallery, index: galleryIdx.get(i) }));
+      fig.append(btn);
+    }
+    if (total > 1) fig.append(el('figcaption', 'menu-page-cap', t('page.of', { n, m: total })));
+    wrap.append(fig);
+  });
+  return wrap;
+}

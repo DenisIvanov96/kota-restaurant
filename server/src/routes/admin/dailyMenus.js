@@ -1,13 +1,15 @@
 import express from 'express';
-import { uploadFields, DOC_TYPES, MB, kindOf } from '../../files.js';
+import { DOC_TYPES, kindOf } from '../../files.js';
 import { tx } from '../../db.js';
+import { purgePastDailyMenus } from '../../cleanup.js';
 import { fileUrlAdmin, loc, today } from '../../store.js';
 import { isValidDate } from '../../time.js';
 import { HttpError, validationError, notFound, parseBool, parseId, has } from '../../http.js';
 
 export function dailyMenuRoutes({ db, nowMs, files }) {
   const r = express.Router();
-  const upload = uploadFields(['file', 'fileEn'], 10 * MB);
+  const upload = files.uploadFields(['file', 'fileEn']);
+  const cleanup = (exceptId) => purgePastDailyMenus({ db, files, nowMs }, exceptId);
   const SELECT = `SELECT d.*, f.stored_name, f.mime_type, f.original_name, f.size_bytes,
       fe.stored_name AS stored_name_en, fe.mime_type AS mime_type_en, fe.original_name AS original_name_en, fe.size_bytes AS size_bytes_en
     FROM daily_menus d LEFT JOIN files f ON f.id = d.file_id LEFT JOIN files fe ON fe.id = d.file_en_id`;
@@ -29,7 +31,9 @@ export function dailyMenuRoutes({ db, nowMs, files }) {
     (sBg) => files.withUpload(req.uploads.fileEn, DOC_TYPES, 'fileEn', (sEn) => fn(sBg, sEn)));
 
   r.get('/', (req, res) => {
-    res.json({ today: today(nowMs()), menus: db.prepare(`${SELECT} ORDER BY d.menu_date DESC`).all().map(toObj) });
+    // today + upcoming only; past dates are deleted automatically (D-45)
+    const t = today(nowMs());
+    res.json({ today: t, menus: db.prepare(`${SELECT} WHERE d.menu_date >= ? ORDER BY d.menu_date DESC`).all(t).map(toObj) });
   });
 
   r.post('/', upload, async (req, res) => {
@@ -62,6 +66,7 @@ export function dailyMenuRoutes({ db, nowMs, files }) {
         .run(b.date, fid, fidEn, published ? 1 : 0, now, now).lastInsertRowid);
     }));
     for (const n of oldNames) if (n) await files.unlink(n);
+    await cleanup(id);
     res.status(existing ? 200 : 201).json(toObj(byId(id)));
   });
 
@@ -95,6 +100,7 @@ export function dailyMenuRoutes({ db, nowMs, files }) {
       if (ex.file_en_id && fidEn !== ex.file_en_id) oldNames.push(files.deleteRow(ex.file_en_id));
     }));
     for (const n of oldNames) if (n) await files.unlink(n);
+    if (req.uploads.file || req.uploads.fileEn) await cleanup(id);
     res.json(toObj(byId(id)));
   });
 

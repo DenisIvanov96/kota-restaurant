@@ -43,33 +43,42 @@ export function sanitizeName(name) {
   return n || 'file';
 }
 
-/** Multer middleware factory: memory storage, streaming size limit, one file in `field`. */
-export function uploadSingle(field, maxBytes) {
-  const m = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: maxBytes, files: 1, fields: 20, fieldSize: 16 * 1024, parts: 30 },
-  }).single(field);
-  return (req, res, next) => {
-    m(req, res, (err) => {
-      if (!err) { req.body ||= {}; return next(); }
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return next(new HttpError(413, 'file_too_large', `Файлът е твърде голям (макс. ${Math.round(maxBytes / MB)} MB).`));
-      }
-      if (err instanceof multer.MulterError) {
-        return next(new HttpError(400, 'bad_upload', 'Невалидно качване на файл.', { fields: { [field]: 'Невалидно качване на файл.' } }));
-      }
-      return next(new HttpError(400, 'bad_upload', 'Невалидна multipart заявка.'));
-    });
-  };
+export const MAX_UPLOAD_BYTES = 50 * MB;
+const HEAD_BYTES = 16;
+
+/** Reads the first bytes of a file (for magic-byte sniffing) without loading it into memory. */
+async function readHead(filePath) {
+  const fh = await fs.promises.open(filePath, 'r');
+  try {
+    const buf = Buffer.alloc(HEAD_BYTES);
+    const { bytesRead } = await fh.read(buf, 0, HEAD_BYTES, 0);
+    return buf.subarray(0, bytesRead);
+  } finally { await fh.close(); }
 }
 
-/** Like uploadSingle but for several named single-file fields; result in req.uploads = { field: file }. */
-export function uploadFields(fieldNames, maxBytes) {
+const rmQuiet = (p) => fs.promises.unlink(p).catch(() => {});
+
+/**
+ * Multer middleware factory (disk temp storage in `tmpDir`, streaming size limit of MAX_UPLOAD_BYTES per file).
+ * Result in req.uploads = { field: multerFile } (file.path is a temp file; stage() moves it into uploads/).
+ * Every temp file is deleted when the response closes (success, error or client abort), whatever the handler did;
+ * multer itself removes partial files on errors/aborts, and createFiles() sweeps leftovers on start.
+ */
+function makeUploader(tmpDir, fieldNames, maxBytes = MAX_UPLOAD_BYTES) {
   const m = multer({
-    storage: multer.memoryStorage(),
+    storage: multer.diskStorage({
+      destination: tmpDir,
+      filename: (req, file, cb) => cb(null, `up-${crypto.randomBytes(16).toString('hex')}.tmp`),
+    }),
     limits: { fileSize: maxBytes, files: fieldNames.length, fields: 20, fieldSize: 16 * 1024, parts: 30 },
   }).fields(fieldNames.map((name) => ({ name, maxCount: 1 })));
+  const tooBig = (field) => new HttpError(413, 'file_too_large', `Файлът е твърде голям (макс. ${Math.round(maxBytes / MB)} MB).`,
+    field ? { fields: { [field]: 'Файлът е твърде голям.' } } : {});
   return (req, res, next) => {
+    const sweep = () => {
+      for (const arr of Object.values(req.files || {})) for (const f of arr || []) if (f.path) rmQuiet(f.path);
+    };
+    res.once('close', sweep);
     m(req, res, (err) => {
       if (!err) {
         req.body ||= {};
@@ -77,9 +86,7 @@ export function uploadFields(fieldNames, maxBytes) {
         for (const [k, arr] of Object.entries(req.files || {})) if (arr && arr[0]) req.uploads[k] = arr[0];
         return next();
       }
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return next(new HttpError(413, 'file_too_large', `Файлът е твърде голям (макс. ${Math.round(maxBytes / MB)} MB).`, err.field ? { fields: { [err.field]: 'Файлът е твърде голям.' } } : {}));
-      }
+      if (err.code === 'LIMIT_FILE_SIZE') return next(tooBig(err.field));
       if (err instanceof multer.MulterError) {
         const f = err.field || fieldNames[0];
         return next(new HttpError(400, 'bad_upload', 'Невалидно качване на файл.', { fields: { [f]: 'Невалидно качване на файл.' } }));
@@ -91,7 +98,11 @@ export function uploadFields(fieldNames, maxBytes) {
 
 export function createFiles({ db, dataDir, nowMs }) {
   const uploadsDir = path.join(dataDir, 'uploads');
+  const tmpDir = path.join(dataDir, 'tmp');
   fs.mkdirSync(uploadsDir, { recursive: true });
+  fs.mkdirSync(tmpDir, { recursive: true });
+  // Nothing is in flight while the server starts: every temp file left in tmp/ is a leftover of a crash.
+  for (const f of fs.readdirSync(tmpDir)) fs.rmSync(path.join(tmpDir, f), { recursive: true, force: true });
 
   const unlink = async (storedName) => {
     if (!STORED_NAME_RE.test(storedName)) return;
@@ -100,11 +111,15 @@ export function createFiles({ db, dataDir, nowMs }) {
 
   return {
     uploadsDir,
+    tmpDir,
     unlink,
+    /** Multer middleware for the named single-file fields (50 MB each); sets req.uploads. */
+    uploadFields: (fieldNames) => makeUploader(tmpDir, fieldNames),
+    uploadSingle: (field) => makeUploader(tmpDir, [field]),
 
-    /** Validate and write an uploaded multer file to disk. Returns staged info; caller must insertRow or discard. */
+    /** Validate (magic bytes from the file head) and move an uploaded temp file into uploads/. Returns staged info; caller must insertRow or discard. */
     async stage(file, allowed, field = 'file') {
-      const type = sniff(file.buffer);
+      const type = sniff(await readHead(file.path));
       const fail = (msg) => new HttpError(415, 'unsupported_type', msg, { fields: { [field]: msg } });
       if (!type || !allowed.includes(type.ext === 'jpg' ? 'jpg' : type.ext)) {
         throw fail(allowed.includes('pdf') ? 'Позволени са само PDF, JPG, PNG и WebP файлове.' : 'Позволени са само JPG, PNG и WebP изображения.');
@@ -116,14 +131,37 @@ export function createFiles({ db, dataDir, nowMs }) {
         throw fail('Типът на файла не съответства на съдържанието му.');
       }
       const storedName = `${crypto.randomBytes(16).toString('hex')}.${type.ext}`;
-      await fs.promises.writeFile(path.join(uploadsDir, storedName), file.buffer, { flag: 'wx', mode: 0o640 });
-      return { storedName, originalName: sanitizeName(file.originalname), mime: type.mime, size: file.buffer.length };
+      const dest = path.join(uploadsDir, storedName);
+      try {
+        await fs.promises.rename(file.path, dest);
+      } catch (e) {
+        if (e.code !== 'EXDEV') throw e;
+        await fs.promises.copyFile(file.path, dest, fs.constants.COPYFILE_EXCL);
+        await rmQuiet(file.path);
+      }
+      try { await fs.promises.chmod(dest, 0o640); } catch { /* best effort */ }
+      return { storedName, originalName: sanitizeName(file.originalname), mime: type.mime, size: file.size };
     },
 
     /** Insert files row for staged upload; returns file id. */
     insertRow(staged) {
       return Number(db.prepare('INSERT INTO files(stored_name, original_name, mime_type, size_bytes, created_at) VALUES (?,?,?,?,?)')
         .run(staged.storedName, staged.originalName, staged.mime, staged.size, nowMs()).lastInsertRowid);
+    },
+
+    /** Startup sweep: delete `files` rows (and their disk files) that no event, daily menu or menu page references. */
+    async sweepOrphans() {
+      const rows = db.prepare(`SELECT id, stored_name FROM files WHERE id NOT IN (
+        SELECT image_file_id FROM events WHERE image_file_id IS NOT NULL
+        UNION SELECT image_en_file_id FROM events WHERE image_en_file_id IS NOT NULL
+        UNION SELECT file_id FROM daily_menus WHERE file_id IS NOT NULL
+        UNION SELECT file_en_id FROM daily_menus WHERE file_en_id IS NOT NULL
+        UNION SELECT file_id FROM menu_files)`).all();
+      for (const r of rows) {
+        db.prepare('DELETE FROM files WHERE id = ?').run(r.id);
+        await unlink(r.stored_name).catch(() => {});
+      }
+      return rows.length;
     },
 
     discard: (staged) => unlink(staged.storedName).catch(() => {}),

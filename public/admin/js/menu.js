@@ -1,5 +1,5 @@
 import { h, icon, clear, formatSize, kindLabel, formatStamp, centsToInput, parsePrice, nextId } from './util.js';
-import { get, post, put, patch, del, upload } from './api.js';
+import { get, post, put, del, upload } from './api.js';
 import { badge, alertBox, btn, iconBtn, skeleton, loadError, emptyState, reportError, toast, modal, confirmDialog, para, makeSwitch, field, errorSummary, createUpload, filePreview, setBusy, langTabs, EN_HELP } from './ui.js';
 import { renderMenuPreview, previewScroller, langToggle } from './preview.js';
 
@@ -57,8 +57,8 @@ export function menuView() {
   async function refreshMeta() {
     try {
       const r = await get('/api/admin/menu');
-      data.mode = r.mode; data.published = r.published; data.hasUnpublishedChanges = r.hasUnpublishedChanges; data.files = r.files; data.draft.updatedAt = r.draft.updatedAt;
-      renderStatus(); renderModeCard(); renderTabs(); renderFiles();
+      data.mode = r.mode; data.published = r.published; data.hasUnpublishedChanges = r.hasUnpublishedChanges; data.files = r.files; data.pages = r.pages; data.draft.updatedAt = r.draft.updatedAt;
+      renderStatus(); renderModeCard(); renderTabs(); renderPages();
     } catch (e) { reportError(e); }
   }
 
@@ -475,86 +475,235 @@ export function menuView() {
     return h('div', { class: 'a-dish' }, h('div', { class: 'a-dish__top' }, nameF.el, priceF.el), descF.el, h('div', { class: 'a-dish__bottom' }, h('div', null, sw, offHelp), h('div', { class: 'a-dish__act' }, up, down, del2)));
   }
 
-  // ---------------------------------------------------------------- files
+  // ---------------------------------------------------------------- file pages (D-46)
+  const MAX_PAGES = 10;
+  const MAX_MB = 50;
+  const PAGE_EXTS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+  const LANG_TITLE = { bg: 'Български страници', en: 'English pages' };
   let fileAlert = null;
-  const LANG_NAME = { bg: 'Български файл', en: 'English файл' };
-  const fileLang = (f) => (f.lang === 'en' ? 'en' : 'bg');
+  let fileLangSel = 'bg';
+  let pagesBox = null;
+  let pagesHost = null;
+  let pagesNote = '';
+  const queues = { bg: [], en: [] };   // upload queue per language: { id, file, status, pct, error, abort, bar, txt }
+  const running = { bg: false, en: false };
+  let qid = 0;
+  const pagesOf = (l) => (data.pages && data.pages[l]) || { published: false, items: [] };
+  const pendingCount = (l) => queues[l].filter((q) => q.status === 'queued' || q.status === 'uploading').length;
+  const extName = (n) => (/\.([^.]+)$/.exec(n) || [, ''])[1].toLowerCase();
+
   function renderFiles() {
     if (!fileHost) return;
     clear(fileHost);
-    fileHost.append(h('h3', { class: 'a-sub', text: 'Файлове на менюто' }));
-    if (fileAlert) fileHost.append(alertBox('error', fileAlert, { role: 'alert' }));
-    fileHost.append(h('p', { class: 'a-help', text: 'За всеки език може да е публикуван по един файл. Ако няма файл за избрания език, клиентите виждат другия.' }));
-    for (const l of ['bg', 'en']) fileHost.append(fileSection(l));
+    fileHost.append(h('h3', { class: 'a-sub', text: 'Страници на менюто' }),
+      h('p', { class: 'a-help', text: `Всеки език има до ${MAX_PAGES} страници (снимка или PDF, до ${MAX_MB} MB всяка). Ако за езика на посетителя няма публикувани страници, виждат другия език.` }));
+    pagesHost = h('div');
+    pagesBox = langTabs({
+      label: 'Език на страниците', shared: [pagesHost],
+      filled: (l) => pagesOf(l).items.length > 0,
+      hintFor: () => 'няма страници — ще се покаже другият език',
+      onChange: (l) => { fileLangSel = l; renderPages(); },
+    });
+    fileHost.append(pagesBox.el);
+    if (fileLangSel !== 'bg') pagesBox.select(fileLangSel, false, true);
+    renderPages();
   }
 
-  function fileSection(l) {
-    const sec = h('section', { class: 'a-fileslang', 'aria-labelledby': `files-h-${l}`, lang: l });
-    sec.append(h('h4', { id: `files-h-${l}`, text: LANG_NAME[l] }));
-    const files = data.files.filter((f) => fileLang(f) === l);
-    const box = h('div', { class: 'a-filebox' });
-    const extra = h('div');
-    let abort = null;
-    const upl = createUpload({ exts: ['pdf', 'jpg', 'jpeg', 'png', 'webp'], maxMB: 15, onCancel: () => abort && abort(),
-      onChange: () => { clear(extra); if (!upl.file) return; extra.append(filePreview(upl), h('div', { class: 'a-actionrow' }, btn({ label: 'Отказ', variant: 'secondary', onClick: () => upl.clear() }), uploadBtn)); } });
-    const uploadBtn = btn({ label: l === 'en' ? 'Качи английски файл' : 'Качи български файл', variant: 'primary', onClick: async () => {
-      const fd = new FormData(); fd.append('file', upl.file); fd.append('lang', l);
-      upl.showProgress(0); setBusy(uploadBtn, true, 'Качване…');
-      const up = upload('POST', '/api/admin/menu/files', fd, { onProgress: (p) => upl.showProgress(p), onSent: () => upl.showProcessing() });
-      abort = up.abort;
+  function renderPages(focusKey) {
+    if (!pagesHost) return;
+    const l = fileLangSel;
+    const pg = pagesOf(l);
+    const items = pg.items;
+    clear(pagesHost);
+    pagesHost.setAttribute('lang', l);
+    pagesHost.append(h('h4', { text: LANG_TITLE[l] }));
+    if (fileAlert) { const a = alertBox('error', fileAlert, { role: 'alert' }); a.tabIndex = -1; pagesHost.append(a); }
+    pagesHost.append(h('p', { class: 'a-vh', 'aria-live': 'polite', id: 'pages-live', text: pagesNote }));
+
+    // published switch
+    const sw = makeSwitch({ label: `Публикувани — ${LANG_TITLE[l]}`, checked: pg.published, onChange: async (next) => {
       try {
-        await up.promise;
-        toast('Файлът е качен. Все още не е публикуван.');
-        fileAlert = null; upl.clear(); await refreshMeta();
+        await put('/api/admin/menu/pages/published', { lang: l, published: next });
+        fileAlert = null; toast(next ? 'Страниците са публикувани.' : 'Страниците са скрити.');
+        await refreshMeta();
       } catch (e) {
-        setBusy(uploadBtn, false); upl.hideProgress();
-        if (e.code === 'aborted') return;
-        if (e.status === 413 || e.status === 415) upl.setError(e.message); else if (e.status !== 401) upl.setError(e.code === 'network' ? 'Качването не успя. Проверете връзката и опитайте отново.' : e.message, () => uploadBtn.click());
+        if (e.code === 'in_use' || e.code === 'nothing_published') {
+          fileAlert = e.code === 'in_use' ? 'Не може да скриете тези страници — клиентите виждат файловото меню и няма друго публикувано. Публикувайте другия език или превключете на Структурирано меню.' : 'Няма какво да се публикува — добавете поне една страница.';
+          renderPages(); const a = pagesHost.querySelector('[role="alert"]'); if (a) a.focus(); e.handled = true; throw e;
+        }
+        reportError(e); throw e;
       }
     } });
-    box.append(upl.el, extra);
-    if (!files.length) sec.append(h('p', null, h('strong', { text: 'Още няма качени файлове.' }), l === 'en' ? ' Незадължително — без него се показва българският.' : ' Качете снимка или PDF на менюто.'));
-    sec.append(box);
-    const list = h('div', { class: 'a-list', role: 'list' });
-    for (const f of files) list.append(fileRow(f));
-    sec.append(list);
-    return sec;
+    const swRow = h('div', { class: 'a-pubrow' }, h('strong', { text: 'Показване на сайта' }), sw);
+    if (!items.length) { sw.disabled = true; }
+    pagesHost.append(swRow);
+    if (pg.published) pagesHost.append(alertBox('warning', 'Тези страници са публикувани. Всяка промяна (добавяне, подредба, изтриване) се вижда веднага от клиентите.'));
+    else pagesHost.append(h('p', { class: 'a-help', text: items.length ? 'Не са публикувани — клиентите не ги виждат. Включете „Вкл.“, когато са готови.' : 'Още няма страници. Незадължително за английския — без тях се показва българският.' }));
+
+    // counter + add
+    const total = items.length;
+    const pend = pendingCount(l);
+    const remaining = Math.max(0, MAX_PAGES - total - pend);
+    pagesHost.append(h('p', { class: 'a-pagecount', text: `${total} от ${MAX_PAGES} страници` }));
+    const input = h('input', { type: 'file', class: 'a-vh', tabindex: '-1', 'aria-hidden': 'true', multiple: true, accept: '.pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,application/pdf' });
+    const msg = h('div', { class: 'a-upload__err', hidden: true, 'aria-live': 'polite' });
+    const addFiles = (list) => {
+      const files = Array.from(list || []);
+      clear(msg); msg.hidden = true;
+      if (!files.length) return;
+      if (files.length > remaining) {
+        msg.append(alertBox('error', [h('strong', { text: remaining === 0 ? `Достигнат е максимумът от ${MAX_PAGES} страници. Изтрийте страница, за да добавите нова.` : `Избрали сте ${files.length} файла, а може да добавите още най-много ${remaining} (максимум ${MAX_PAGES} страници). Изберете по-малко файлове.` })], { role: 'alert' }));
+        msg.hidden = false; return;
+      }
+      for (const f of files) {
+        const ext = extName(f.name);
+        const q = { id: ++qid, file: f, status: 'queued', pct: 0, error: '' };
+        if (!PAGE_EXTS.includes(ext)) { q.status = 'error'; q.error = 'Този тип файл не се поддържа. Позволени: PDF, JPG, PNG, WEBP.'; }
+        else if (f.size > MAX_MB * 1024 * 1024) { q.status = 'error'; q.error = `Файлът е твърде голям (${formatSize(f.size)}). Максимум ${MAX_MB} MB.`; }
+        queues[l].push(q);
+      }
+      renderPages(); runQueue(l);
+    };
+    input.addEventListener('change', () => { addFiles(input.files); input.value = ''; });
+    const full = remaining === 0;
+    const addBtn = btn({ label: 'Добави страници', variant: 'primary', icon: 'upload', onClick: () => input.click() });
+    addBtn.disabled = full;
+    const dz = h('div', { class: 'a-upload a-upload--pages' }, input, h('div', { class: 'a-upload__idle' }, addBtn,
+      h('p', { class: 'a-help', text: full ? `Достигнат е максимумът от ${MAX_PAGES} страници.` : `Може да изберете няколко файла наведнъж (още ${remaining}). Позволени: PDF, JPG, PNG, WEBP, до ${MAX_MB} MB.` })));
+    dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('is-drag'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('is-drag'));
+    dz.addEventListener('drop', (e) => { e.preventDefault(); dz.classList.remove('is-drag'); if (!full) addFiles(e.dataTransfer.files); });
+    pagesHost.append(dz, msg);
+
+    // queue
+    const qs = queues[l];
+    if (qs.length) {
+      const ql = h('ul', { class: 'a-queue', 'aria-label': 'Качване' });
+      for (const q of qs) ql.append(queueRow(l, q));
+      pagesHost.append(ql);
+    }
+
+    // pages list
+    if (items.length) {
+      pagesHost.append(h('div', { class: 'a-actions' }, btn({ label: 'Преглед на всички страници', variant: 'secondary', icon: 'eye', onClick: () => previewPages(l) })));
+      const list = h('ol', { class: 'a-pages', 'aria-label': LANG_TITLE[l] });
+      items.forEach((p, i) => list.append(pageRow(l, p, i, items)));
+      pagesHost.append(list);
+    }
+    if (pagesBox) pagesBox.update();
+    if (focusKey) { const f = pagesHost.querySelector(`[data-fk="${focusKey}"]`); if (f) f.focus(); }
   }
 
-  function fileRow(f) {
-    const thumb = f.kind === 'image' ? h('img', { class: 'a-thumb', src: f.fileUrl, alt: '', loading: 'lazy' }) : h('span', { class: 'a-thumb a-thumb--tile' }, icon('file-pdf'));
-    const fileMode = data.mode === 'file';
-    const badges = h('div', { class: 'a-badges' });
-    if (f.published) {
-      badges.append(badge('Публикуван', 'ok'));
-      badges.append(h('span', { class: 'a-help', text: fileMode ? 'Виждат го клиентите.' : 'Публикуван — не се показва (активен е Структурираното меню).' }));
-    } else badges.append(badge('Непубликуван', 'neutral', 'ring'));
-    const info = h('div', { class: 'a-menu__info' }, h('h4', { class: 'a-trunc', title: f.originalName, text: f.originalName }),
-      h('p', { class: 'a-help', text: `${kindLabel(f.kind)} · ${formatSize(f.sizeBytes)} · качен на ${formatStamp(f.createdAt)}` }), badges);
-    const acts = h('div', { class: 'a-menu__act' }, h('a', { href: f.fileUrl, target: '_blank', rel: 'noopener', class: 'a-btn a-btn--secondary' }, icon('eye'), h('span', { text: 'Преглед' })));
-    if (!f.published) {
-      acts.append(btn({ label: 'Публикувай', variant: 'primary', onClick: async () => {
-        const other = data.files.find((x) => x.published && fileLang(x) === fileLang(f));
-        const run = async () => { await patch(`/api/admin/menu/files/${f.id}/published`, { published: true }); };
-        if (other) {
-          const ok = await confirmDialog({ title: 'Смяна на публикувания файл', body: para('Текущо публикуваният файл „', [other.originalName], '“ ще бъде заменен. Само един файл на език може да е публикуван.'), confirmLabel: 'Публикувай', run });
-          if (!ok) return;
-        } else { try { await run(); } catch (e) { reportError(e); return; } }
-        toast('Файлът е публикуван.'); fileAlert = null; await refreshMeta();
+  function queueRow(l, q) {
+    const li = h('li', { class: `a-qrow is-${q.status}` });
+    const name = h('span', { class: 'a-trunc a-qrow__name', title: q.file.name, text: q.file.name });
+    const txt = h('span', { class: 'a-help a-qrow__txt' });
+    const bar = h('progress', { max: '100', value: String(q.pct), 'aria-label': `Качване: ${q.file.name}` });
+    q.bar = bar; q.txt = txt;
+    const head = h('div', { class: 'a-qrow__head' }, name, h('span', { class: 'a-help', text: formatSize(q.file.size) }));
+    li.append(head);
+    if (q.status === 'queued') { txt.textContent = 'Чака за качване…'; li.append(txt); }
+    else if (q.status === 'uploading') { txt.textContent = q.pct >= 100 ? 'Обработване…' : `Качване… ${q.pct}%`; if (q.pct >= 100) bar.removeAttribute('value'); li.append(bar, txt); }
+    else if (q.status === 'error') li.append(h('p', { class: 'a-error' }, icon('alert'), h('span', { text: `${q.file.name}: ${q.error}` })));
+    if (q.status === 'queued' || q.status === 'uploading') {
+      li.append(btn({ label: 'Откажи', variant: 'ghost', aria: `Откажи качването на ${q.file.name}`, onClick: () => {
+        if (q.status === 'uploading' && q.abort) q.abort();
+        else { queues[l] = queues[l].filter((x) => x !== q); renderPages(); }
       } }));
-    } else if (!fileMode) {
-      acts.append(btn({ label: 'Скрий', variant: 'ghost', onClick: async () => {
-        try { await patch(`/api/admin/menu/files/${f.id}/published`, { published: false }); toast('Файлът е скрит.'); await refreshMeta(); } catch (e) { reportError(e); }
-      } }));
-    } else acts.append(h('p', { class: 'a-help', text: 'За да скриете този файл, публикувайте друг или превключете към Структурирано меню.' }));
-    acts.append(btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий файла ${f.originalName} (${fileLang(f) === 'en' ? 'английски' : 'български'})`, onClick: async () => {
+    } else if (q.status === 'error') {
+      const acts = h('div', { class: 'a-actions' });
+      if (q.retryable) acts.append(btn({ label: 'Опитай отново', variant: 'secondary', onClick: () => { q.status = 'queued'; q.error = ''; q.pct = 0; renderPages(); runQueue(l); } }));
+      acts.append(btn({ label: 'Премахни', variant: 'ghost', aria: `Премахни ${q.file.name} от списъка`, onClick: () => { queues[l] = queues[l].filter((x) => x !== q); renderPages(); } }));
+      li.append(acts);
+    }
+    return li;
+  }
+
+  function updateQ(q) {
+    if (q.bar && q.bar.isConnected) {
+      if (q.pct >= 100) { q.bar.removeAttribute('value'); } else q.bar.value = q.pct;
+      if (q.txt) q.txt.textContent = q.pct >= 100 ? 'Обработване…' : `Качване… ${q.pct}%`;
+    }
+  }
+
+  async function runQueue(l) {
+    if (running[l]) return;
+    running[l] = true;
+    let stop = null;
+    try {
+      for (;;) {
+        if (dead) return;
+        const q = queues[l].find((x) => x.status === 'queued');
+        if (!q) break;
+        if (stop) { q.status = 'error'; q.error = stop; continue; }
+        q.status = 'uploading'; q.pct = 0;
+        if (fileLangSel === l) renderPages();
+        const fd = new FormData(); fd.append('file', q.file); fd.append('lang', l);
+        const up = upload('POST', '/api/admin/menu/pages', fd, { onProgress: (p) => { q.pct = p; updateQ(q); }, onSent: () => { q.pct = 100; updateQ(q); } });
+        q.abort = up.abort;
+        try {
+          await up.promise;
+          queues[l] = queues[l].filter((x) => x !== q);
+          fileAlert = null; pagesNote = `Страницата „${q.file.name}“ е качена.`;
+          await refreshMeta();
+        } catch (e) {
+          if (e.code === 'aborted') { queues[l] = queues[l].filter((x) => x !== q); pagesNote = 'Качването е отказано.'; }
+          else if (e.status === 401) { queues[l] = queues[l].filter((x) => x !== q); return; }
+          else if (e.status === 409 && e.code === 'too_many_pages') { q.status = 'error'; q.error = `Достигнат е максимумът от ${MAX_PAGES} страници.`; stop = q.error; }
+          else if (e.status === 413 || e.status === 415 || e.status === 400) { q.status = 'error'; q.error = (e.fields && e.fields.file) || e.message; }
+          else { q.status = 'error'; q.retryable = true; q.error = e.code === 'network' ? 'Качването не успя. Проверете връзката и опитайте отново.' : e.message; }
+        }
+        q.abort = null;
+        if (!dead) renderPages();
+      }
+    } finally { running[l] = false; }
+  }
+
+  async function savePageOrder(l, ids, focusKey, text) {
+    try {
+      await put('/api/admin/menu/pages/order', { lang: l, ids });
+      fileAlert = null; pagesNote = text;
+      await refreshMeta(); renderPages(focusKey);
+    } catch (e) { reportError(e); await refreshMeta(); }
+  }
+
+  function pageRow(l, p, i, items) {
+    const n = i + 1;
+    const thumb = p.kind === 'image' ? h('img', { class: 'a-thumb', src: p.fileUrl, alt: '', loading: 'lazy' }) : h('span', { class: 'a-thumb a-thumb--tile' }, icon('file-pdf'));
+    const info = h('div', { class: 'a-menu__info' }, h('strong', { text: `Страница ${n}` }),
+      h('p', { class: 'a-help a-trunc', title: p.originalName, text: p.originalName }),
+      h('p', { class: 'a-help', text: `${kindLabel(p.kind)} · ${formatSize(p.sizeBytes)}` }));
+    const move = (dir) => {
+      const ids2 = items.map((x) => x.id); const j = i + dir;
+      [ids2[i], ids2[j]] = [ids2[j], ids2[i]];
+      const atEnd = j === 0 || j === items.length - 1;
+      savePageOrder(l, ids2, `pg-${p.id}-${dir < 0 ? (j === 0 ? 'down' : 'up') : (j === items.length - 1 ? 'up' : 'down')}`, `Страница ${n} е преместена на позиция ${j + 1} от ${items.length}.`);
+      void atEnd;
+    };
+    const up = iconBtn({ ic: 'arrow-up', aria: `Премести страница ${n} нагоре`, onClick: () => move(-1) });
+    const down = iconBtn({ ic: 'arrow-down', aria: `Премести страница ${n} надолу`, onClick: () => move(1) });
+    up.dataset.fk = `pg-${p.id}-up`; down.dataset.fk = `pg-${p.id}-down`;
+    up.disabled = i === 0; down.disabled = i === items.length - 1;
+    const view = h('a', { href: p.fileUrl, target: '_blank', rel: 'noopener', class: 'a-btn a-btn--secondary', 'aria-label': `Отвори страница ${n} в нов раздел` }, icon('eye'), h('span', { text: 'Отвори' }));
+    const delBtn = btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий страница ${n}`, onClick: async () => {
       const ok = await confirmDialog({
-        title: 'Изтриване на файл', body: para('Сигурни ли сте, че искате да изтриете „', [f.originalName], '“? Това не може да бъде върнато.'), confirmLabel: 'Изтрий файла', danger: true,
-        run: async () => { try { await del(`/api/admin/menu/files/${f.id}`); } catch (e) { if (e.code === 'in_use') { fileAlert = 'Този файл се показва на клиентите. Първо публикувайте друг файл или превключете на Структурирано меню.'; renderFiles(); } throw e; } },
+        title: 'Изтриване на страница', body: para(`Изтриване на страница ${n} („`, [p.originalName], '“)? Това не може да бъде върнато.' + (pagesOf(l).published ? ' Страниците са публикувани — промяната се вижда веднага.' : '')), confirmLabel: 'Изтрий страницата', danger: true,
+        run: async () => { try { await del(`/api/admin/menu/pages/${p.id}`); } catch (e) { if (e.code === 'in_use') { fileAlert = 'Това е последната публикувана страница, която клиентите виждат. Първо публикувайте другия език или превключете на Структурирано меню.'; renderPages(); } throw e; } },
       });
-      if (ok) { toast('Файлът е изтрит.'); fileAlert = null; await refreshMeta(); }
-    } }));
-    return h('article', { class: 'a-card a-menu a-file', role: 'listitem' }, thumb, info, acts);
+      if (ok) { toast('Страницата е изтрита.'); fileAlert = null; pagesNote = 'Страницата е изтрита.'; await refreshMeta(); renderPages(); }
+    } });
+    return h('li', { class: 'a-pagerow' }, thumb, info, h('div', { class: 'a-pagerow__act' }, up, down, view, delBtn));
+  }
+
+  function previewPages(l) {
+    const items = pagesOf(l).items;
+    const box = h('div', { class: 'a-pagepreview', lang: l });
+    items.forEach((p, i) => {
+      box.append(h('p', { class: 'a-help', text: `Страница ${i + 1} от ${items.length}` }));
+      if (p.kind === 'image') box.append(h('img', { src: p.fileUrl, alt: `Страница ${i + 1}`, loading: 'lazy' }));
+      else box.append(h('div', { class: 'a-pdf-card' }, icon('file-pdf'), h('p', { text: p.originalName }), h('a', { class: 'a-btn a-btn--secondary', href: p.fileUrl, target: '_blank', rel: 'noopener' }, h('span', { text: 'Отвори PDF' }))));
+    });
+    modal({ title: `Преглед — ${LANG_TITLE[l]}`, wide: true, body: [alertBox('info', 'Така клиентите виждат страниците, подредени една под друга.'), box], buttons: [{ label: 'Затвори', focus: true }] });
   }
 
   view.el = el;

@@ -48,6 +48,7 @@ export function createApp({ dataDir, now = () => Date.now(), cookieSecure = fals
   const nowMs = () => { const v = now(); return v instanceof Date ? v.getTime() : Number(v); };
   const db = openDb(dataDir);
   const files = createFiles({ db, dataDir, nowMs });
+  files.sweepOrphans().catch((e) => console.error('Orphan sweep failed:', e && e.message));
   const ctx = { db, nowMs, files, config: { cookieSecure } };
 
   const app = express();

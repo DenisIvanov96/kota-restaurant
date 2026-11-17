@@ -1,6 +1,6 @@
 import { el, getJSON, stateBox } from './dom.js';
 import { loadSite, initNav, applyTopBar, applyInstagram, renderLocation, initYear, realignHash } from './common.js';
-import { renderEventCard, renderStructuredMenu, observeCategories, renderFileViewer } from './render.js';
+import { renderEventCard, renderStructuredMenu, observeCategories, renderMenuPages } from './render.js';
 import { telHref } from './format.js';
 import { initI18n, onLangChange, t, apiUrl, localizeLinks } from './i18n.js';
 
@@ -99,11 +99,8 @@ async function loadMenu(mine) {
   if (mine !== gen) return;
   if (data.mode === 'file') {
     if (!data.file) return menuEmpty();
-    const viewer = renderFileViewer(data.file, {
-      frameClass: 'menu-file',
-      imageAlt: t('menu.alt'),
-      zoomLabel: t('daily.zoom'),
-      pdf: { open: t('pdf.openMenu'), openShort: t('pdf.openMenu'), download: t('file.download') },
+    const viewer = renderMenuPages(data.file, {
+      pdf: { open: t('pdf.openMenu'), download: t('file.download') },
     });
     showMenuState(viewer);
     return;

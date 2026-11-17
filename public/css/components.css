@@ -133,12 +133,23 @@
   .viewer-pdf .viewer-actions { order: 1; }
 }
 
+/* Multi-page menu (D-46) */
+.menu-pages { display: flex; flex-direction: column; gap: var(--s-4); max-width: 900px; margin: 0 auto; }
+.menu-page { margin: 0; min-width: 0; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius-card); padding: var(--s-2); }
+.menu-page .zoom-btn { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.menu-page img { display: block; width: 100%; height: auto; background: var(--bg-3); }
+.menu-page-cap { text-align: center; color: var(--muted); font-size: .9rem; padding-top: var(--s-2); }
+.menu-page-pdf .pdf-card { color: var(--text); }
+.menu-page-pdf .viewer-actions { margin-top: var(--s-3); }
+
 /* Lightbox */
 .lightbox { border: 0; padding: 0; margin: 0; width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; background: rgba(18, 17, 16, .96); color: var(--text); }
 .lightbox::backdrop { background: rgba(18, 17, 16, .96); }
 .lightbox[open] { display: flex; flex-direction: column; }
 .lb-bar { display: flex; justify-content: flex-end; gap: 8px; padding: 8px; }
 .lb-btn { min-height: 48px; min-width: 48px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-2); color: var(--text); border: 1px solid var(--accent); border-radius: var(--radius); font: 700 1rem var(--font-body); cursor: pointer; }
+.lb-pos { margin-right: auto; align-self: center; padding-left: 8px; font-weight: 700; }
+.lb-btn:disabled { opacity: .4; cursor: default; }
 .lb-btn svg { width: 24px; height: 24px; }
 .lb-scroll { flex: 1; overflow: auto; touch-action: pan-x pan-y pinch-zoom; text-align: center; }
 .lb-img { max-width: 100%; height: auto; }

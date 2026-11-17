@@ -154,7 +154,7 @@ export function eventFormView(ctx) {
       const st = { remove: false, abort: null };
       const block = h('div', { class: 'a-field' });
       const existingBox = h('div', { class: 'a-existing' });
-      const upl = createUpload({ exts: ['jpg', 'jpeg', 'png', 'webp'], maxMB: 5, imageOnly: true, onChange: () => { sync(); refreshD(); }, onCancel: () => st.abort && st.abort() });
+      const upl = createUpload({ exts: ['jpg', 'jpeg', 'png', 'webp'], maxMB: 50, imageOnly: true, onChange: () => { sync(); refreshD(); }, onCancel: () => st.abort && st.abort() });
       function sync() {
         clear(existingBox);
         if (url && !st.remove && !upl.file) {

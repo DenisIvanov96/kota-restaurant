@@ -85,6 +85,17 @@ export function dashboardView(ctx) {
     if (m.mode === 'structured') {
       if (m.structuredPublishedAt) mc.append(h('p', { class: 'a-help', text: `Последно публикувано: ${formatStamp(m.structuredPublishedAt)}` }));
       else mc.append(alertBox('warning', 'Още не е публикувано.'));
+    } else if (m.pages) {
+      const ul = h('ul', { class: 'a-titles' });
+      let any = false;
+      for (const [l, name] of [['bg', 'Български'], ['en', 'English']]) {
+        const pg = m.pages[l] || { published: false, count: 0 };
+        const n = pg.count != null ? pg.count : (pg.items ? pg.items.length : 0);
+        if (pg.published && n) any = true;
+        ul.append(h('li', null, `${name}: `, pg.published ? badge('Публикувано', 'ok') : badge('Не е публикувано', 'neutral', 'ring'), ` ${n} ${n === 1 ? 'страница' : 'страници'}`));
+      }
+      mc.append(ul);
+      if (!any) mc.append(alertBox('warning', 'Няма публикувани страници.'));
     } else if (m.publishedFile) mc.append(h('p', { class: 'a-help', text: `Публикуван файл: ${m.publishedFile.originalName}` }));
     else mc.append(alertBox('warning', 'Няма публикуван файл.'));
     if (m.hasUnpublishedChanges) {

@@ -15,12 +15,11 @@ export function dailyView(ctx) {
   let dead = false;
   let today = '';
   let menus = [];
-  let showPast = false;
 
   // wizard state
   const w = { step: 1, date: '', done: null, sending: false, error: null, dateError: '' };
-  const upl = createUpload({ exts: EXTS, maxMB: 10, onChange: () => { renderWizard(); }, onCancel: () => w.abort && w.abort() });
-  const uplEn = createUpload({ exts: EXTS, maxMB: 10, onChange: () => { renderWizard(); }, onCancel: () => w.abort && w.abort() });
+  const upl = createUpload({ exts: EXTS, maxMB: 50, onChange: () => { renderWizard(); }, onCancel: () => w.abort && w.abort() });
+  const uplEn = createUpload({ exts: EXTS, maxMB: 50, onChange: () => { renderWizard(); }, onCancel: () => w.abort && w.abort() });
   const hasFile = () => !!(upl.file || uplEn.file);
   const fileLines = () => [upl.file && `Български файл: ${upl.file.name} (${formatSize(upl.file.size)})`, uplEn.file && `English файл: ${uplEn.file.name} (${formatSize(uplEn.file.size)})`].filter(Boolean);
 
@@ -87,6 +86,7 @@ export function dailyView(ctx) {
       h('section', { class: 'a-fileslang', 'aria-labelledby': 'dw-en', lang: 'en' }, h('h4', { id: 'dw-en', text: 'English файл (по избор)' }), uplEn.el));
     const next = btn({ label: 'Напред', variant: 'primary', onClick: () => { w.step = 2; renderWizard(); focusStep(); } });
     next.disabled = !hasFile();
+    p.append(h('p', { class: 'a-help', text: 'Менютата от минали дни се изтриват автоматично при качване на ново меню.' }));
     if (!hasFile()) p.append(h('p', { class: 'a-help', text: 'Изберете поне един файл, за да продължите.' }));
     p.append(nav(next));
   }
@@ -239,7 +239,6 @@ export function dailyView(ctx) {
     }
     const todays = menus.filter((m) => m.date === today);
     const upcoming = menus.filter((m) => m.date > today).sort((a, b) => (a.date < b.date ? -1 : 1));
-    const past = menus.filter((m) => m.date < today);
     if (!todays.some((m) => m.published)) {
       card.append(alertBox('warning', [h('strong', { text: 'За днес няма публикувано меню.' })]),
         h('div', { class: 'a-actions' }, btn({ label: 'Качи меню', variant: 'secondary', onClick: () => { upl.clear(); uplEn.clear(); w.done = null; w.step = 1; w.date = today; renderWizard(); wizardHost.scrollIntoView(); focusStep(); } })));
@@ -252,11 +251,7 @@ export function dailyView(ctx) {
       card.append(l);
     };
     section('Днес', todays); section('Предстоящи', upcoming);
-    if (past.length) {
-      const t = h('button', { type: 'button', class: 'a-btn a-btn--secondary', 'aria-expanded': String(showPast), text: showPast ? `Скрий минали менюта (${past.length})` : `Покажи минали менюта (${past.length})`, onclick: () => { showPast = !showPast; renderList(); const b = listHost.querySelector('[aria-expanded]'); if (b) b.focus(); } });
-      card.append(h('div', { class: 'a-actions' }, t));
-      if (showPast) section('Минали', past);
-    }
+    if (!todays.length && !upcoming.length) card.append(h('p', { class: 'a-help', text: 'Няма менюта за днес и предстоящи дни.' }));
   }
 
   function menuRow(m) {
@@ -296,8 +291,8 @@ export function dailyView(ctx) {
 
   async function editDialog(m) {
     const dateF = dateField({ label: 'Дата', required: true, today, value: m.date });
-    const uplBg = createUpload({ exts: EXTS, maxMB: 10, onCancel: () => abort && abort() });
-    const uplEn2 = createUpload({ exts: EXTS, maxMB: 10, onChange: () => drawEn(), onCancel: () => abort && abort() });
+    const uplBg = createUpload({ exts: EXTS, maxMB: 50, onCancel: () => abort && abort() });
+    const uplEn2 = createUpload({ exts: EXTS, maxMB: 50, onChange: () => drawEn(), onCancel: () => abort && abort() });
     let abort = null;
     let removeEn = false;
     const enNote = h('div');

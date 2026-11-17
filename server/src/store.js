@@ -107,8 +107,38 @@ export function hasUnpublishedChanges(db) {
 export const fileUrlPublic = (stored) => `/media/${stored}`;
 export const fileUrlAdmin = (stored) => `/api/admin/media/${stored}`;
 
-export function publicFileInfo(row, publishedAt) {
-  return { fileUrl: fileUrlPublic(row.stored_name), mimeType: row.mime_type, kind: kindOf(row.mime_type), publishedAt: loc(publishedAt) };
+// ----- regular menu pages (file mode, D-46) -----
+const flagKey = (lang) => `menu_pages_published_${lang}`;
+const stampKey = (lang) => `menu_pages_updated_${lang}`;
+export const MAX_MENU_PAGES = 10;
+
+export const pagesFlag = (db, lang) => getSetting(db, flagKey(lang)) === '1';
+export const setPagesFlag = (db, lang, on) => setSetting(db, flagKey(lang), on ? '1' : '0');
+/** Marks the page set of a language as changed (public `publishedAt`). */
+export const touchPages = (db, lang, now) => setSetting(db, stampKey(lang), String(now));
+
+export function pageRows(db, lang) {
+  return db.prepare(`SELECT m.id, m.lang, m.position, m.created_at, f.stored_name, f.mime_type, f.original_name, f.size_bytes
+    FROM menu_files m JOIN files f ON f.id = m.file_id WHERE m.lang = ? ORDER BY m.position, m.id`).all(lang);
+}
+
+/** Languages whose page set is public: published flag on AND at least one page. */
+export function liveLangs(db) {
+  return LANGS.filter((l) => pagesFlag(db, l) && db.prepare('SELECT 1 FROM menu_files WHERE lang = ?').get(l));
+}
+
+/** Public file-mode payload for the requested language (falls back to the other language), or null. */
+export function publicMenuPages(db, lang) {
+  const live = liveLangs(db);
+  const use = live.includes(lang) ? lang : live[0];
+  if (!use) return null;
+  const rows = pageRows(db, use);
+  const stamp = Number(getSetting(db, stampKey(use))) || Math.max(...rows.map((r) => r.created_at));
+  return {
+    lang: use,
+    pages: rows.map((r) => ({ fileUrl: fileUrlPublic(r.stored_name), mimeType: r.mime_type, kind: kindOf(r.mime_type) })),
+    publishedAt: loc(stamp),
+  };
 }
 
 /** True if stored file is referenced by currently public content. */
@@ -119,7 +149,9 @@ export function isPubliclyVisible(db, storedName, now) {
       AND (starts_at IS NULL OR starts_at <= ?) AND (expires_at IS NULL OR expires_at > ?)`).get(f.id, f.id, now, now);
   if (ev) return true;
   if (db.prepare('SELECT 1 FROM daily_menus WHERE (file_id = ? OR file_en_id = ?) AND published = 1 AND menu_date = ?').get(f.id, f.id, today(now))) return true;
-  if (getSetting(db, 'menu_mode') === 'file' &&
-      db.prepare('SELECT 1 FROM menu_files WHERE file_id = ? AND published = 1').get(f.id)) return true;
+  if (getSetting(db, 'menu_mode') === 'file') {
+    const page = db.prepare('SELECT lang FROM menu_files WHERE file_id = ?').get(f.id);
+    if (page && pagesFlag(db, page.lang)) return true;
+  }
   return false;
 }

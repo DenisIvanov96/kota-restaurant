@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, pickAny, LANGS, latestSnapshot, publicFileInfo, fileUrlPublic, today, loc } from '../store.js';
+import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, pickAny, LANGS, latestSnapshot, publicMenuPages, fileUrlPublic, today, loc } from '../store.js';
 import { kindOf, STORED_NAME_RE } from '../files.js';
 import { isPubliclyVisible } from '../store.js';
 import { HttpError, validationError } from '../http.js';
@@ -54,10 +54,7 @@ export function publicApi({ db, nowMs }) {
       const snap = latestSnapshot(db);
       if (snap) out.structured = { publishedAt: loc(snap.publishedAt), categories: resolveCategories(snap.categories, req.lang) };
     } else {
-      const rows = db.prepare(`SELECT m.lang, m.created_at, f.stored_name, f.mime_type FROM menu_files m JOIN files f ON f.id = m.file_id
-        WHERE m.published = 1 ORDER BY m.id DESC`).all();
-      const row = rows.find((x) => x.lang === req.lang) || rows[0];
-      if (row) out.file = publicFileInfo(row, row.created_at);
+      out.file = publicMenuPages(db, req.lang);
     }
     res.json(out);
   });

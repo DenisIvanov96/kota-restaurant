@@ -1,5 +1,5 @@
 import express from 'express';
-import { uploadFields, IMAGE_TYPES, MB } from '../../files.js';
+import { IMAGE_TYPES } from '../../files.js';
 import { tx } from '../../db.js';
 import { eventStatus, fileUrlAdmin, loc } from '../../store.js';
 import { sofiaLocalToUtc } from '../../time.js';
@@ -7,7 +7,7 @@ import { validationError, notFound, parseBool, parseId, has, normText } from '..
 
 export function eventRoutes({ db, nowMs, files }) {
   const r = express.Router();
-  const upload = uploadFields(['image', 'imageEn'], 5 * MB);
+  const upload = files.uploadFields(['image', 'imageEn']);
 
   const SELECT = `SELECT e.*, f.stored_name, fe.stored_name AS stored_name_en FROM events e
     LEFT JOIN files f ON f.id = e.image_file_id LEFT JOIN files fe ON fe.id = e.image_en_file_id`;
