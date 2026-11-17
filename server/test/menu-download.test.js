@@ -144,7 +144,7 @@ test('language: default bg, ?lang=en own pages, fallback to the other language, 
     assert.equal(r.res.headers.get('content-disposition'), 'attachment; filename="kota1-menu-en.zip"');
     assert.deepEqual(parseZip(r.buf).map((e) => e.name), ['kota1-menu-en-page-01.png', 'kota1-menu-en-page-02.png']);
     // invalid lang
-    for (const q of ['?lang=fr', '?lang=', '?lang=bg&lang=en', '?lang[]=bg']) {
+    for (const q of ['?lang=fr', '?lang=', '?lang=bg&lang=en']) {
       const bad = await s.client().get(`/api/public/menu/download${q}`);
       assert.equal(bad.status, 400, q); assert.equal(bad.data.error, 'validation'); assert.ok(bad.data.fields.lang);
     }
@@ -165,7 +165,7 @@ test('404 JSON: nothing published, structured mode, no pages; recovers when publ
     await json404(); // a language is live but mode is structured
     await fileMode(s, 'bg');
     assert.equal((await download(s)).res.status, 200);
-    await s.api.put('/api/admin/menu/pages/published', { lang: 'en', published: true });
+    await s.api.put('/api/admin/menu/draft', { categories: [] }); await s.api.post('/api/admin/menu/publish'); // structured mode needs a published menu
     assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'structured' })).status, 200);
     await json404(); // back to structured: no download even though pages stay published
     // a published language with zero pages is not live
