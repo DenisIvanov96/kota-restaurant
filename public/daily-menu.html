@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Обедно меню — Kota1 Restaurant</title>
+  <meta name="description" content="Обедното меню на Kota1 Restaurant за днес.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Kota1 Restaurant">
+  <meta property="og:title" content="Обедно меню — Kota1 Restaurant">
+  <meta property="og:description" content="Обедното меню на Kota1 Restaurant за днес.">
+  <meta property="og:url" content="__SITE_URL__/daily-menu">
+  <meta property="og:image" content="__SITE_URL__/images/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="bg_BG">
+  <meta property="og:locale:alternate" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Обедно меню — Kota1 Restaurant">
+  <meta name="twitter:description" content="Обедното меню на Kota1 Restaurant за днес.">
+  <meta name="twitter:image" content="__SITE_URL__/images/og-image.png">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body data-page="daily">
+  <a class="skip-link" href="#main" data-i18n="skip">Към съдържанието</a>
+
+  <div class="top-bar" id="top-bar"><span id="top-label" data-i18n="topbar.label" hidden>За резервации:</span> <a id="top-phone" href="/reservation" data-i18n="topbar.res">Резервации</a></div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="logo" aria-label="Kota1 — начало" data-i18n-aria="logo.aria"><span class="kota">KOTA</span><span class="one">1</span></a>
+      <a href="/daily-menu" class="btn-special-sm" aria-current="page" data-i18n="nav.daily">Обедно меню</a>
+      <div class="lang-switch" role="group" aria-label="Език" data-i18n-aria="lang.group">
+        <button type="button" class="lang-btn" data-lang="bg" lang="bg" aria-pressed="true">БГ</button>
+        <button type="button" class="lang-btn" data-lang="en" lang="en" aria-pressed="false">EN</button>
+      </div>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Навигация" data-i18n-aria="nav.toggle">
+        <svg class="icon-menu" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <svg class="icon-x" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    <nav class="site-nav" id="site-nav" aria-label="Основна навигация" data-i18n-aria="nav.aria">
+      <ul>
+        <li><a href="/#menu" data-i18n="nav.menu">Меню</a></li>
+        <li class="nav-daily"><a href="/daily-menu" aria-current="page" data-i18n="nav.daily">Обедно меню</a></li>
+        <li><a href="/gallery" data-i18n="nav.gallery">Галерия</a></li>
+        <li><a href="/#location" data-i18n="nav.location">Локация</a></li>
+        <li id="nav-contact"><a href="/#contact" data-i18n="nav.contact">Контакти</a></li>
+        <li class="nav-reservation"><a href="/reservation" data-i18n="nav.reservation">Резервация</a></li>
+      </ul>
+    </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div class="page-band">
+      <h1 class="eyebrow" data-i18n="daily.h1">Обедно меню</h1>
+      <p class="daily-date" id="daily-date"></p>
+      <span class="event-tag" id="daily-tag" hidden data-i18n="daily.tag">Само за днес</span>
+    </div>
+    <section class="section daily-main" aria-label="Меню за днес" data-i18n-aria="daily.section">
+      <div class="daily-view" id="daily-view"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; <span id="year"></span> Kota1 Restaurant</p>
+    <p class="footer-ig"><a class="ig-link" href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a></p>
+    <p><a class="footer-link" href="/privacy" data-i18n="footer.privacy">Поверителност</a></p>
+  </footer>
+
+  <script type="module" src="/js/daily.js"></script>
+</body>
+</html>

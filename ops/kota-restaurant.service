@@ -1,0 +1,36 @@
+# systemd unit for the Kota1 Node.js server.
+# Install: see docs/DEPLOYMENT.md section 3. Paths must match your server.
+# Check the Node path first:  command -v node   (edit ExecStart if it is not /usr/bin/node)
+[Unit]
+Description=Kota1 restaurant website and admin (Node.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kota
+Group=kota
+WorkingDirectory=/opt/kota-restaurant
+# Holds PORT, DATA_DIR, NODE_ENV=production, COOKIE_SECURE, TRUST_PROXY. Root-owned, mode 0640, group kota.
+EnvironmentFile=/etc/kota-restaurant/kota.env
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning server/src/server.js
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+# New DB and upload files are owner/group readable only.
+UMask=0027
+TimeoutStopSec=15
+
+# Hardening: the app only needs to read its code and write DATA_DIR.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/kota-restaurant
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

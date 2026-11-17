@@ -1,0 +1,32 @@
+/* Public design tokens (DESIGN.md 2.1). Loaded by public pages and by the admin previews. */
+:root {
+  --bg: #121110;
+  --bg-2: #1b1917;
+  --bg-3: #262119;
+  --text: #f1e6d2;
+  --glow: #f3d9a4;
+  --accent: #d9a54a;
+  --muted: #a39887;
+  --line: #3a342d;
+  --dim: #8c8173;
+  --err: #ff9b8f;
+  --paper: #f1e6d2;
+  --paper-ink: #1a1408;
+  --paper-muted: #5a4f3f;
+  --paper-link: #7a4b00;
+  --max: 960px;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  --radius: 2px;
+  --radius-card: 4px;
+  --font-display: "Oswald", "Arial Narrow", sans-serif;
+  --font-body: "Source Sans 3", system-ui, sans-serif;
+}

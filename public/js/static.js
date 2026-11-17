@@ -1,0 +1,51 @@
+// Static pages (privacy, 404): same header/footer/language switch, plus contact details on /privacy.
+import { el } from './dom.js';
+import { loadSite, initNav, applyTopBar, applyInstagram, renderLocation, initYear } from './common.js';
+import { telHref } from './format.js';
+import { initI18n, onLangChange, t, localizeLinks } from './i18n.js';
+
+initI18n();
+initNav();
+initYear();
+
+function renderPrivacyContact(site) {
+  const box = document.getElementById('privacy-contact');
+  if (!box) return;
+  const phone = site && site.reservationPhone ? site.reservationPhone.trim() : '';
+  const address = site && site.address ? site.address.trim() : '';
+  box.replaceChildren();
+  if (!phone && !address) { box.textContent = t('privacy.contact.none'); return; }
+  if (phone) { const a = el('a', '', phone); a.href = telHref(phone); box.append(`${t('contact.phone')}: `, a); }
+  if (phone && address) box.append(el('br'));
+  if (address) box.append(`${t('contact.address')}: ${address}`);
+}
+
+const PLAN_TABLES = [
+  ['round', 1], ['round', 2], ['round', 3], ['square', 4], ['square', 5], ['square', 6],
+  ['round', 7], ['round', 8], ['long', 9], ['long', 10], ['round', 11], ['square', 12],
+];
+
+/** Reservation page: phone call button, location, text alternative list of the floor plan tables. */
+function renderReservation(site) {
+  const list = document.getElementById('plan-tables');
+  if (!list) return;
+  list.replaceChildren(...PLAN_TABLES.map(([shape, n]) => el('li', '', t('res.tbl.' + shape, { n }))));
+  const phone = site && site.reservationPhone ? site.reservationPhone.trim() : '';
+  const call = document.getElementById('res-call');
+  call.hidden = !phone;
+  document.getElementById('res-nophone').hidden = !!phone;
+  if (phone) { call.href = telHref(phone); document.getElementById('res-call-number').textContent = phone; }
+  renderLocation(document.getElementById('location-list'), site);
+}
+
+function load() {
+  loadSite().then((site) => {
+    applyTopBar(site);
+    applyInstagram(site);
+    renderPrivacyContact(site);
+    renderReservation(site);
+    localizeLinks();
+  });
+}
+load();
+onLangChange(load);

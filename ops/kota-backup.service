@@ -1,0 +1,19 @@
+# One-shot backup job. Started by kota-backup.timer.
+[Unit]
+Description=Kota1 data backup (SQLite snapshot + uploads)
+After=kota-restaurant.service
+
+[Service]
+Type=oneshot
+User=kota
+Group=kota
+WorkingDirectory=/opt/kota-restaurant
+EnvironmentFile=/etc/kota-restaurant/kota.env
+Environment=BACKUP_DIR=/var/backups/kota-restaurant
+Environment=BACKUP_KEEP_DAYS=30
+ExecStart=/opt/kota-restaurant/ops/backup.sh
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/backups/kota-restaurant /var/lib/kota-restaurant
