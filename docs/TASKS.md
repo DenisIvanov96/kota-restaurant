@@ -126,9 +126,10 @@ Owned by the Project Manager. Format: see `CLAUDE.md`. Branch: `feature/admin-cm
 **Release candidate: feature/admin-cms. Awaiting user approval for hosting + production deploy.**
 
 ## Milestone 3 — Launch polish (D-29..D-33)
-### T-23: Server: CSP font-src self, HTML 404, SITE_URL token, /privacy — backend-developer · in-progress
-### T-24: Frontend: self-hosted fonts, favicon, 404 page, OG meta + image, privacy page, map link — frontend-developer · in-progress
-### T-25: QA targeted + regression (shared CSS + server changed) — todo
+### T-23: Server: CSP font-src self, HTML 404, SITE_URL token, /privacy — backend-developer · done (32,468 tokens)
+### T-24: Frontend: self-hosted fonts, favicon, 404 page, OG meta + image, privacy page, map link — frontend-developer · done (67,238 tokens)
+### T-25: QA targeted + regression — done, PASS at 545c0ad, 0 defects
+**Release candidate 545c0ad. Awaiting user: hosting choice, privacy placeholders, go-live approval.**
 
 ## Measured agent usage (from task notifications; tokens = runtime `subagent_tokens`, cost not reported per agent)
 T-1 77,568 · T-2 91,126 · T-3 107,662 · T-4 192,926 · T-5 265,260 · T-6 106,051 · T-8 18,626 · T-9 135,887 · T-10 77,562 · T-11 24,438 · T-12 35,570 · T-13 108,187 (two segments, rate-limit pause) · T-14 55,482 · T-15 91,850 · T-16 82,018 · T-17 169,994 · T-18 18,355 · T-19 43,560 · T-20 48,779 · T-21 32,662 · T-22 (see notification)

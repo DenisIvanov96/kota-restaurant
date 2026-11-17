@@ -21,6 +21,7 @@ node --disable-warning=ExperimentalWarning tests/e2e/a11y.mjs     # keyboard foc
 node --disable-warning=ExperimentalWarning tests/e2e/design.mjs   # design fixes D1..D11
 node --disable-warning=ExperimentalWarning tests/e2e/reflow.mjs   # header reflow 320/340/360, tab order, renderer lang override (port 3205)
 node --disable-warning=ExperimentalWarning tests/e2e/i18n.mjs     # public БГ/EN switch, admin English fields, rapid-toggle race (ports 3209, 3208)
+node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch polish: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link + injection (ports 3201-3203, ~4 min)
 ```
 
 ## Files
@@ -30,10 +31,11 @@ node --disable-warning=ExperimentalWarning tests/e2e/i18n.mjs     # public БГ/
 - `api/publication.test.mjs` - events (enable/disable/expiry/future/images) and daily menus (today/tomorrow/yesterday, Sofia midnight, DST, replace) with clock advance.
 - `api/menu.test.mjs` - structured draft/publish/discard, file mode, mode switch, live-file protection, restart persistence.
 - `api/i18n.test.mjs` - `?lang` resolution/fallback, En-field leakage, admin En auth/CSRF/limits, migration 002 on a pre-i18n DB (port 3209).
+- `e2e/launch.mjs` - fonts self-hosted + zero third-party requests, CSP exact string, HTML/JSON 404, SITE_URL token replacement and validation, OG/Twitter meta, favicons, privacy page, footer link, map link and address injection.
 - `e2e/*.mjs` - see above.
 
 ## Notes
-- Google Fonts is unreachable from the sandbox: failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` are collected separately as environmental noise and ignored.
-- No defects are open; BUG-1..11 are fixed and their checks pass.
+- Fonts are self-hosted since D-29; `launch.mjs` asserts zero requests to non-localhost hosts. `lib/browser.mjs` still collects failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` as environmental noise (legacy; any such request would now be a defect): failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` are collected separately as environmental noise and ignored.
+- No defects are open; BUG-1..11 are fixed (T-25: none found) and their checks pass.
 - `admin.mjs` dismisses persistent error toasts before pressing Save (they cover the sticky save bar at 390 px, BUG-5), as a user would.
 - Production-mode checks use `NODE_ENV=production` with default `HOST`; `KOTA_NOW` is ignored there (verified).

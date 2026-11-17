@@ -5,18 +5,21 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
-| npm test (backend) | 0c81447 | 43/43 (server code unchanged since) |
-| api security / publication / menu | 0c81447 | 42/42 · 21/21 · 17/17 (server code unchanged since) |
-| api i18n (T-17) | 0c81447 | 13/13 (server code unchanged since) |
-| e2e public | 5884ce2 | 89/89 (not re-run at 2ef9c11: header media-query change only) |
-| e2e a11y | 2ef9c11 | 48/48 (A10b = BUG-9 passes) |
-| e2e admin | c376609 | 117/117 |
-| e2e design | c376609 | 22/22 |
-| e2e i18n (T-17) | c376609 | 240/240 (BUG-8, BUG-10 now pass) |
-| e2e reflow (T-20) | 2ef9c11 | 88/88 (BUG-11 fixed) |
-| width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures; one row from 369 px (BG) / 365 px (EN), wrapped below |
+| npm test (backend) | 545c0ad | 53/53 |
+| api security / publication / menu | 545c0ad | 42/42 · 21/21 · 17/17 (93/93 incl. i18n; security CSP constant updated to the D-29 policy) |
+| api i18n (T-17) | 545c0ad | 13/13 |
+| e2e public | 545c0ad | 89/89 |
+| e2e a11y | 545c0ad | 48/48 |
+| e2e admin | 545c0ad | 117/117 |
+| e2e design | 545c0ad | 22/22 |
+| e2e i18n (T-17) | 545c0ad | 240/240 (RACE1-4 address check now reads the `.address-text` node) |
+| e2e reflow (T-20) | 545c0ad | 88/88 |
+| e2e launch (T-25, new: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link/injection; 390/768/1280, BG+EN) | 545c0ad | 915/915 |
+| width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run at 545c0ad; header CSS unchanged, only footer/map/static-page rules added) |
 
-Server code is identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
+All suites above were run sequentially at 545c0ad (full tier: server `app.js`/`server.js` and shared `i18n.js`, `dom.js`, `style.css`, all HTML heads changed). Earlier per-suite commits (0c81447 ... 2ef9c11) are superseded.
+
+Historical note: server code was identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
@@ -291,3 +294,25 @@ BUG-7 | minor (cosmetic) | frontend-developer | Open `/admin/` at 390x844, focus
 - Upload progress bar / cancel button in the UI, admin lightbox, drag/drop; very large menus (200 items x 50 categories) in the browser.
 - DST gap/overlap handling through the UI (covered only by the backend developer's own unit tests and API checks of winter/summer offsets and the 2026-10-25 day boundary).
 - Real network latency, concurrent admins editing the same draft (last write wins; not tested).
+
+## Launch polish verification (T-25) - 2026-11-17, `545c0ad` (full tier)
+
+Verdict: **PASS** - 0 defects found (no BUG-12+). Run order and commands: see `tests/README.md`; evidence is the per-check output of `tests/e2e/launch.mjs` (915 checks).
+
+Covered by `tests/e2e/launch.mjs` (new) unless noted:
+- **Fonts / no third parties:** `/`, `/daily-menu`, `/privacy`, `/no-such-page`, `/admin/` x BG+EN x 390/768/1280: every request recorded via `context.on('request')` goes to 127.0.0.1 (0 external); all 8 woff2 files 200, `font/woff2`, `Cache-Control: public, max-age=2592000` (HTTP and in-browser responses); Cyrillic face loaded on BG pages and Latin face on EN pages for both Oswald and Source Sans 3 (`document.fonts`), and the rendered glyphs use the custom faces (CDP `CSS.getPlatformFontsForNode`, not a system fallback); CSS/JS keep `no-cache`; no `googleapis/gstatic` string in `public/`.
+- **CSP:** exact policy string asserted (`style-src 'self'; font-src 'self'`), checked on 9 URLs incl. API, font, 404; zero `securitypolicyviolation` events and zero console errors on all pages/viewports; no inline `<style>`, inline script, `style=""`, or external `href/src` in the 5 HTML documents.
+- **404:** `/no-such-page` (+ nested, `.html`, `/privacy/x`, `/PRIVACY`, unknown font/js) with `Accept: text/html` -> 404 + 404.html, noindex, no-cache; HEAD too; BG/EN, language switch, home/daily/footer/logo links work and keep `?lang`; `/api/nope`, `/media/nope`, any non-GET, and `Accept: json | */* | image/png | (none)` -> JSON; traversal/hidden-file probes (10) leak nothing, malformed `%` -> no 500.
+- **SITE_URL:** unset -> token replaced by `''` (og:url `/`, og:image `/images/og-image.png`); `https://kota.example.com/` -> absolute `og:url`/`og:image`/`twitter:image` on `/`, `/daily-menu`, `/privacy`, no double slash; token never served on any of 10 HTML URLs (with and without SITE_URL); 8 invalid values (not a URL, no scheme, ftp, javascript:, credentials, query, fragment, `https://`) -> exit != 0 with message, never listens; empty/whitespace = unset; SITE_URL with `"><script>` does not break out of the attribute; ETag/304 revalidation works on replaced body; only the 3 expected files contain the token in source.
+- **OG/Twitter:** present and consistent with `<title>`/meta description on 3 pages (og:type restaurant/website, locale bg_BG + alternate en_GB, card summary_large_image); `og-image.png` is a real 1200x630 PNG (313 kB), 200 `image/png`.
+- **Favicons:** svg (image/svg+xml, no script), 32x32 png, 180x180 apple-touch-icon: 200, right types, linked from `/`, `/daily-menu`, `/privacy`, 404 and `/admin/`.
+- **Privacy / footer:** BG/EN render (one h1, 5 h2, title/lang/meta), bracket placeholders visible (`[N]`, hosting provider, controller; contact placeholder when phone+address unset), no stray Cyrillic in EN, contact shows well-formed `tel:`; cookie/localStorage claim consistent with behaviour; footer link on `/`, `/daily-menu`, `/privacy`, 404: href keeps `?lang=en`, follows the language switch, click lands on `/privacy` in the right language; footer link target >= 44 px, text contrast >= 4.5 (computed).
+- **Map link:** href exactly `https://www.google.com/maps/search/?api=1&query=%D1%83%D0%BB.%20%D0%A0%D0%B0%D0%BB%D0%B5%D0%B2%D0%B8%D1%86%D0%B0%2085%2C%20%D0%A1%D0%BE%D1%84%D0%B8%D1%8F` for "ул. Ралевица 85, София" (expected value computed independently with Python); EN address -> EN link; `target=_blank`, `rel="noopener noreferrer"`, accessible name "... (opens in a new tab)", Tab-reachable with visible focus, >= 44 px, contrast >= 4.5, no horizontal scroll, click opens a new tab (Google stubbed, `window.opener === null`); hidden when address empty or whitespace; no Google request on page load; language switch updates the link.
+- **Injection (12 payloads x BG/EN x 3 viewports):** `"><img src=x onerror=window.__xss=1>`, `javascript:alert(1)`, `'><script>`, `https://evil.example/phish`, `//evil.example`, `x&api=2&query=evil`, `#frag`, `?b=c`, `</a><a href=evil>`, CRLF, RTL override, attribute-injection: link always `https://www.google.com/maps/search/` with exactly the params `api,query` and `query` equal to the payload, no `window.__xss`, no injected element/attribute, address and privacy contact shown as inert text.
+
+Notes (not defects):
+- `public/404.html` intentionally has no OG/canonical tags (noindex page); the token is absent there.
+- `/favicon.ico` is not provided (JSON 404); browsers use the `<link rel=icon>` tags.
+- Chromium logs "Failed to load resource" for the intentional 404 document and for the logged-out admin `GET /api/admin/me` 401; `launch.mjs` allows exactly these two.
+- On the admin login screen only Source Sans 3 Cyrillic is requested (no Oswald Cyrillic text on that screen); the test accounts for it.
+- Not run: real-network checks (real Google Maps page, real social-network crawlers), Lighthouse, screen reader.

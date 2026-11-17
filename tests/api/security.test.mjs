@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 import { startServer, createAdmin, Client, form, tmpDir, makePng, PDF, JPG, WEBP, PASSWORD, ROOT } from '../lib/harness.mjs';
 
 const NOW = '2026-06-15T10:00:00Z';
-const CSP = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; frame-src 'self' blob:; object-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; frame-src 'self' blob:; object-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 const PNG = makePng();
 
 /** Raw HTTP request so that the path is sent exactly as given (fetch normalises ../). */
