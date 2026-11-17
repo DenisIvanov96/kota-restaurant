@@ -49,3 +49,4 @@
 | D-45 | 2026-11-17 | Daily menus from past days are deleted automatically on each new upload; today + future kept | Owner: "old ones should be deleted"; keeping today/future protects advance uploads | PM interpretation, owner may revise |
 | D-46 | 2026-11-17 | Regular menu file mode = up to 10 ordered pages per language with per-language publish | Owner's menu is 5–10 pages | User |
 | D-47 | 2026-11-17 | Migration 006 keeps the published (else newest) legacy menu file per language as page 1; other unused legacy uploads and unreferenced files are deleted (startup orphan sweep) | Owner approved | User |
+| D-48 | 2026-11-17 | Menu download: ZIP of pages (file mode), print-to-PDF (structured), download for daily image | Owner request | User |

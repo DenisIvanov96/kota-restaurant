@@ -261,3 +261,9 @@ Admin shows Bulgarian and English as **two clear tabs ("Български" / "E
   - `PUT /api/admin/menu/mode` `file` -> 409 `nothing_published` unless a language is live.
   - Dashboard: `menu.pages: { bg: { published, count }, en: { published, count } }`.
   - Public `GET /api/public/menu` (mode `file`): `file: null | { lang, pages:[{fileUrl, mimeType, kind}], publishedAt }` — requested language if live, else the other; `lang` = language actually served; `publishedAt` = Sofia-local time of the last change to that page set.
+
+## Menu download (D-48)
+- **Regular menu, file mode:** a "Изтегли менюто" / "Download menu" button above the pages. 1 page → downloads that file directly. 2+ pages → `GET /api/public/menu/download?lang=bg|en` streams a **ZIP** (stored, no compression, built in-house with `zlib.crc32`, no new dependency) of the live pages of the served language (same fallback as `/api/public/menu`), entries named `kota1-menu-<lang>-page-01.<ext>` …, `Content-Disposition: attachment; filename="kota1-menu-<lang>.zip"`, `Cache-Control: no-store`. 404 when nothing is public. Streams from disk (no buffering of 500 MB).
+- Each page card also gets its own small download link (`download` attribute, same-origin `/media/...`).
+- **Regular menu, structured mode:** "Изтегли / Принтирай" / "Download / Print" button → `window.print()` with a print stylesheet that prints only the menu (light background, KOTA 1 heading, categories, prices; no nav/top bar/footer). The visitor can choose "Save as PDF" in the browser dialog.
+- **Daily menu:** download button for image menus too (PDF already has one).
