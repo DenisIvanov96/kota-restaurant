@@ -45,3 +45,6 @@
 | D-41 | 2026-11-17 | Daily menu: optional EN file per date with fallback | Owner wants language-specific menus | PM default |
 | D-42 | 2026-11-17 | EN media follow the same public-visibility rules | Security | PM |
 | D-43 | 2026-11-17 | Settings address/hours follow the same bidirectional fallback (BG empty → EN shown) | Owner rule "display whatever is available"; resolves BUG-18 as intended behaviour | PM |
+| D-44 | 2026-11-17 | 50 MB per uploaded file; one file per request; disk temp storage | Owner request; avoids huge requests and memory spikes | User |
+| D-45 | 2026-11-17 | Daily menus from past days are deleted automatically on each new upload; today + future kept | Owner: "old ones should be deleted"; keeping today/future protects advance uploads | PM interpretation, owner may revise |
+| D-46 | 2026-11-17 | Regular menu file mode = up to 10 ordered pages per language with per-language publish | Owner's menu is 5–10 pages | User |

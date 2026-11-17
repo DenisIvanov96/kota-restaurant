@@ -232,3 +232,19 @@ Admin shows Bulgarian and English as **two clear tabs ("Български" / "E
 - **Media visibility (D-42):** `/media/` serves an EN file only when it is part of currently public content (same rules as BG files).
 - **Settings:** address/opening hours also in BG/EN tabs (same fields as now).
 - **As built (T-33):** migration 005 adds `events.image_en_file_id`, `menu_files.lang`, rebuilds `daily_menus` with nullable `file_id` + `file_en_id` (EN-only menus allowed; BG file fields are null then). Bidirectional per-field fallback (`pick`/`pickAny`). Event title / menu names required in ≥1 language (errors on the BG field key). Daily-menu `replace=true` replaces the whole menu (both languages); PUT is per language. Menu files: one published per language; in file mode `in_use` only for the last published file of any language. Dashboard adds `menu.publishedFiles`. `/media` serves EN files under the same public-visibility rules.
+
+## Owner feedback round 3 — bigger uploads, auto-cleanup, multi-page menu (D-44..D-46)
+- **Upload limits (D-44):** every upload (event images BG/EN, daily menu files BG/EN, regular-menu pages) up to **50 MB per file**. Files are uploaded **one per request** (no 500 MB requests). Multer must not buffer 50 MB × N in memory: use disk temp storage in `DATA_DIR/tmp`, validate magic bytes from the file head, move into `uploads/`, always delete temp files. Reverse proxy body limit 55 MB.
+- **Daily menu auto-cleanup (D-45):** after any successful daily-menu upload (POST, and PUT that adds a file), delete every daily menu **dated before today (Europe/Sofia)** with all its files. Today and future dates are kept. The admin list shows today + upcoming only; the wizard says "Менютата от минали дни се изтриват автоматично".
+- **Regular menu — multi-page file version (D-46):** in file mode, each language has an ordered set of **up to 10 pages**. Each page is an image (JPG/PNG/WebP) or a PDF, ≤ 50 MB.
+  - Admin: add pages (multi-select, uploaded one by one with per-file progress), reorder (up/down), delete (confirm), preview, and a **published ON/OFF per language**. Changes to a published set are live immediately; the UI warns. Max 10 → 409 `too_many_pages`.
+  - Public file mode: the requested language's published pages in order (images stacked full-width, tap to zoom; PDFs as cards with open/download), with "Страница N от M" / "Page N of M"; else the other language's.
+  - Migration 006: `menu_files.position` (order within language), setting `menu_pages_published_bg|en` (0/1). Existing files become page 1 of their language; a published one sets that language published.
+  - API (replaces the per-file publish of D-40):
+    - `GET /api/admin/menu` → `pages: { bg: { published, items:[{id,fileUrl,mimeType,kind,originalName,sizeBytes,position}] }, en: {...} }`
+    - `POST /api/admin/menu/pages` multipart `file`, `lang` → 201 page
+    - `PUT /api/admin/menu/pages/order` JSON `{ lang, ids:[...] }`
+    - `DELETE /api/admin/menu/pages/:id`
+    - `PUT /api/admin/menu/pages/published` JSON `{ lang, published }`
+    - Public `GET /api/public/menu` with mode `file` → `file: null | { lang, pages:[{fileUrl,mimeType,kind}], publishedAt }`
+    - Rules: `nothing_published` if neither language is published with ≥1 page; `in_use` when unpublishing or deleting would leave file mode with nothing public. `/media` serves a page only while its language is published and mode is `file`.
