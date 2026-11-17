@@ -119,12 +119,22 @@ window.addEventListener('load', () => ensureScrollRoom());
 // Content above the anchors changes after load (menu, events, images): keep the room in sync.
 if (typeof ResizeObserver === 'function') {
   let raf = 0;
-  const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(ensureScrollRoom); });
+  const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { ensureScrollRoom(); if (holdHash) jumpToHash(); }); });
   addEventListener('DOMContentLoaded', () => { document.querySelectorAll('main > section').forEach((n) => ro.observe(n)); });
 }
 
+// While the page is still settling after load, keep the hash target in place (instant jumps) until the user scrolls/clicks.
+let holdHash = !!(location.hash && location.hash.length > 1);
+if (holdHash) {
+  const stop = () => { holdHash = false; };
+  for (const ev of ['wheel', 'touchstart', 'keydown', 'pointerdown']) addEventListener(ev, stop, { once: true, passive: true });
+  setTimeout(stop, 4000);
+}
 export function realignHash() {
   ensureScrollRoom();
+  jumpToHash();
+}
+function jumpToHash() {
   if (!location.hash || location.hash.length < 2) return;
   try {
     const t = document.getElementById(decodeURIComponent(location.hash.slice(1)));

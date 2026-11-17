@@ -182,3 +182,11 @@ html { scroll-padding-top: calc(var(--topbar-h) + 12px); }
 .plan-legend li { display: inline-flex; align-items: center; gap: var(--s-2); }
 .plan-legend svg { width: 24px; height: 24px; flex: none; }
 .plan-note { margin-top: var(--s-3); color: var(--muted); font-style: italic; }
+
+/* BUG-22: tighten the desktop nav just above the 768px breakpoint (longer BG labels + event item) so the EN/BG switch stays on screen */
+@media (min-width: 768px) and (max-width: 959px) {
+  .site-nav ul { gap: .6rem; }
+  .site-nav a { font-size: .82rem; letter-spacing: .06em; }
+  .site-nav .nav-daily a, .site-nav .nav-reservation a { padding: 0 9px; }
+  .lang-switch { margin-left: 6px; }
+}
