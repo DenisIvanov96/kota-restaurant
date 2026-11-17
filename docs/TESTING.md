@@ -5,28 +5,58 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
-| npm test (backend) | 2dd4acb | 57/57 |
-| api security / publication / menu | 2dd4acb | 42/42 · 21/21 · 17/17 (security re-run: server migrations changed; S8e expects the public `instagramUrl` key) |
-| api i18n (T-17) | 2dd4acb | 13/13 (I13 expects 001..004) |
-| api feedback1 (T-29/T-32: migration 003 matrix M1-M6, new 004 repair matrix N1-N5, instagramUrl contract, /reservation route) | 2dd4acb | 20/20 (api total 113/113) |
-| e2e public | 9fd7c8d | 89/89 (C2 -> #location, U5 -> new always-on top bar / Location) |
-| e2e a11y | 2dd4acb | 48/48 |
-| e2e admin | 2dd4acb | 117/117 (date steps use the `.a-dt-date`/`.a-dt-time` pickers) |
-| e2e design | 9fd7c8d | 22/22 |
-| e2e i18n (T-17) | 9fd7c8d | 240/240 (RT1 strings + RACE address selector updated, intended) |
-| e2e reflow (T-20) | 9fd7c8d | 88/88 (RF-focus: top-bar link is now the first stop after the skip link) |
-| e2e launch (T-25) | 9fd7c8d | 916/916 (E5/E6/E7 -> #location, CSP3 Instagram href allowed, SU12 4 pages) |
-| e2e feedback1 (T-29, new: sticky top bar, /reservation, Location, Instagram, OG) | 2dd4acb | 775/775 |
-| e2e admin-dates (T-29/T-32: BG date/time pickers under an en-US browser, Instagram settings live; +VAL4b-f, VAL8a-e, TY3b-e) | 2dd4acb | 100/100 |
-| width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run; the 320 px top-bar reflow is covered by `feedback1.mjs` TB*) |
+| npm test (backend) | fc935f8 | 70/70 |
+| api security / publication / menu | fc935f8 | 42/42 · 21/21 · 17/17 (full api run 141/141 incl. the new suite) |
+| api i18n (T-17) | fc935f8 | 13/13 (I13 expects 001..005) |
+| api feedback1 | fc935f8 | 20/20 (F1 and N1-N5 expect 001..005) |
+| api langs (T-35, new: per-language event images / daily files / menu files, fallback, /media visibility, upload validation, auth/CSRF, migration 005) | fc935f8 | 28/28 |
+| e2e public | fc935f8 | 88/89 - FAIL U5 (BUG-18, see T-35) |
+| e2e a11y | fc935f8 | 48/48 (focus audit now identifies stops by position: two identical "Избери файл" buttons) |
+| e2e admin | fc935f8 | 117/117 (EV1 new error text/no star, M uses the BG file section) |
+| e2e design | fc935f8 | 22/22 |
+| e2e i18n (T-17) | fc935f8 | 240/240 (admin English blocks AE/AMN/AST rewritten for the language tabs) |
+| e2e reflow (T-20) | fc935f8 | 88/88 |
+| e2e launch (T-25) | fc935f8 | 916/916 |
+| e2e feedback1 (T-29) | fc935f8 | 775/775 |
+| e2e admin-dates (T-29/T-32) | fc935f8 | 100/100 |
+| e2e langs (T-35, new: owner scenario, admin tabs, error mapping, guard, XSS, 768 px) | fc935f8 | 172/177 - FAIL ED4a, ERR-1, ERR-1b, ERR-3, LOG-A (BUG-16, BUG-17) |
+| width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run) |
 
-Suites marked 2dd4acb were run sequentially there (T-32 retest); the others (public, design, i18n, reflow, launch) keep their 9fd7c8d PASS: `git diff 9fd7c8d..2dd4acb --stat -- public server/src` touches only `public/admin/js/{datetime,events,ui}.js`, which those suites do not drive (they only POST events through the API). All suites were originally run sequentially at 9fd7c8d (full tier: server `store.js`, `routes/admin/general.js`, migration 003 and shared `i18n.js`, `common.js`, `style.css`, all page HTML changed). Earlier per-suite commits are superseded.
-
+All suites run sequentially at fc935f8 (T-35 full tier: server migration 005, multipart, /media and admin changed). Earlier per-suite commits are superseded.
 
 Historical note: server code was identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## Owner feedback round 2 - separate BG / EN content + release regression (T-35) - 2026-11-17, `fc935f8` (full tier)
+
+Verdict: **FAIL** - BUG-16 (major), BUG-17 (major), BUG-18 (minor, needs a PM decision). Server behaviour (migration 005, multipart, /media visibility, fallback) is fully green; the defects are in the admin UI and one public-settings interaction. No product file was changed by QA.
+
+### Intended-change expectations updated (each verified against `docs/ARCHITECTURE.md` "Owner feedback round 2" first)
+| Test | Obsolete expectation | New expectation |
+|---|---|---|
+| feedback1 F1, N1-N5; i18n I13 | applied migrations 001..004 | 001..005 (`005_separate_languages.sql`, "As built (T-33)") |
+| admin EV1 | "Въведете заглавие." and a required title | "Въведете заглавие поне на един език." (D-39) and no required star on the title label |
+| admin M (menu file upload) | one file input, button "Качи" | one file section per language (D-40); BG section first, button "Качи български файл" (EN: "Качи английски файл") |
+| i18n AE/AMN/AST (35 checks) | English fold-outs (`details.a-en`) | "Български"/"English" tabs (D-39..D-41): same flows (round trip, keyboard, preview toggle, guard, server-400 mapping, reload prefill) driven through the tabs; AMN2 now only requires an accessible label (the per-dish unique name was a property of the removed fold-out) |
+| a11y A6 | focus-audit identity = tag + label | + position (two identical "Избери файл" buttons in the daily-menu wizard made the audit stop after one stop) |
+
+### Defects
+- **BUG-16 | major | frontend-developer** | Daily menu list -> "Редактирай" -> choose any file or just change the date -> "Запази" | dialog closes with the success toast "Менюто е обновено." and the list refreshes | the toast reads **"abort is not defined"**, the list is NOT refreshed (still "Няма EN файл" although the server saved it), the dialog closes, an unhandled `ApiError` is thrown for later server rejections, and the in-dialog 400/413/415 mapping can never run | cause: `public/admin/js/daily.js` `editDialog` assigns `abort = up.abort` but the `let abort = null;` of 96d8c9b was dropped in T-34 (strict-mode ReferenceError after the request has been sent). Evidence: `tests/e2e/langs.mjs` ED4a (`toastTxt: "Менюто е качено и публикувано.\nabort is not defined"`, row still "Няма EN файл"), ERR-3 (`DIALOG CLOSED`), LOG-A (`ApiError` page error); log `qa10/langs4.log`.
+- **BUG-17 | major | frontend-developer** | Event form -> English tab -> choose a file named `x.png` that is not really an image -> "Запази" | the error "Позволени са само JPG, PNG и WebP изображения." appears at the English uploader (and the same for 413) | nothing is visible: the message is written to the **Bulgarian** uploader, which is hidden while the English tab is shown; no summary, no tab switch | cause: `events.js` `handleError` and `daily.js` edit dialog use `err.field`, which `ApiError` never sets (the server puts the field in `fields.imageEn` / `fields.fileEn`); the wizard (uses `e.fields`) is correct. Evidence: langs.mjs ERR-1/ERR-1b `{"bgPanelErr":"Позволени са само JPG, PNG и WebP изображения.","bgPanelHidden":true,"enErrHidden":true}`, screenshot `qa10/shots/langs-err-imageEn.png`. Same wrong-uploader mapping exists in the daily edit dialog (`e.field === 'fileEn'`), currently masked by BUG-16.
+- **BUG-18 | minor | PM decision, then backend-developer or test owner** | Settings: clear the BG address (default setup keeps the seeded English default in the English field) -> open the BG site | BG site shows an address in Bulgarian (D-37: empty -> default "ул. Ралевица 85, София") | BG visitors now see the English text "85 Ralevitsa St, Sofia", because `publicSiteSettings` uses the new bidirectional `pick` for address/opening hours. Arguably consistent with D-39 and with the admin hint "не е попълнено - ще се покаже другият език", but it changes D-37 behaviour and the spec does not say so. Evidence: `tests/e2e/public.mjs` U5 `loc: "ЛОКАЦИЯ\nАДРЕС\n85 Ralevitsa St, Sofia ..."`. U5 was NOT weakened; if the PM accepts the new behaviour, change U5 to accept the EN default.
+
+### Observations (not defects)
+- Dashboard "ОСНОВНО МЕНЮ" shows only `menu.publishedFile` ("Публикуван файл: menu-bg2.png", BG preferred) even when an English file is also published; `publishedFiles` is returned by the API but unused. Not misleading as written, but the owner cannot see the EN file there.
+- `POST /api/admin/menu/files` with a wrong file field name reports `fields.file` (single-field route), unlike events/daily which name the offending field.
+- `POST /api/admin/events` also accepts a JSON body (no files) - pre-existing, by design.
+
+### Checks run (all in this run)
+- api `langs.test.mjs` 28/28: LE1-6 events (BG/EN text and images, fallback both directions per field and per image, title required in >=1 language, replace/remove imageEn, delete removes both files), LM1 EN image visibility (disabled, re-enabled, future start, expired via time travel; both languages), LD1-5 daily (BG+EN, EN-only, remove-only-file refused, replace=true replaces both, visibility incl. unpublished / tomorrow / Sofia midnight), LF1-3 menu files per language (default bg, invalid lang 400, one published per language, fallback, in_use only for the last published file, EN-only file enough for file mode, dashboard fields), LS1-3 structured names (>=1 language, fallback both directions, EN-only edit = unpublished change), LU1-6 uploads on imageEn/fileEn (11 fake types x POST/PUT, oversize 5/10/15 MB, exact limit, unknown/misplaced/duplicate fields -> 400 `bad_upload`, no orphans, no rows), LA1-2 auth/CSRF/origin on 16 changed routes + traversal, LX1 XSS payloads inert in JSON (nosniff), LG1 migration 005 on a real 001..004 database (data kept, lang defaults to bg, daily_menus rebuilt with nullable file_id and UNIQUE date, foreign_key_check/integrity ok, idempotent).
+- e2e `langs.mjs` 172/177: owner scenario through the real UI (event with BG+EN title/description/photo; EN-only event; daily menu BG+EN via wizard; EN-only daily menu via replace flow with confirm text naming both languages; structured menu with BG+EN names, one dish EN-missing and one BG-missing; file mode with BG and EN files), public site at 390/768/1280 in both languages (banner/photo/menu/file verified by decoded pixel colour, switching БГ->EN->БГ in the same document without reload in <3 s, fallbacks both directions, `?lang=en`, no console errors / failed requests / horizontal scroll), admin tabs (roles, roving tabindex, ArrowLeft/Right/Home/End, Tab into panel, dots with "(попълнено)" text, hints, preview follows tab), daily list БГ/EN badges, edit dialog remove/replace fileEn, unsaved-changes guard on EN-only edits (event title, event EN image, dish name, settings address), mocked server-400 mapping for imageEn/titleEn/nameEn/addressEn, real 415 mapping (failures above), XSS in BG+EN fields on public and all admin views (payload visible as text, `window.__xss` never set), admin at 768 and 390 (no horizontal scroll, tabs >=44 px, visible focus ring, one h1, labelled inputs).
+- Screenshots: `qa10/shots/langs-*.png` (scratchpad `/tmp/claude-0/-home-user-kota-restaurant/0a6b5eed-3087-545d-a04f-90c802bbd434/scratchpad/qa10/shots`).
+- NOT RUN: nothing skipped; keyboard-only checks use Playwright key events (no screen reader).
 
 ## Retest of BUG-12..15 (T-32) - 2026-11-17, `2dd4acb`
 

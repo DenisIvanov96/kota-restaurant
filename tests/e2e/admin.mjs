@@ -70,7 +70,7 @@ await step('E', async () => {
   await page.getByRole('link', { name: 'Ново събитие' }).first().click();
   await page.waitForSelector('h1:has-text("Ново събитие")');
   await page.getByRole('button', { name: 'Запази', exact: true }).click();
-  R.check('EV1 saving empty form => client validation error summary (title required), nothing created', (await page.getByText('Въведете заглавие.').count()) >= 1 && (await api.get('/api/admin/events')).data.events.length === 0);
+  R.check('EV1 saving empty form => client validation error summary ("Въведете заглавие поне на един език." D-39, no required star), nothing created', (await page.getByText('Въведете заглавие поне на един език.').count()) >= 1 && (await page.locator('label:has-text("Заглавие")').first().innerText()).indexOf('*') < 0 && (await api.get('/api/admin/events')).data.events.length === 0);
   await page.locator('input.a-input').first().fill('Джаз вечер');
   await page.locator('textarea').first().fill('Жива музика\nВход свободен');
   // D-35: typed Bulgarian date + 24h time (the native datetime-local input no longer exists); API format asserted in EV3
@@ -319,8 +319,9 @@ await step('M', async () => {
   await page.screenshot({ path: path.join(shots, 'admin-menu-409-390.png') });
   // file tab: upload + publish + mode switch
   await page.getByRole('tab', { name: /Файл/ }).click();
-  await page.locator('input[type=file]').last().setInputFiles(file('menu.png', 'image/png', makePng(300, 400, [10, 120, 200])));
-  await page.getByRole('button', { name: 'Качи', exact: true }).click(); await page.waitForTimeout(800);
+  // T-33/34: one file section per language; the first is Bulgarian (D-40)
+  await page.locator('input[type=file]').first().setInputFiles(file('menu.png', 'image/png', makePng(300, 400, [10, 120, 200])));
+  await page.getByRole('button', { name: 'Качи български файл', exact: true }).click(); await page.waitForTimeout(800);
   R.check('MN12 menu file uploaded via UI (unpublished), public unchanged', (await api.get('/api/admin/menu')).data.files.length === 1 && (await anon.get('/api/public/menu')).data.file === null);
   await page.getByRole('button', { name: 'Публикувай', exact: true }).last().click(); await page.waitForTimeout(600);
   await page.getByRole('radio', { name: /Файл/ }).check({ force: true }).catch(async () => { await page.locator('label.a-radio:has-text("Файл")').click(); });

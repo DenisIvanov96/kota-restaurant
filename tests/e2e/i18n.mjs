@@ -326,39 +326,35 @@ const goA = async (page, hash) => { await page.evaluate((h) => { location.hash =
 const dismiss = async (page) => { for (let i = 0; i < 5 && (await page.locator('.a-toast__close').count()); i++) await page.locator('.a-toast__close').first().click(); };
 const ADM_VPS = [{ name: '390', width: 390, height: 844 }, { name: '768', width: 768, height: 1024 }, { name: '1280', width: 1280, height: 800 }];
 
+// T-35: since D-39/T-34 the admin English fields live in "Български" / "English" tabs (no <details> fold-out); the flows below are the same, driven through the tabs.
+const tabA = (page, n) => page.getByRole('tab', { name: new RegExp(`^${n}`) });
 for (const vp of ADM_VPS) {
   await step(`AE[${vp.name}]`, async () => {
     const tag = vp.name; const uniq = `${tag}`;
     const { context, page, log } = await newPage(browser, { width: vp.width, height: vp.height });
     await loginA(page);
-    // ---- event round trip, keyboard opening of <details>
+    // ---- event round trip, keyboard use of the language tabs
     await goA(page, '#/events/new'); await page.waitForSelector('h1:has-text("Ново събитие")');
-    const det = page.locator('details.a-en').first();
-    R.check(`AEV0[${tag}] event form: English group present, closed when empty, summary text "English / Английски"`, (await det.count()) === 1 && !(await det.evaluate((d) => d.open)) && (await det.locator('summary').textContent()).includes('English'));
+    R.check(`AEV0[${tag}] event form: "Български"/"English" tabs present, BG selected, English panel hidden while empty, no <details> fold-out`, (await tabA(page, 'English').count()) === 1 && (await tabA(page, 'Български').getAttribute('aria-selected')) === 'true' && (await tabA(page, 'English').getAttribute('aria-selected')) === 'false' && !(await page.getByLabel('Title (English)').isVisible()) && (await page.locator('details.a-en').count()) === 0);
     await page.locator('input.a-input').first().fill(`Събитие ${uniq}`);
     await page.locator('textarea').first().fill(`Описание ${uniq}`);
-    const sum = det.locator('summary');
-    await page.locator('textarea').first().focus();
-    for (let i = 0; i < 25 && !(await sum.evaluate((x) => document.activeElement === x)); i++) await page.keyboard.press('Tab'); // reach the summary by keyboard (real :focus-visible)
-    R.check(`AEV1[${tag}] keyboard: summary focusable and shows a visible focus indicator`, await sum.evaluate((s) => { const cs = getComputedStyle(s); return document.activeElement === s && (parseFloat(cs.outlineWidth) > 0 && cs.outlineStyle !== 'none' || cs.boxShadow !== 'none'); }), await sum.evaluate((s) => { const cs = getComputedStyle(s); return `${cs.outlineStyle} ${cs.outlineWidth} ${cs.boxShadow}`; }));
-    await page.keyboard.press('Enter'); await page.waitForTimeout(100);
-    const openEnter = await det.evaluate((d) => d.open);
-    await page.keyboard.press('Space'); await page.waitForTimeout(100);
-    const closedSpace = !(await det.evaluate((d) => d.open));
-    await page.keyboard.press('Space'); await page.waitForTimeout(100);
-    R.check(`AEV2[${tag}] keyboard: Enter opens, Space toggles (close, reopen) the English group`, openEnter && closedSpace && (await det.evaluate((d) => d.open)), JSON.stringify({ openEnter, closedSpace }));
+    await tabA(page, 'Български').focus(); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(100);
+    R.check(`AEV1[${tag}] keyboard: ArrowRight focuses and selects the English tab and shows a visible focus indicator`, await page.evaluate(() => { const a = document.activeElement; const cs = getComputedStyle(a); return a.getAttribute('aria-selected') === 'true' && a.textContent.startsWith('English') && (parseFloat(cs.outlineWidth) > 0 && cs.outlineStyle !== 'none' || cs.boxShadow !== 'none'); }));
+    await page.keyboard.press('Home'); await page.keyboard.press('End'); await page.waitForTimeout(100);
+    R.check(`AEV2[${tag}] keyboard: Home -> Български, End -> English (also ArrowLeft wraps)`, (await tabA(page, 'English').getAttribute('aria-selected')) === 'true' && await (async () => { await page.keyboard.press('Home'); const a = (await tabA(page, 'Български').getAttribute('aria-selected')) === 'true'; await page.keyboard.press('ArrowLeft'); return a && (await tabA(page, 'English').getAttribute('aria-selected')) === 'true'; })());
     await page.keyboard.press('Tab'); await page.waitForTimeout(80);
-    R.check(`AEV3[${tag}] Tab from the summary moves into the first English field (Заглавие на събитието на английски)`, (await page.evaluate(() => document.activeElement.getAttribute('aria-label'))) === 'Заглавие на събитието на английски', await page.evaluate(() => document.activeElement.outerHTML.slice(0, 120)));
-    await page.getByLabel('Заглавие на събитието на английски').fill(`Event ${uniq}`);
-    await page.getByLabel('Описание на събитието на английски').fill(`Description ${uniq}\nline two`);
-    // ---- preview toggle БГ|EN
+    R.check(`AEV3[${tag}] Tab from the English tab moves into the first English field ("Title (English)")`, await page.evaluate(() => { const a = document.activeElement; return !!a.labels && a.labels[0] && a.labels[0].textContent.startsWith('Title (English)'); }), await page.evaluate(() => document.activeElement.outerHTML.slice(0, 120)));
+    // ---- preview toggle БГ|EN (BG first)
+    await tabA(page, 'Български').click(); await page.waitForTimeout(250);
     const seg = page.locator('.a-previewcard .a-seg[aria-label="Език на прегледа"]');
     R.check(`AEV4[${tag}] event preview: БГ|EN toggle present, БГ pressed by default and shows the Bulgarian title`, (await seg.count()) === 1 && (await seg.getByRole('button', { name: 'Преглед на български' }).getAttribute('aria-pressed')) === 'true' && (await page.locator('.a-previewcard .event-title').textContent()) === `Събитие ${uniq}`);
-    await seg.getByRole('button', { name: 'Преглед на английски' }).click(); await page.waitForTimeout(250);
-    R.check(`AEV5[${tag}] event preview EN: English title + description shown, EN pressed`, (await page.locator('.a-previewcard .event-title').textContent()) === `Event ${uniq}` && (await page.locator('.a-previewcard .event-desc').textContent()).includes(`Description ${uniq}`) && (await seg.getByRole('button', { name: 'Преглед на английски' }).getAttribute('aria-pressed')) === 'true');
-    await page.getByLabel('Заглавие на събитието на английски').fill(''); await page.waitForTimeout(350);
+    await tabA(page, 'English').click();
+    await page.getByLabel('Title (English)').fill(`Event ${uniq}`);
+    await page.getByLabel('Description (English)').fill(`Description ${uniq}\nline two`); await page.waitForTimeout(300);
+    R.check(`AEV5[${tag}] event preview follows the English tab: English title + description shown, EN pressed`, (await page.locator('.a-previewcard .event-title').textContent()) === `Event ${uniq}` && (await page.locator('.a-previewcard .event-desc').textContent()).includes(`Description ${uniq}`) && (await seg.getByRole('button', { name: 'Преглед на английски' }).getAttribute('aria-pressed')) === 'true');
+    await page.getByLabel('Title (English)').fill(''); await page.waitForTimeout(350);
     R.check(`AEV6[${tag}] event preview EN with empty English title: falls back to the Bulgarian title; description stays English`, (await page.locator('.a-previewcard .event-title').textContent()) === `Събитие ${uniq}` && (await page.locator('.a-previewcard .event-desc').textContent()).includes(`Description ${uniq}`));
-    await page.getByLabel('Заглавие на събитието на английски').fill(`Event ${uniq}`); await page.waitForTimeout(300);
+    await page.getByLabel('Title (English)').fill(`Event ${uniq}`); await page.waitForTimeout(300);
     const pvT = await page.locator('.a-previewcard .event-card').textContent();
     R.check(`AEV6b[${tag}] event preview EN: UI strings of the card (tag, price/date formats) are English too (admin resolves lang=bg, preview reuses public renderer)`, !/Събитие\b/.test(pvT.replace(`Събитие ${uniq}`, '')) , pvT.replace(/\n/g, '|'));
     await page.screenshot({ path: path.join(shots, `i18n-admin-event-preview-en-${tag}.png`) });
@@ -367,29 +363,31 @@ for (const vp of ADM_VPS) {
     R.check(`AEV7[${tag}] event saved via UI: titleEn / descriptionEn (with line break) stored`, !!saved && saved.titleEn === `Event ${uniq}` && saved.descriptionEn === `Description ${uniq}\nline two`, JSON.stringify(saved && [saved.titleEn, saved.descriptionEn]));
     const pubEn = ((await anon.get('/api/public/events?lang=en')).data.events || []).find((e) => e.id === (saved && saved.id));
     R.check(`AEV8[${tag}] ... and public lang=en returns them (bg returns Bulgarian)`, pubEn && pubEn.title === `Event ${uniq}` && ((await anon.get('/api/public/events?lang=bg')).data.events.find((e) => e.id === saved.id).title === `Събитие ${uniq}`));
-    // ---- reopen: prefilled, group open
+    // ---- reopen: prefilled
     await page.locator('article', { hasText: `Събитие ${uniq}` }).getByRole('link', { name: 'Редактирай' }).click();
     await page.waitForSelector('h1:has-text("Редактиране на събитие")'); await page.waitForTimeout(300);
-    R.check(`AEV9[${tag}] edit form: English group open and prefilled (round trip)`, (await page.locator('details.a-en').first().evaluate((d) => d.open)) && (await page.getByLabel('Заглавие на събитието на английски').inputValue()) === `Event ${uniq}` && (await page.getByLabel('Описание на събитието на английски').inputValue()) === `Description ${uniq}\nline two`);
+    await tabA(page, 'English').click();
+    R.check(`AEV9[${tag}] edit form: English tab carries a dot and is prefilled (round trip)`, (await tabA(page, 'English').locator('.a-tabdot:visible').count()) === 1 && (await page.getByLabel('Title (English)').inputValue()) === `Event ${uniq}` && (await page.getByLabel('Description (English)').inputValue()) === `Description ${uniq}\nline two`);
     R.check(`AEV9b[${tag}] no unsaved-changes guard on an untouched form`, await (async () => { await goA(page, '#/events'); return (await page.locator('dialog[open]').count()) === 0 && (await page.locator('h1:has-text("Събития")').count()) === 1; })());
     // ---- unsaved guard on EN-only edit
     await page.locator('article', { hasText: `Събитие ${uniq}` }).getByRole('link', { name: 'Редактирай' }).click();
     await page.waitForSelector('h1:has-text("Редактиране на събитие")'); await page.waitForTimeout(300);
-    await page.getByLabel('Заглавие на събитието на английски').fill(`Event ${uniq} changed`);
+    await tabA(page, 'English').click();
+    await page.getByLabel('Title (English)').fill(`Event ${uniq} changed`);
     await goA(page, '#/events'); await page.waitForTimeout(250);
     const dlg = (await page.locator('dialog[open]').count()) ? await page.locator('dialog[open]').textContent() : '';
-    R.check(`AEV10[${tag}] English-only edit then navigate away => "Имате незапазени промени" guard opens`, dlg.includes('Имате незапазени промени'), dlg);
+    R.check(`AEV10[${tag}] English-only edit then navigate away => "Имате незапазени промени" guard opens`, dlg.toLowerCase().includes('имате незапазени промени'), dlg);
     if (dlg) { await page.getByRole('button', { name: 'Остани' }).click(); await page.waitForTimeout(200); }
-    R.check(`AEV11[${tag}] "Остани" keeps the form with the edited English value`, (await page.getByLabel('Заглавие на събитието на английски').inputValue()) === `Event ${uniq} changed`);
-    // ---- server 400 on En field with group collapsed
-    await page.evaluate(() => { document.querySelector('details.a-en').open = false; });
+    R.check(`AEV11[${tag}] "Остани" keeps the form with the edited English value`, (await page.getByLabel('Title (English)').inputValue()) === `Event ${uniq} changed`);
+    // ---- server 400 on En fields while the Bulgarian tab is showing
+    await tabA(page, 'Български').click();
     await page.route('**/api/admin/events/*', (r) => r.request().method() === 'PUT' ? r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'validation', message: 'Невалидни данни.', fields: { titleEn: 'СЪРВЪР-ГРЕШКА-ТИТЛА-EN', descriptionEn: 'СЪРВЪР-ГРЕШКА-ОПИС-EN' } }) }) : r.continue());
     await dismiss(page);
     await page.getByRole('button', { name: 'Запази', exact: true }).click(); await page.waitForTimeout(500);
     const mainTxt = await page.locator('main').textContent();
-    const inl = await page.locator('details.a-en .a-error:visible').allTextContents();
-    R.check(`AEV12[${tag}] server 400 on titleEn/descriptionEn: English group opens automatically, inline errors visible in the group and listed in the error summary`, (await page.locator('details.a-en').first().evaluate((d) => d.open)) && inl.join('|').includes('СЪРВЪР-ГРЕШКА-ТИТЛА-EN') && inl.join('|').includes('СЪРВЪР-ГРЕШКА-ОПИС-EN') && (await page.locator('[role=alert]:has-text("СЪРВЪР-ГРЕШКА-ТИТЛА-EN")').count()) >= 1, JSON.stringify({ inl, mainTxt: mainTxt.slice(0, 200) }));
-    R.check(`AEV13[${tag}] the invalid English input is marked aria-invalid`, (await page.getByLabel('Заглавие на събитието на английски').getAttribute('aria-invalid')) === 'true');
+    const inl = await page.locator('.a-langpanel[lang=en] .a-error:visible').allTextContents();
+    R.check(`AEV12[${tag}] server 400 on titleEn/descriptionEn: the English tab is selected automatically, inline errors visible in its panel and listed in the error summary`, (await tabA(page, 'English').getAttribute('aria-selected')) === 'true' && inl.join('|').includes('СЪРВЪР-ГРЕШКА-ТИТЛА-EN') && inl.join('|').includes('СЪРВЪР-ГРЕШКА-ОПИС-EN') && (await page.locator('[role=alert]:has-text("СЪРВЪР-ГРЕШКА-ТИТЛА-EN")').count()) >= 1, JSON.stringify({ inl, mainTxt: mainTxt.slice(0, 200) }));
+    R.check(`AEV13[${tag}] the invalid English input is marked aria-invalid`, (await page.getByLabel('Title (English)').getAttribute('aria-invalid')) === 'true');
     await page.screenshot({ path: path.join(shots, `i18n-admin-event-400-${tag}.png`), fullPage: true });
     await page.unroute('**/api/admin/events/*');
     await page.getByRole('button', { name: 'Запази', exact: true }).click(); await page.waitForSelector('h1:has-text("Събития")'); await page.waitForTimeout(300);
@@ -403,31 +401,29 @@ for (const vp of ADM_VPS) {
     await page.getByRole('button', { name: 'Добави ястие' }).click();
     await page.getByLabel('Име на ястието').first().fill(`Чорба ${uniq}`);
     await page.getByLabel('Цена').first().fill('4,5');
-    const catDet = page.locator('.a-cat details.a-en').first(); const dishDet = page.locator('.a-dish details.a-en').first();
-    R.check(`AMN0[${tag}] menu: English groups exist for the category and for the dish and are closed while empty`, (await catDet.count()) === 1 && (await dishDet.count()) === 1 && !(await catDet.evaluate((d) => d.open)) && !(await dishDet.evaluate((d) => d.open)));
-    await catDet.locator('summary').focus(); await page.keyboard.press('Enter');
-    await dishDet.locator('summary').focus(); await page.keyboard.press('Space'); await page.waitForTimeout(100);
-    R.check(`AMN1[${tag}] keyboard opens category and dish English groups`, (await catDet.evaluate((d) => d.open)) && (await dishDet.evaluate((d) => d.open)));
-    await page.getByLabel('Име на категорията на английски').fill(`Soups ${uniq}`);
-    await page.getByLabel(/^Име на английски:/).first().fill(`Soup ${uniq}`);
-    await page.getByLabel(/^Описание на английски:/).first().fill(`Hot soup ${uniq}`);
-    const nm = await page.getByLabel(/^Име на английски:/).first().getAttribute('aria-label');
-    R.check(`AMN2[${tag}] dish English inputs have unique accessible names that include the dish name ("${nm}")`, /Чорба/.test(nm || ''));
+    R.check(`AMN0[${tag}] menu: "Български"/"English" tabs (no per-item <details>); English fields are hidden while the BG tab shows`, (await tabA(page, 'English').count()) === 1 && (await page.locator('details.a-en').count()) === 0 && (await page.getByLabel('Dish name (English)').count()) === 0);
+    await tabA(page, 'Български').focus(); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150);
+    R.check(`AMN1[${tag}] keyboard (ArrowRight) switches the whole editor (category + dish) to English`, (await tabA(page, 'English').getAttribute('aria-selected')) === 'true' && (await page.getByLabel('Име на категория на английски').count()) === 1 && (await page.getByLabel('Dish name (English)').count()) === 1);
+    await page.getByLabel('Име на категория на английски').fill(`Soups ${uniq}`);
+    await page.getByLabel('Dish name (English)').first().fill(`Soup ${uniq}`);
+    await page.getByLabel('Description (English)').first().fill(`Hot soup ${uniq}`);
+    R.check(`AMN2[${tag}] English dish inputs have an accessible label ("Dish name (English)", "Description (English)")`, (await page.getByLabel('Dish name (English)').first().evaluate((i) => i.labels.length)) === 1 && (await page.getByLabel('Description (English)').first().evaluate((i) => i.labels.length)) === 1);
     await page.getByRole('button', { name: 'Запази чернова' }).click(); await page.waitForTimeout(700);
     let d = (await admin.get('/api/admin/menu')).data;
     R.check(`AMN3[${tag}] draft saved with nameEn (category), nameEn + descriptionEn (dish); public not changed yet`, d.draft.categories[0].nameEn === `Soups ${uniq}` && d.draft.categories[0].items[0].nameEn === `Soup ${uniq}` && d.draft.categories[0].items[0].descriptionEn === `Hot soup ${uniq}` && (await anon.get('/api/public/menu?lang=en')).data.structured.categories[0].name !== `Soups ${uniq}`, JSON.stringify(d.draft.categories));
     await page.getByRole('button', { name: 'Публикувай', exact: true }).first().click(); await page.waitForSelector('dialog[open]'); await page.locator('dialog[open]').getByRole('button', { name: 'Публикувай' }).click(); await page.waitForTimeout(700);
     const pm = (await anon.get('/api/public/menu?lang=en')).data.structured.categories[0];
     R.check(`AMN4[${tag}] publish => public lang=en shows the English category/dish/description`, pm.name === `Soups ${uniq}` && pm.items[0].name === `Soup ${uniq}` && pm.items[0].description === `Hot soup ${uniq}`);
-    // reload: round trip prefilled + open
+    // reload: round trip prefilled
     await page.reload({ waitUntil: 'networkidle' }); await page.waitForSelector('h1:has-text("Основно меню")'); await page.waitForTimeout(400);
-    R.check(`AMN5[${tag}] after reload English groups are open and prefilled`, (await page.locator('.a-cat details.a-en').first().evaluate((d) => d.open)) && (await page.getByLabel('Име на категорията на английски').inputValue()) === `Soups ${uniq}` && (await page.getByLabel(/^Име на английски:/).first().inputValue()) === `Soup ${uniq}`);
-    // En-only edit: dirty flag, "Публикувай" enabled semantic, guard
-    await page.getByLabel(/^Описание на английски:/).first().fill(`Hot soup ${uniq} v2`);
+    await tabA(page, 'English').click();
+    R.check(`AMN5[${tag}] after reload the English tab carries a dot and is prefilled`, (await tabA(page, 'English').locator('.a-tabdot:visible').count()) === 1 && (await page.getByLabel('Име на категория на английски').inputValue()) === `Soups ${uniq}` && (await page.getByLabel('Dish name (English)').first().inputValue()) === `Soup ${uniq}`);
+    // En-only edit: dirty flag, guard
+    await page.getByLabel('Description (English)').first().fill(`Hot soup ${uniq} v2`);
     R.check(`AMN6[${tag}] English-only edit shows "Незапазени промени" and enables "Запази чернова"`, (await page.getByText('Незапазени промени').first().isVisible()) && (await page.getByRole('button', { name: 'Запази чернова' }).isEnabled()));
     await goA(page, '#/settings'); await page.waitForTimeout(250);
     const dlg2 = (await page.locator('dialog[open]').count()) ? await page.locator('dialog[open]').textContent() : '';
-    R.check(`AMN7[${tag}] English-only dish edit then navigate => unsaved-changes guard`, dlg2.includes('Имате незапазени промени'), dlg2);
+    R.check(`AMN7[${tag}] English-only dish edit then navigate => unsaved-changes guard`, dlg2.toLowerCase().includes('имате незапазени промени'), dlg2);
     if (dlg2) await page.getByRole('button', { name: 'Остани' }).click();
     await page.waitForTimeout(200);
     // preview modal EN
@@ -441,50 +437,49 @@ for (const vp of ADM_VPS) {
     R.check(`AMN9[${tag}] menu preview modal BG: Bulgarian names again`, (await page.locator('dialog[open] .preview-frame').textContent()).includes(`Чорба ${uniq}`));
     await page.screenshot({ path: path.join(shots, `i18n-admin-menu-preview-${tag}.png`) });
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);
-    // server 400 on a dish En field (mocked response in the real server's shape), group collapsed
-    await page.evaluate(() => { document.querySelectorAll('details.a-en').forEach((x) => { x.open = false; }); });
+    // server 400 on category/dish English fields (mocked response in the real server's shape) while the BG tab is shown
+    await tabA(page, 'Български').click();
     await page.route('**/api/admin/menu/draft', (r) => r.request().method() === 'PUT' ? r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'validation', message: 'Невалидни данни.', fields: { 'categories[0].nameEn': 'СЪРВЪР-КАТ-EN', 'categories[0].items[0].descriptionEn': 'СЪРВЪР-ЯСТИЕ-EN' } }) }) : r.continue());
     await page.getByRole('button', { name: 'Запази чернова' }).click(); await page.waitForTimeout(700);
-    const mtxt = await page.locator('details.a-en .a-error:visible').allTextContents();
-    R.check(`AMN10[${tag}] menu server 400 on category/dish English fields: groups open, inline errors visible (${mtxt.length})`, (await page.locator('.a-cat details.a-en').first().evaluate((d) => d.open)) && (await page.locator('.a-dish details.a-en').first().evaluate((d) => d.open)) && mtxt.join('|').includes('СЪРВЪР-КАТ-EN') && mtxt.join('|').includes('СЪРВЪР-ЯСТИЕ-EN'), JSON.stringify(mtxt));
+    const mtxt = await page.locator('.a-cat .a-error:visible').allTextContents();
+    R.check(`AMN10[${tag}] menu server 400 on category/dish English fields: English tab selected, inline errors visible (${mtxt.length})`, (await tabA(page, 'English').getAttribute('aria-selected')) === 'true' && mtxt.join('|').includes('СЪРВЪР-КАТ-EN') && mtxt.join('|').includes('СЪРВЪР-ЯСТИЕ-EN'), JSON.stringify(mtxt));
     await page.unroute('**/api/admin/menu/draft');
     await page.getByRole('button', { name: 'Запази чернова' }).click(); await page.waitForTimeout(700);
     await dismiss(page);
 
     // ---- settings round trip
     await goA(page, '#/settings'); await page.waitForSelector('h1:has-text("Настройки")'); await page.waitForTimeout(300);
-    const sdet = page.locator('details.a-en').first();
-    R.check(`AST0[${tag}] settings: English group present for address + opening hours`, (await sdet.count()) === 1 && (await page.getByLabel('Адрес на английски').count()) === 1 && (await page.getByLabel('Работно време на английски').count()) === 1);
-    if (!(await sdet.evaluate((d) => d.open))) { await sdet.locator('summary').focus(); await page.keyboard.press('Enter'); }
-    await page.getByLabel('Адрес на английски').fill(`${uniq} Test Street 5`);
-    await page.getByLabel('Работно време на английски').fill('Mon-Sun 10:00-22:00\nKitchen closes at 21:30');
+    R.check(`AST0[${tag}] settings: English tab holds address + opening hours`, (await tabA(page, 'English').count()) === 1 && await (async () => { await tabA(page, 'English').click(); return (await page.getByLabel('Address (English)').isVisible()) && (await page.getByLabel('Opening hours (English)').isVisible()); })());
+    await page.getByLabel('Address (English)').fill(`${uniq} Test Street 5`);
+    await page.getByLabel('Opening hours (English)').fill('Mon-Sun 10:00-22:00\nKitchen closes at 21:30');
     await page.getByRole('button', { name: 'Запази', exact: true }).first().click(); await page.waitForTimeout(700);
     const st = (await admin.get('/api/admin/settings')).data;
     R.check(`AST1[${tag}] settings saved via UI: addressEn, openingHoursEn (multi-line)`, st.addressEn === `${uniq} Test Street 5` && st.openingHoursEn === 'Mon-Sun 10:00-22:00\nKitchen closes at 21:30', JSON.stringify(st));
     const ps = (await anon.get('/api/public/site?lang=en')).data;
     R.check(`AST2[${tag}] public site lang=en shows them; bg keeps Bulgarian address`, ps.address === `${uniq} Test Street 5` && ps.openingHours.startsWith('Mon-Sun') && (await anon.get('/api/public/site?lang=bg')).data.address !== `${uniq} Test Street 5`);
     await page.reload({ waitUntil: 'networkidle' }); await page.waitForSelector('h1:has-text("Настройки")'); await page.waitForTimeout(300);
-    R.check(`AST3[${tag}] reload: English group open, values prefilled`, (await page.locator('details.a-en').first().evaluate((d) => d.open)) && (await page.getByLabel('Адрес на английски').inputValue()) === `${uniq} Test Street 5`);
-    await page.getByLabel('Адрес на английски').fill(`${uniq} Test Street 6`);
+    await tabA(page, 'English').click();
+    R.check(`AST3[${tag}] reload: English tab carries a dot, values prefilled`, (await tabA(page, 'English').locator('.a-tabdot:visible').count()) === 1 && (await page.getByLabel('Address (English)').inputValue()) === `${uniq} Test Street 5`);
+    await page.getByLabel('Address (English)').fill(`${uniq} Test Street 6`);
     await goA(page, '#/menu'); await page.waitForTimeout(250);
     const dlg3 = (await page.locator('dialog[open]').count()) ? await page.locator('dialog[open]').textContent() : '';
-    R.check(`AST4[${tag}] English-only settings edit then navigate => unsaved-changes guard`, dlg3.includes('Имате незапазени промени'), dlg3);
+    R.check(`AST4[${tag}] English-only settings edit then navigate => unsaved-changes guard`, dlg3.toLowerCase().includes('имате незапазени промени'), dlg3);
     if (dlg3) await page.getByRole('button', { name: 'Остани' }).click();
     await page.waitForTimeout(150);
-    await page.evaluate(() => { document.querySelector('details.a-en').open = false; });
+    await tabA(page, 'Български').click();
     await page.route('**/api/admin/settings', (r) => r.request().method() === 'PUT' ? r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'validation', message: 'Невалидни данни.', fields: { addressEn: 'СЪРВЪР-АДРЕС-EN', openingHoursEn: 'СЪРВЪР-ЧАСОВЕ-EN' } }) }) : r.continue());
     await page.getByRole('button', { name: 'Запази', exact: true }).first().click(); await page.waitForTimeout(600);
-    const stx = await page.locator('details.a-en .a-error:visible').allTextContents();
-    R.check(`AST5[${tag}] settings server 400 on addressEn/openingHoursEn: English group opens, inline errors visible`, (await page.locator('details.a-en').first().evaluate((d) => d.open)) && stx.join('|').includes('СЪРВЪР-АДРЕС-EN') && stx.join('|').includes('СЪРВЪР-ЧАСОВЕ-EN'), JSON.stringify(stx));
+    const stx = await page.locator('.a-langpanel[lang=en] .a-error:visible').allTextContents();
+    R.check(`AST5[${tag}] settings server 400 on addressEn/openingHoursEn: English tab selected, inline errors visible`, (await tabA(page, 'English').getAttribute('aria-selected')) === 'true' && stx.join('|').includes('СЪРВЪР-АДРЕС-EN') && stx.join('|').includes('СЪРВЪР-ЧАСОВЕ-EN'), JSON.stringify(stx));
     await page.unroute('**/api/admin/settings');
     await page.getByRole('button', { name: 'Запази', exact: true }).first().click(); await page.waitForTimeout(600); await dismiss(page);
 
-    // ---- layout with English groups opened, admin stays Bulgarian
+    // ---- layout with the English tab selected, admin stays Bulgarian
     for (const h of ['#/events/new', '#/menu', '#/settings']) {
       await goA(page, h); await page.waitForTimeout(300);
-      await page.evaluate(() => document.querySelectorAll('details.a-en').forEach((x) => { x.open = true; }));
+      if (await tabA(page, 'English').count()) await tabA(page, 'English').click();
       const hs = await noHScroll(page);
-      R.check(`AL[${tag}] admin ${h} with all English groups open: no horizontal scroll`, hs.ok, JSON.stringify(hs));
+      R.check(`AL[${tag}] admin ${h} with the English tab selected: no horizontal scroll`, hs.ok, JSON.stringify(hs));
     }
     R.check(`AE-LOG[${tag}] admin English flows: no unexpected console/page errors or CSP violations (mocked 400s excluded)`, log.pageErrors.length === 0 && (await page.collectCsp()).length === 0 && log.console.filter((m) => !/status of (400|401)/.test(m)).length === 0 && log.failed.length === 0, await logEv(page, log));
     await context.close();

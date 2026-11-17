@@ -28,8 +28,9 @@ async function focusAudit(page, max = 40) {
       const cs2 = getComputedStyle(sw);
       const track = e.querySelector && e.querySelector('.a-switch__track'); const ts = track ? getComputedStyle(track) : null;
       const vis = (c) => (c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) > 0) || (c.boxShadow && c.boxShadow !== 'none');
-      const tag = `${e.tagName.toLowerCase()}${e.id ? '#' + e.id : ''}.${(e.className || '').toString().split(' ')[0]}|${(e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 25)}`;
       const rect = e.getBoundingClientRect();
+      // T-35: position is part of the identity (the daily-menu wizard now has two identical "Избери файл" buttons: BG and EN)
+      const tag = `${e.tagName.toLowerCase()}${e.id ? '#' + e.id : ''}.${(e.className || '').toString().split(' ')[0]}|${(e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 25)}@${Math.round(rect.x)},${Math.round(rect.y)}`;
       return { tag, visible: vis(cs) || vis(cs2) || (ts && vis(ts)), w: rect.width, h: rect.height };
     });
     if (!r) continue;

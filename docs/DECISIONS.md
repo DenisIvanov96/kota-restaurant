@@ -44,3 +44,4 @@
 | D-40 | 2026-11-17 | Regular menu: shared structure/prices, BG/EN tabs; whole-menu files per language | Owner wants separate BG/EN menus; shared prices avoid double maintenance (can switch to fully independent menus if owner prefers) | PM default, owner may revise |
 | D-41 | 2026-11-17 | Daily menu: optional EN file per date with fallback | Owner wants language-specific menus | PM default |
 | D-42 | 2026-11-17 | EN media follow the same public-visibility rules | Security | PM |
+| D-43 | 2026-11-17 | Settings address/hours follow the same bidirectional fallback (BG empty → EN shown) | Owner rule "display whatever is available"; resolves BUG-18 as intended behaviour | PM |

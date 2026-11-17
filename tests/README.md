@@ -24,6 +24,7 @@ node --disable-warning=ExperimentalWarning tests/e2e/reflow.mjs   # header reflo
 node --disable-warning=ExperimentalWarning tests/e2e/i18n.mjs     # public БГ/EN switch, admin English fields, rapid-toggle race (ports 3209, 3208)
 node --disable-warning=ExperimentalWarning tests/e2e/feedback1.mjs  # T-29 sticky top bar, /reservation, Location, Instagram, OG (ports 3204, 3206, 3207)
 node --disable-warning=ExperimentalWarning tests/e2e/admin-dates.mjs # T-29 BG date/time pickers under en-US, Instagram settings (port 3208)
+node --disable-warning=ExperimentalWarning tests/e2e/langs.mjs    # T-35 separate BG/EN content: owner scenario in the browser, admin tabs, error mapping, guard, XSS, 768 px (ports 3203, 3205)
 node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch polish: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link + injection (ports 3201-3203, ~4 min)
 ```
 
@@ -35,6 +36,8 @@ node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch 
 - `api/menu.test.mjs` - structured draft/publish/discard, file mode, mode switch, live-file protection, restart persistence.
 - `api/i18n.test.mjs` - `?lang` resolution/fallback, En-field leakage, admin En auth/CSRF/limits, migration 002 on a pre-i18n DB (port 3209).
 - `api/feedback1.test.mjs` - migration 003 matrix + 004 repair matrix, instagramUrl contract, /reservation route (port 3206).
+- `api/langs.test.mjs` - T-35 (port 3204): per-language event images, daily-menu files, menu files; bidirectional fallback; /media visibility of EN files (disabled/expired/not-today/in_use); imageEn/fileEn upload validation (fake types, oversize, unknown field, no orphans); auth/CSRF on changed routes; migration 005 on a 001..004 database.
+- `e2e/langs.mjs` - T-35, see Run.
 - `e2e/feedback1.mjs`, `e2e/admin-dates.mjs` - see Run.
 - `e2e/launch.mjs` - fonts self-hosted + zero third-party requests, CSP exact string, HTML/JSON 404, SITE_URL token replacement and validation, OG/Twitter meta, favicons, privacy page, footer link, map link and address injection.
 - `e2e/*.mjs` - see above.
