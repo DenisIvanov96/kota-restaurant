@@ -295,7 +295,7 @@ export function errorSummary() {
       const list = h('ul');
       for (const it of items) {
         const a = h('a', { href: `#${it.id}`, text: it.label ? `${it.label}: ${it.msg}` : it.msg });
-        a.addEventListener('click', (e) => { e.preventDefault(); const t = document.getElementById(it.id); if (t) t.focus(); });
+        a.addEventListener('click', (e) => { e.preventDefault(); if (it.focus) { it.focus(); return; } const t = document.getElementById(it.id); if (t) t.focus(); });
         list.append(h('li', null, a));
       }
       box.append(icon('alert'), h('div', { class: 'a-alert__body' }, h('strong', { text: lead || `Моля, поправете ${items.length} ${items.length === 1 ? 'поле' : 'полета'}:` }), list));

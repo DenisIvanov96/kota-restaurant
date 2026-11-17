@@ -50,6 +50,20 @@ export function parseTime(text) {
 function maskDate(raw, deleting) {
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
   if (iso) return `${iso[3]}.${iso[2]}.${iso[1]}`;
+  // typed separators: "5.6.2026" / "5." -> pad single-digit day / month ("05.06.2026"); otherwise chunk the digits
+  if (/\D/.test(raw)) {
+    const segs = raw.trim().split(/\D+/);
+    const trailing = segs.length > 1 && segs[segs.length - 1] === '';
+    if (trailing) segs.pop();
+    const ok = segs.length >= 2 && segs.length <= 3 && segs[0] && segs.every((x, i) => x.length <= (i < 2 ? 2 : 4)) && segs.slice(0, -1).every((x) => x);
+    if (ok) {
+      const out = segs.map((x, i) => (i < segs.length - 1 && x.length === 1 ? '0' + x : x));
+      let r = out.join('.');
+      const last = segs[segs.length - 1];
+      if (segs.length < 3 && (trailing || (last.length === 2 && !deleting))) r += '.';
+      return r;
+    }
+  }
   const d = raw.replace(/\D/g, '').slice(0, 8);
   let out = d.slice(0, 2);
   if (d.length > 2) out += '.' + d.slice(2, 4); else if (d.length === 2 && !deleting) out += '.';
@@ -207,18 +221,30 @@ function build({ label, required, helper, value, today, onInput, onBlur, clearab
     return { value: `${d.iso}T${t.time}` };
   };
   const baseSet = f.setError;
+  // One shared message element (id `${f.id}-e`); aria-describedby / aria-invalid point from whichever input the error is about.
+  const errRef = `${f.id}-e`;
+  const assoc = (msg, onTime) => {
+    if (!timeIn) return;
+    const strip = (el) => (el.getAttribute('aria-describedby') || '').split(' ').filter((x) => x && x !== errRef);
+    const dd = strip(dateIn), td = strip(timeIn);
+    if (msg) (onTime ? td : dd).unshift(errRef);
+    dateIn.setAttribute('aria-describedby', dd.join(' '));
+    timeIn.setAttribute('aria-describedby', td.join(' '));
+    if (msg && onTime) { dateIn.removeAttribute('aria-invalid'); dateIn.classList.remove('is-invalid'); timeIn.setAttribute('aria-invalid', 'true'); timeIn.classList.add('is-invalid'); }
+    else { timeIn.removeAttribute('aria-invalid'); timeIn.classList.remove('is-invalid'); }
+  };
   function validate() {
     const s = state();
-    if (s.error) { fmtErr = true; baseSet(s.error); if (s.focus === timeIn) timeIn.setAttribute('aria-invalid', 'true'); return s.error; }
-    fmtErr = false; baseSet(''); if (timeIn) timeIn.removeAttribute('aria-invalid');
+    if (s.error) { fmtErr = true; baseSet(s.error); assoc(s.error, s.focus === timeIn); return s.error; }
+    fmtErr = false; baseSet(''); assoc('', false);
     return '';
   }
   Object.defineProperty(f, 'value', {
     get() { return state().value || ''; },
-    set(v) { set(v); fmtErr = false; baseSet(''); },
+    set(v) { set(v); fmtErr = false; baseSet(''); assoc('', false); },
     configurable: true,
   });
-  f.setError = (msg) => { fmtErr = false; baseSet(msg); if (timeIn) { if (msg) timeIn.setAttribute('aria-invalid', 'true'); else timeIn.removeAttribute('aria-invalid'); } };
+  f.setError = (msg) => { fmtErr = false; baseSet(msg); assoc(msg, false); };
   Object.defineProperty(f, 'hasFormatError', { get: () => fmtErr });
   f.validate = validate;
   f.timeInput = timeIn;

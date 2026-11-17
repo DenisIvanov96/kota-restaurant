@@ -240,8 +240,8 @@ export function eventFormView(ctx) {
       if (titleEn.value.trim().length > 120) { titleEn.setError('Заглавието е твърде дълго (макс. 120 знака).'); errs.push({ id: titleEn.id, label: 'Заглавие (английски)', msg: titleEn.error }); enBox.open = true; } else titleEn.setError('');
       if (descEn.value.length > 2000) { descEn.setError('Описанието е твърде дълго (макс. 2000 знака).'); errs.push({ id: descEn.id, label: 'Описание (английски)', msg: descEn.error }); enBox.open = true; } else descEn.setError('');
       if (!vDesc()) errs.push({ id: desc.id, label: 'Описание', msg: desc.error });
-      for (const [f, l] of [[eventAt, 'Дата на събитието'], [startsAt, 'Показвай от'], [expiresAt, 'Скрий след']]) { const m = f.validate(); if (m) errs.push({ id: f.id, label: l, msg: m }); }
-      if (!errs.some((x) => x.id === expiresAt.id) && !checkRange()) errs.push({ id: expiresAt.id, label: 'Скрий след', msg: expiresAt.error });
+      for (const [f, l] of [[eventAt, 'Дата на събитието'], [startsAt, 'Показвай от'], [expiresAt, 'Скрий след']]) { const m = f.validate(); if (m) errs.push({ id: f.id, label: l, msg: m, focus: () => f.focusInvalid() }); }
+      if (!errs.some((x) => x.id === expiresAt.id) && !checkRange()) errs.push({ id: expiresAt.id, label: 'Скрий след', msg: expiresAt.error, focus: () => expiresAt.focusInvalid() });
       if (errs.length) { summary.show(errs); return; }
       summary.hide();
       const fd = new FormData();
