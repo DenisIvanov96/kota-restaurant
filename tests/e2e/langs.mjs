@@ -326,6 +326,7 @@ await step('D-ERR-EVENT', async () => {
   const visible = await admin.locator('.a-upload__err:visible').allInnerTexts();
   R.check('ERR-1 server 415 for a fake imageEn: the error is VISIBLE to the user (EN tab still shown, message next to the EN uploader)', (await tab(admin, 'English').getAttribute('aria-selected')) === 'true' && visible.some((t) => /JPG, PNG|съдържание|изображения/.test(t)), JSON.stringify(visible));
   R.check('ERR-1b the error is attached to the English uploader, not to the Bulgarian one', await admin.evaluate(() => { const en = document.querySelector('.a-langpanel[lang=en] .a-upload__err'); const bg = document.querySelector('.a-langpanel[lang=bg] .a-upload__err'); return !!en && !en.hidden && (!bg || bg.hidden); }), JSON.stringify(await admin.evaluate(() => ({ bgPanelErr: (document.querySelector('.a-langpanel[lang=bg] .a-upload__err') || {}).innerText, bgPanelHidden: document.querySelector('.a-langpanel[lang=bg]').hidden, enErrHidden: document.querySelector('.a-langpanel[lang=en] .a-upload__err').hidden, summary: (document.querySelector('.a-errsum') || {}).innerText }))));
+  R.check('ERR-1d the error summary is shown and names the English image', await admin.evaluate(() => { const b = document.querySelector('.a-summary'); return !!b && !b.hidden && /Снимка \(English\)/.test(b.innerText); }), JSON.stringify(await admin.evaluate(() => (document.querySelector('.a-summary') || {}).innerText)));
   R.check('ERR-1c no event created, no orphan', (await api.get('/api/admin/events')).data.events.every((e) => e.titleEn !== 'Fake image'));
   await admin.screenshot({ path: path.join(shots, 'langs-err-imageEn.png') });
   await go(admin, '#/events'); await leaveIfAsked(admin);
@@ -351,10 +352,47 @@ await step('D-ERR-DAILY', async () => {
   await d.locator('input[type=file]').nth(1).setInputFiles(file('fake2.png', 'image/png', FAKE));
   await d.getByRole('button', { name: 'Запази' }).click(); await admin.waitForTimeout(1000);
   const where = await admin.evaluate(() => { const dlg = document.querySelector('dialog[open]'); if (!dlg) return 'DIALOG CLOSED'; const boxes = [...dlg.querySelectorAll('.a-upload')].map((u) => { const e = u.querySelector('.a-upload__err'); return e && !e.hidden ? e.innerText : null; }); return boxes; });
-  R.check('ERR-3 edit dialog: server rejection of a fake fileEn keeps the dialog open and shows the error under the ENGLISH uploader (second), not the Bulgarian one', Array.isArray(where) && where.length === 2 && where[0] === null && !!where[1], JSON.stringify(where) + ' toasts=' + JSON.stringify(await admin.locator('.a-toasts').innerText()));
+  R.check('ERR-3 edit dialog: server rejection of a fake fileEn keeps the dialog open and shows the error under the ENGLISH uploader (second), not the Bulgarian one', Array.isArray(where) && where.length === 2 && where[0] === null && !!where[1], JSON.stringify(where) + ' toasts=' + JSON.stringify(await admin.locator('.a-toasts').allInnerTexts()));
   await d.getByRole('button', { name: 'Отказ' }).click().catch(() => {});
   await admin.keyboard.press('Escape');
   R.check('ERR-3b the menu is unchanged', (await api.get('/api/admin/daily-menus')).data.menus[0].originalNameEn === 'en4.png');
+});
+
+// BUG-16/17 retest: 413 mapping with the real server shapes (files.js:81 carries fields.<name>; http.js:42 generic body has none), responses injected
+await step('D-413', async () => {
+  const body413 = (fields) => JSON.stringify({ error: 'file_too_large', message: 'Файлът е твърде голям (макс. 5 MB).', ...(fields ? { fields } : {}) });
+  // event form, fields.imageEn -> English uploader + English tab + summary
+  await go(admin, '#/events/new'); await admin.waitForSelector('h1:has-text("Ново събитие")');
+  await admin.getByLabel('Заглавие', { exact: true }).fill('413 test');
+  await admin.route('**/api/admin/events', (route) => route.request().method() === 'POST' ? route.fulfill({ status: 413, contentType: 'application/json', body: body413({ imageEn: 'Файлът е твърде голям.' }) }) : route.continue());
+  await dismissToasts(admin);
+  await admin.getByRole('button', { name: 'Запази', exact: true }).click(); await admin.waitForTimeout(700);
+  const e1 = await admin.evaluate(() => { const en = document.querySelector('.a-langpanel[lang=en] .a-upload__err'); const bg = document.querySelector('.a-langpanel[lang=bg] .a-upload__err'); return { en: en && !en.hidden ? en.innerText : null, bg: bg && !bg.hidden ? bg.innerText : null, sum: (document.querySelector('.a-summary:not([hidden])') || {}).innerText || '' }; });
+  R.check('ERR-413a event form 413 with fields.imageEn (mocked): English tab selected, message at the English uploader (not the Bulgarian one), summary shown', (await tab(admin, 'English').getAttribute('aria-selected')) === 'true' && !!e1.en && e1.bg === null && /Файлът е твърде голям/.test(e1.sum), JSON.stringify(e1));
+  await admin.unroute('**/api/admin/events');
+  // event form, generic 413 without fields -> Bulgarian uploader + Bulgarian tab + summary
+  await tab(admin, 'English').click();
+  await admin.route('**/api/admin/events', (route) => route.request().method() === 'POST' ? route.fulfill({ status: 413, contentType: 'application/json', body: body413(null) }) : route.continue());
+  await dismissToasts(admin);
+  await admin.getByRole('button', { name: 'Запази', exact: true }).click(); await admin.waitForTimeout(700);
+  const e2 = await admin.evaluate(() => { const bg = document.querySelector('.a-langpanel[lang=bg] .a-upload__err'); return { bgTabHidden: document.querySelector('.a-langpanel[lang=bg]').hidden, bg: bg && !bg.hidden ? bg.innerText : null, sum: (document.querySelector('.a-summary:not([hidden])') || {}).innerText || '' }; });
+  R.check('ERR-413b event form generic 413 without fields (mocked): error visible (Bulgarian tab shown, uploader message + summary)', e2.bgTabHidden === false && !!e2.bg && /твърде голям/.test(e2.sum), JSON.stringify(e2));
+  await admin.unroute('**/api/admin/events');
+  await go(admin, '#/events'); await leaveIfAsked(admin);
+  // daily edit dialog
+  await go(admin, '#/daily-menu'); await admin.waitForSelector('article.a-menu');
+  for (const [id, status, fields, idx] of [['ERR-413c', 413, { fileEn: 'Файлът е твърде голям.' }, 1], ['ERR-413d', 413, null, 0], ['ERR-400e', 400, { fileEn: 'Невалидно качване на файл.' }, 1], ['ERR-415f', 415, { file: 'Позволени са само PDF, JPG, PNG и WebP файлове.' }, 0]]) {
+    await admin.getByRole('button', { name: 'Редактирай' }).first().click(); await admin.waitForSelector('dialog[open]');
+    const d = admin.locator('dialog[open]');
+    await d.locator('input[type=file]').nth(1).setInputFiles(file('big-en.png', 'image/png', BLUE));
+    await admin.route('**/api/admin/daily-menus/*', (route) => route.request().method() === 'PUT' ? route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ error: 'x', message: 'Файлът е твърде голям (макс. 5 MB).', ...(fields ? { fields } : {}) }) }) : route.continue());
+    await d.getByRole('button', { name: 'Запази' }).click(); await admin.waitForTimeout(900);
+    const w = await admin.evaluate(() => { const dlg = document.querySelector('dialog[open]'); if (!dlg) return 'DIALOG CLOSED'; return [...dlg.querySelectorAll('.a-upload')].map((u) => { const e = u.querySelector('.a-upload__err'); return e && !e.hidden ? e.innerText : null; }); });
+    R.check(`${id} daily edit dialog ${status}${fields ? ' with fields.' + Object.keys(fields)[0] : ' without fields'} (mocked): dialog stays open, error under uploader #${idx + 1} only, no unhandled error`, Array.isArray(w) && w.length === 2 && !!w[idx] && w[1 - idx] === null, JSON.stringify(w));
+    await admin.unroute('**/api/admin/daily-menus/*');
+    await d.getByRole('button', { name: 'Отказ' }).click().catch(() => {}); await admin.keyboard.press('Escape'); await admin.waitForTimeout(300);
+  }
+  R.check('ERR-413g no menu changed by the mocked rejections', (await api.get('/api/admin/daily-menus')).data.menus[0].originalNameEn === 'en4.png');
 });
 
 // server 400 field mapping (real server shape, response injected because the client validates the same rules first)
@@ -530,7 +568,7 @@ await step('F-FILES', async () => {
 });
 
 await step('A-LOG', async () => {
-  const bad = alog.console.filter((m) => !/status of (401|400|415|409)/.test(m));
+  const bad = alog.console.filter((m) => !/status of (401|400|413|415|409)/.test(m));
   R.check('LOG-A admin session: no page errors / unexpected console errors / CSP violations during the whole scenario', alog.pageErrors.length === 0 && bad.length === 0 && (await admin.collectCsp()).length === 0, JSON.stringify({ p: alog.pageErrors, c: bad }));
 });
 await actx.close();

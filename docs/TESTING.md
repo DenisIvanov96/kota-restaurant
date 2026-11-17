@@ -10,24 +10,36 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 | api i18n (T-17) | fc935f8 | 13/13 (I13 expects 001..005) |
 | api feedback1 | fc935f8 | 20/20 (F1 and N1-N5 expect 001..005) |
 | api langs (T-35, new: per-language event images / daily files / menu files, fallback, /media visibility, upload validation, auth/CSRF, migration 005) | fc935f8 | 28/28 |
-| e2e public | fc935f8 | 88/89 - FAIL U5 (BUG-18, see T-35) |
+| e2e public | 39ca70d | 89/89 (U5 now accepts the EN default address on the BG site, D-43; BUG-18 closed by design) |
 | e2e a11y | fc935f8 | 48/48 (focus audit now identifies stops by position: two identical "Избери файл" buttons) |
-| e2e admin | fc935f8 | 117/117 (EV1 new error text/no star, M uses the BG file section) |
+| e2e admin | 39ca70d | 117/117 |
 | e2e design | fc935f8 | 22/22 |
 | e2e i18n (T-17) | fc935f8 | 240/240 (admin English blocks AE/AMN/AST rewritten for the language tabs) |
 | e2e reflow (T-20) | fc935f8 | 88/88 |
 | e2e launch (T-25) | fc935f8 | 916/916 |
 | e2e feedback1 (T-29) | fc935f8 | 775/775 |
 | e2e admin-dates (T-29/T-32) | fc935f8 | 100/100 |
-| e2e langs (T-35, new: owner scenario, admin tabs, error mapping, guard, XSS, 768 px) | fc935f8 | 172/177 - FAIL ED4a, ERR-1, ERR-1b, ERR-3, LOG-A (BUG-16, BUG-17) |
+| e2e langs (T-35/T-37: owner scenario, admin tabs, error mapping incl. new ERR-1d and D-413 mocked 413/400/415 checks, guard, XSS, 768 px) | 39ca70d | 185/185 |
 | width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run) |
 
-All suites run sequentially at fc935f8 (T-35 full tier: server migration 005, multipart, /media and admin changed). Earlier per-suite commits are superseded.
+Suites with commit 39ca70d were re-run in T-37 (only `public/admin/js/daily.js` and `events.js` changed since `01e69f6`; server and api suites are unchanged since fc935f8, other e2e suites are unaffected by those two files and were NOT re-run). All other suites ran sequentially at fc935f8 (T-35 full tier: server migration 005, multipart, /media and admin changed). Earlier per-suite commits are superseded.
 
 Historical note: server code was identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## Retest BUG-16 / BUG-17 / BUG-18 (T-37) - 2026-11-17, `39ca70d` (targeted)
+
+Verdict: **PASS**. BUG-16 and BUG-17 fixed; BUG-18 closed as "by design (D-43)". `git diff 01e69f6..HEAD` touches only `public/admin/js/daily.js` and `events.js`.
+
+- BUG-16 **fixed**: ED4a (toast "Менюто е обновено.", list shows the new files), ERR-3 (dialog stays open, error under the English uploader, no toast), LOG-A (no page errors) all PASS. Added D-413 mocked checks with the real server shapes (files.js:81 `fields.<name>`; http.js:42 generic body without fields): daily edit dialog 413 + `fields.fileEn` (uploader 2), 413 without fields (uploader 1), 400 + `fields.fileEn` (uploader 2), 415 + `fields.file` (uploader 1): all PASS, dialog stays open each time.
+- BUG-17 **fixed**: ERR-1 / ERR-1b PASS (error at the English uploader, English tab kept); new ERR-1d: summary "Снимка (English): ..." shown; ERR-413a (event 413 + `fields.imageEn`: English tab, English uploader, summary) and ERR-413b (generic 413: Bulgarian tab, uploader + summary) PASS; ERR-2 wizard still PASS.
+- BUG-18 **closed, by design (D-43)**: public U5 changed to accept "85 Ralevitsa St, Sofia" (EN default) as well as the BG default; 89/89.
+- Test fix (QA-owned): `tests/e2e/langs.mjs` ERR-3 diagnostic used `.a-toasts`.innerText(). Developer's claim **verified**: the toast host is created lazily (`ui.js` `host()`), so with no toast the locator does not exist and `innerText()` times out after 30 s (the correct outcome). Old test against the fixed product: `FAIL D-ERR-DAILY (locator.innerText: Timeout 30000ms)`, cascading to D-MAP (leftover dialog), E-GUARD, F-FILES, 140/144. Fixed with `allInnerTexts()`; ERR-3 assertion (dialog open, 2 uploaders, BG null, EN message) unchanged. LOG-A now also tolerates status 413 console lines (the intended, mocked responses).
+- Runs: `node tests/e2e/langs.mjs` 185/185; `public.mjs` 89/89; `admin.mjs` 117/117 (admin XSS checks XSS[admin ...] and XSS-AL, plus langs G-XSS, all PASS).
+- NOT RUN: api/server suites (unchanged since fc935f8 PASS); a11y, design, i18n, reflow, launch, feedback1, admin-dates (their covered code is unchanged; i18n admin tests touch events/daily error paths only via the wizard, not the edited lines).
+- Residual (observation, not a defect): in the daily edit dialog an error shown at one uploader is not cleared when a later rejection puts the error on the other uploader without a file change (found while chaining mocked cases; each case now reopens the dialog). Real flow: the user changes the file, which clears it.
 
 ## Owner feedback round 2 - separate BG / EN content + release regression (T-35) - 2026-11-17, `fc935f8` (full tier)
 
@@ -43,8 +55,8 @@ Verdict: **FAIL** - BUG-16 (major), BUG-17 (major), BUG-18 (minor, needs a PM de
 | a11y A6 | focus-audit identity = tag + label | + position (two identical "Избери файл" buttons in the daily-menu wizard made the audit stop after one stop) |
 
 ### Defects
-- **BUG-16 | major | frontend-developer** | Daily menu list -> "Редактирай" -> choose any file or just change the date -> "Запази" | dialog closes with the success toast "Менюто е обновено." and the list refreshes | the toast reads **"abort is not defined"**, the list is NOT refreshed (still "Няма EN файл" although the server saved it), the dialog closes, an unhandled `ApiError` is thrown for later server rejections, and the in-dialog 400/413/415 mapping can never run | cause: `public/admin/js/daily.js` `editDialog` assigns `abort = up.abort` but the `let abort = null;` of 96d8c9b was dropped in T-34 (strict-mode ReferenceError after the request has been sent). Evidence: `tests/e2e/langs.mjs` ED4a (`toastTxt: "Менюто е качено и публикувано.\nabort is not defined"`, row still "Няма EN файл"), ERR-3 (`DIALOG CLOSED`), LOG-A (`ApiError` page error); log `qa10/langs4.log`.
-- **BUG-17 | major | frontend-developer** | Event form -> English tab -> choose a file named `x.png` that is not really an image -> "Запази" | the error "Позволени са само JPG, PNG и WebP изображения." appears at the English uploader (and the same for 413) | nothing is visible: the message is written to the **Bulgarian** uploader, which is hidden while the English tab is shown; no summary, no tab switch | cause: `events.js` `handleError` and `daily.js` edit dialog use `err.field`, which `ApiError` never sets (the server puts the field in `fields.imageEn` / `fields.fileEn`); the wizard (uses `e.fields`) is correct. Evidence: langs.mjs ERR-1/ERR-1b `{"bgPanelErr":"Позволени са само JPG, PNG и WebP изображения.","bgPanelHidden":true,"enErrHidden":true}`, screenshot `qa10/shots/langs-err-imageEn.png`. Same wrong-uploader mapping exists in the daily edit dialog (`e.field === 'fileEn'`), currently masked by BUG-16.
+- **[FIXED T-37, verified at 39ca70d] BUG-16 | major | frontend-developer** | Daily menu list -> "Редактирай" -> choose any file or just change the date -> "Запази" | dialog closes with the success toast "Менюто е обновено." and the list refreshes | the toast reads **"abort is not defined"**, the list is NOT refreshed (still "Няма EN файл" although the server saved it), the dialog closes, an unhandled `ApiError` is thrown for later server rejections, and the in-dialog 400/413/415 mapping can never run | cause: `public/admin/js/daily.js` `editDialog` assigns `abort = up.abort` but the `let abort = null;` of 96d8c9b was dropped in T-34 (strict-mode ReferenceError after the request has been sent). Evidence: `tests/e2e/langs.mjs` ED4a (`toastTxt: "Менюто е качено и публикувано.\nabort is not defined"`, row still "Няма EN файл"), ERR-3 (`DIALOG CLOSED`), LOG-A (`ApiError` page error); log `qa10/langs4.log`.
+- **[FIXED T-37, verified at 39ca70d] BUG-17 | major | frontend-developer** | Event form -> English tab -> choose a file named `x.png` that is not really an image -> "Запази" | the error "Позволени са само JPG, PNG и WebP изображения." appears at the English uploader (and the same for 413) | nothing is visible: the message is written to the **Bulgarian** uploader, which is hidden while the English tab is shown; no summary, no tab switch | cause: `events.js` `handleError` and `daily.js` edit dialog use `err.field`, which `ApiError` never sets (the server puts the field in `fields.imageEn` / `fields.fileEn`); the wizard (uses `e.fields`) is correct. Evidence: langs.mjs ERR-1/ERR-1b `{"bgPanelErr":"Позволени са само JPG, PNG и WebP изображения.","bgPanelHidden":true,"enErrHidden":true}`, screenshot `qa10/shots/langs-err-imageEn.png`. Same wrong-uploader mapping exists in the daily edit dialog (`e.field === 'fileEn'`), currently masked by BUG-16.
 - **BUG-18 | minor | PM decision, then backend-developer or test owner** | Settings: clear the BG address (default setup keeps the seeded English default in the English field) -> open the BG site | BG site shows an address in Bulgarian (D-37: empty -> default "ул. Ралевица 85, София") | BG visitors now see the English text "85 Ralevitsa St, Sofia", because `publicSiteSettings` uses the new bidirectional `pick` for address/opening hours. Arguably consistent with D-39 and with the admin hint "не е попълнено - ще се покаже другият език", but it changes D-37 behaviour and the spec does not say so. Evidence: `tests/e2e/public.mjs` U5 `loc: "ЛОКАЦИЯ\nАДРЕС\n85 Ralevitsa St, Sofia ..."`. U5 was NOT weakened; if the PM accepts the new behaviour, change U5 to accept the EN default.
 
 ### Observations (not defects)
