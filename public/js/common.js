@@ -96,7 +96,35 @@ export function initYear() {
 }
 
 /** After late DOM changes, bring the hash target back into view (layout shift safety). */
+/** Lets the last in-page anchor targets (#location, #contact) scroll all the way to the sticky-bar offset
+ *  even when the content below them is shorter than the viewport (BUG-19): adds bottom padding to <main> as needed. */
+export function ensureScrollRoom() {
+  const main = document.getElementById('main');
+  if (!main) return;
+  const cur = parseFloat(main.style.paddingBottom) || 0; // measured without resetting it (a reset would clamp the scroll position)
+  const offset = (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0);
+  const doc = document.documentElement;
+  let need = 0;
+  for (const id of ['location', 'contact']) {
+    const t = document.getElementById(id);
+    if (!t) continue;
+    const top = t.getBoundingClientRect().top + window.scrollY;
+    need = Math.max(need, top - offset + window.innerHeight - (doc.scrollHeight - cur));
+  }
+  const next = need > 0 ? Math.ceil(need) : 0;
+  if (next !== cur) main.style.paddingBottom = next ? next + 'px' : '';
+}
+window.addEventListener('resize', () => ensureScrollRoom());
+window.addEventListener('load', () => ensureScrollRoom());
+// Content above the anchors changes after load (menu, events, images): keep the room in sync.
+if (typeof ResizeObserver === 'function') {
+  let raf = 0;
+  const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(ensureScrollRoom); });
+  addEventListener('DOMContentLoaded', () => { document.querySelectorAll('main > section').forEach((n) => ro.observe(n)); });
+}
+
 export function realignHash() {
+  ensureScrollRoom();
   if (!location.hash || location.hash.length < 2) return;
   try {
     const t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
