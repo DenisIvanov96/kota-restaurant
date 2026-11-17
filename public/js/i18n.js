@@ -64,6 +64,36 @@ export const STRINGS = {
     'meta.index': 'Kota1 Restaurant — прясна храна и топло посрещане. Обедно меню, основно меню и събития.',
     'title.daily': 'Обедно меню — Kota1 Restaurant',
     'meta.daily': 'Обедното меню на Kota1 Restaurant за днес.',
+    'footer.privacy': 'Поверителност',
+    'map.link': 'Виж на картата',
+    'map.newtab': '(отваря се в нов раздел)',
+    'title.privacy': 'Поверителност — Kota1 Restaurant',
+    'meta.privacy': 'Как Kota1 Restaurant обработва лични данни: какво се записва, колко време се пази и какви са правата ви.',
+    'title.notfound': 'Страницата не е намерена — Kota1 Restaurant',
+    'meta.notfound': 'Страницата, която търсите, не съществува.',
+    'nf.h1': 'Страницата не е намерена',
+    'nf.text': 'Адресът може да е грешен или страницата да е преместена. Върнете се на началната страница или вижте обедното меню.',
+    'nf.home': 'Към началото',
+    'nf.daily': 'Обедно меню',
+    'privacy.h1': 'Поверителност',
+    'privacy.updated': 'Последна актуализация: 17.11.2026',
+    'privacy.intro': 'Тук обясняваме накратко какви данни събира този сайт и как се използват.',
+    'privacy.who.h': 'Кой отговаря за данните',
+    'privacy.who.p': 'Администратор на данните: [Юридическо лице / Legal entity, ЕИК, адрес — да се попълни от собственика].',
+    'privacy.data.h': 'Какви данни обработваме',
+    'privacy.data.logs': 'Сървърни логове: IP адрес, дата и час, поискана страница и браузър. Пазят се [N] дни за сигурност и нормална работа на сайта (законен интерес).',
+    'privacy.data.cookies': 'Посетителите не получават бисквитки. Не използваме анализ на посещенията и външни тракери.',
+    'privacy.data.storage': 'Локалната памет на браузъра (local storage) запомня само избрания от вас език.',
+    'privacy.data.admin': 'Входът в админ панела (само за персонала) използва строго необходима сесийна бисквитка.',
+    'privacy.third.h': 'Външни услуги',
+    'privacy.third.fonts': 'Шрифтовете и всички останали ресурси се зареждат от нашия собствен сървър, не от трети страни.',
+    'privacy.third.map': 'Връзката „Виж на картата“ отваря Google Maps само когато я натиснете; тогава се прилага политиката за поверителност на Google.',
+    'privacy.third.host': 'Сайтът се хоства от [Хостинг доставчик], който обработва данните от наше име (обработващ данните).',
+    'privacy.rights.h': 'Вашите права',
+    'privacy.rights.p': 'Според Регламент (ЕС) 2016/679 (GDPR) имате право на достъп, коригиране, изтриване, ограничаване на обработването и възражение. Можете да подадете жалба до Комисията за защита на личните данни (www.cpdp.bg).',
+    'privacy.contact.h': 'Контакт',
+    'privacy.contact.p': 'За въпроси относно личните данни се свържете с нас:',
+    'privacy.contact.none': '[Телефон и адрес на ресторанта — да се попълнят от собственика]',
   },
   en: {
     'skip': 'Skip to content',
@@ -128,6 +158,36 @@ export const STRINGS = {
     'meta.index': 'Kota1 Restaurant — fresh food and a warm welcome. Daily special, regular menu and events.',
     'title.daily': 'Daily Special — Kota1 Restaurant',
     'meta.daily': "Today's daily menu at Kota1 Restaurant.",
+    'footer.privacy': 'Privacy',
+    'map.link': 'View on map',
+    'map.newtab': '(opens in a new tab)',
+    'title.privacy': 'Privacy — Kota1 Restaurant',
+    'meta.privacy': 'How Kota1 Restaurant handles personal data: what is recorded, how long it is kept and what your rights are.',
+    'title.notfound': 'Page not found — Kota1 Restaurant',
+    'meta.notfound': 'The page you are looking for does not exist.',
+    'nf.h1': 'Page not found',
+    'nf.text': 'The address may be mistyped or the page may have moved. Go back to the home page or see the daily menu.',
+    'nf.home': 'Back to home',
+    'nf.daily': 'Daily Special',
+    'privacy.h1': 'Privacy',
+    'privacy.updated': 'Last updated: 17 November 2026',
+    'privacy.intro': 'This page briefly explains what data this website collects and how it is used.',
+    'privacy.who.h': 'Who is responsible',
+    'privacy.who.p': 'Data controller: [Юридическо лице / Legal entity, ЕИК / company ID, address — to be filled in by the owner].',
+    'privacy.data.h': 'What data we process',
+    'privacy.data.logs': 'Server logs: IP address, date and time, requested page and browser. They are kept for [N] days for security and to operate the site (legitimate interest).',
+    'privacy.data.cookies': 'Visitors do not receive cookies. We use no analytics and no third-party trackers.',
+    'privacy.data.storage': "The browser's local storage only remembers the language you chose.",
+    'privacy.data.admin': 'Logging in to the admin panel (staff only) uses a strictly necessary session cookie.',
+    'privacy.third.h': 'Third parties',
+    'privacy.third.fonts': 'Fonts and all other resources are served from our own server, not from third parties.',
+    'privacy.third.map': 'The "View on map" link opens Google Maps only when you click it; Google\'s privacy policy then applies.',
+    'privacy.third.host': 'The site is hosted by [Hosting provider], which processes data on our behalf (processor).',
+    'privacy.rights.h': 'Your rights',
+    'privacy.rights.p': 'Under Regulation (EU) 2016/679 (GDPR) you have the right of access, rectification, erasure, restriction of processing and objection. You may lodge a complaint with the Commission for Personal Data Protection (Комисия за защита на личните данни, www.cpdp.bg).',
+    'privacy.contact.h': 'Contact',
+    'privacy.contact.p': 'For questions about personal data, contact us:',
+    'privacy.contact.none': '[Restaurant phone and address — to be filled in by the owner]',
   },
 };
 
@@ -181,7 +241,7 @@ export function onLangChange(fn) { listeners.push(fn); }
 /** Internal page links keep the language: '/#menu' -> '/?lang=en#menu'. Other URLs are returned unchanged. */
 export function langHref(href) {
   if (getLang() !== 'en') return href;
-  if (!(href === '/' || href.startsWith('/#') || href === '/daily-menu' || href.startsWith('/daily-menu#') || href.startsWith('/daily-menu?'))) return href;
+  if (!(href === '/' || href.startsWith('/#') || href === '/daily-menu' || href === '/privacy' || href.startsWith('/daily-menu#') || href.startsWith('/daily-menu?'))) return href;
   const hashAt = href.indexOf('#');
   const path = hashAt === -1 ? href : href.slice(0, hashAt);
   const hash = hashAt === -1 ? '' : href.slice(hashAt);
@@ -214,7 +274,7 @@ export function localizeLinks(root = document) {
   root.querySelectorAll('a[href]').forEach((a) => {
     if (a.dataset.href0 === undefined) {
       const h = a.getAttribute('href');
-      a.dataset.href0 = (h === '/' || h.startsWith('/#') || h.startsWith('/daily-menu')) ? h : '';
+      a.dataset.href0 = (h === '/' || h.startsWith('/#') || h.startsWith('/daily-menu') || h === '/privacy') ? h : '';
     }
     if (a.dataset.href0) a.setAttribute('href', langHref(a.dataset.href0));
   });
