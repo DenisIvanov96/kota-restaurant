@@ -1,4 +1,4 @@
-import { el, getJSON, stateBox } from './dom.js';
+import { el, getJSON, stateBox, icon } from './dom.js';
 import { loadSite, initNav, applyTopBar, initYear, realignHash } from './common.js';
 import { renderEventCard, renderStructuredMenu, observeCategories, renderFileViewer } from './render.js';
 import { telHref } from './format.js';
@@ -37,7 +37,15 @@ function renderContact(site) {
     dl.append(div);
   };
   if (phone) item(t('contact.phone'), (dd) => { const a = el('a', '', phone); a.href = telHref(phone); dd.append(a); });
-  if (address) item(t('contact.address'), (dd) => { dd.textContent = address; });
+  if (address) item(t('contact.address'), (dd) => {
+    dd.append(el('span', 'address-text', address));
+    const map = el('a', 'map-link');
+    map.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
+    map.target = '_blank';
+    map.rel = 'noopener noreferrer';
+    map.append(el('span', '', t('map.link')), icon('external', 'map-icon'), el('span', 'visually-hidden', ' ' + t('map.newtab')));
+    dd.append(map);
+  });
   if (hours) item(t('contact.hours'), (dd) => { dd.className = 'hours'; dd.textContent = hours; });
   if (phone) {
     const call = document.getElementById('contact-call');

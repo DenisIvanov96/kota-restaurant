@@ -123,3 +123,18 @@ h2 { font-family: var(--font-display); font-weight: 500; text-transform: upperca
 @media (min-width: 768px) {
   .lang-switch { order: 5; margin-left: 12px; }
 }
+
+/* Footer link, map link, static pages (privacy, 404) */
+.site-footer p + p { margin-top: var(--s-1); }
+.footer-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--s-3); color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.footer-link:hover { color: var(--glow); }
+.map-link { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; margin-top: var(--s-1); color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.map-link:hover { color: var(--glow); }
+.map-icon { width: 1.1em; height: 1.1em; flex: none; }
+.address-text { display: block; }
+.prose { max-width: 720px; margin-inline: auto; }
+.prose h2 { margin-top: var(--s-6); }
+.prose li { margin-bottom: var(--s-2); }
+.privacy-contact a { display: inline-flex; align-items: center; min-height: 44px; }
+.not-found .eyebrow { margin-bottom: var(--s-4); }
+.not-found .sign { font-size: clamp(4rem, 20vw, 8rem); justify-content: center; }
