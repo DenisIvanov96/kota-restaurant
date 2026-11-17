@@ -554,7 +554,7 @@ describe('migration 005 on a database created before the change', () => {
     await srv.stop(); srv = null;
 
     const chk = new DatabaseSync(path.join(dir, 'kota.db'));
-    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), [...names, '005_separate_languages.sql', '006_menu_pages.sql']);
+    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), [...names, '005_separate_languages.sql', '006_menu_pages.sql', '007_gallery.sql']);
     assert.equal(chk.prepare('SELECT lang FROM menu_files').get().lang, 'bg');
     assert.equal(chk.prepare('SELECT image_en_file_id v FROM events').get().v, null);
     const d = chk.prepare('SELECT file_id, file_en_id, published, menu_date FROM daily_menus').get(); assert.equal(d.file_id, dmFile); assert.equal(d.file_en_id, null); assert.equal(d.published, 1); assert.equal(d.menu_date, TODAY);

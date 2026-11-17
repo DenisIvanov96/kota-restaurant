@@ -49,6 +49,7 @@ describe('security (dev mode server)', () => {
     ['DELETE', '/api/admin/menu/pages/1'], ['PUT', '/api/admin/menu/mode'],
     ['GET', '/api/admin/menu/pages/download?lang=bg'], ['GET', '/api/admin/menu/pages/download'], ['GET', '/api/admin/menu/pages/download?lang=zz'], // D-49: admin-only ZIP; auth must precede validation
     ['POST', '/api/admin/menu/files'], ['PATCH', '/api/admin/menu/files/1/published'], ['DELETE', '/api/admin/menu/files/1'], // removed in T-38: must still not answer unauthenticated requests with anything but 401
+    ['GET', '/api/admin/gallery'], ['POST', '/api/admin/gallery'], ['PATCH', '/api/admin/gallery/1'], ['PUT', '/api/admin/gallery/order'], ['DELETE', '/api/admin/gallery/1'], // T-50: D-51 gallery admin API
     ['GET', '/api/admin/does-not-exist'],
   ];
   test(`S1a all ${ENDPOINTS.length} admin endpoints: no cookie + CSRF header => 401`, async () => {
@@ -454,7 +455,7 @@ describe('security (dev mode server)', () => {
     const e = (await anon.get('/api/public/events')).data.events.find((x) => x.title === 'pub');
     assert.deepEqual(Object.keys(e).sort(), ['description', 'eventAt', 'id', 'imageUrl', 'title']);
     const s = (await anon.get('/api/public/site')).data;
-    assert.deepEqual(Object.keys(s).sort(), ['address', 'currencySymbol', 'instagramUrl', 'lang', 'openingHours', 'reservationPhone']); // `lang` added by T-14 (D-27); `instagramUrl` added by T-26 (D-36, public by design: it is shown on the site)
+    assert.deepEqual(Object.keys(s).sort(), ['about', 'address', 'currencySymbol', 'instagramUrl', 'lang', 'openingHours', 'reservationPhone']); // `lang` added by T-14 (D-27); `instagramUrl` added by T-26 (D-36, public by design: it is shown on the site); `about` added by T-47 (D-52: served About text or null, public by design)
     assert.equal(s.lang, 'bg');
     await admin.del(`${EV}/${ev.data.id}`);
   });

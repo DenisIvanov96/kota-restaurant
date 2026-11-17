@@ -188,7 +188,7 @@ describe('migration 002 on a pre-i18n database', () => {
 
     const chk = new DatabaseSync(path.join(dir, 'kota.db'));
     const applied = chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name);
-    assert.deepEqual(applied, ['001_init.sql', '002_i18n.sql', '003_default_address.sql', '004_fix_default_address_en.sql', '005_separate_languages.sql', '006_menu_pages.sql']); // 003 (D-37), 004 (BUG-12 repair) and 005 (D-39..42, T-33) are applied on start as well
+    assert.deepEqual(applied, ['001_init.sql', '002_i18n.sql', '003_default_address.sql', '004_fix_default_address_en.sql', '005_separate_languages.sql', '006_menu_pages.sql', '007_gallery.sql']); // 003 (D-37), 004 (BUG-12 repair) and 005 (D-39..42, T-33) are applied on start as well
     const c2 = (t) => chk.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
     assert.ok(c2('events').includes('title_en') && c2('events').includes('description_en') && c2('menu_categories').includes('name_en') && c2('menu_items').includes('name_en') && c2('menu_items').includes('description_en'));
     assert.equal(chk.prepare('SELECT title_en FROM events').get().title_en, null);
