@@ -151,7 +151,8 @@ html { scroll-padding-top: calc(var(--topbar-h) + 12px); }
 .contact-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
 .footer-ig { display: flex; justify-content: center; }
 .contact-list[hidden] { display: none; }
-@media (min-width: 768px) { #location-list, #contact-list { grid-template-columns: repeat(2, 1fr); } }
+#contact-list { grid-template-columns: 1fr; }
+@media (min-width: 768px) { #location-list { grid-template-columns: repeat(2, 1fr); } #contact-list { grid-template-columns: repeat(2, max-content); column-gap: var(--s-8); } }
 
 /* Nav: reservation item */
 .site-nav .nav-reservation a { color: var(--accent); }

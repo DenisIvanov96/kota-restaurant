@@ -442,7 +442,7 @@ body:has(.a-actionbar) .a-toasts { bottom: calc(64px + 72px + env(safe-area-inse
 .a-pagerow__act { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
 .a-pagepreview { display: grid; gap: 8px; }
 .a-pagepreview img { width: 100%; height: auto; display: block; border-radius: 8px; }
-@media (min-width: 768px) {
+@media (min-width: 1100px) {
   .a-pagerow { grid-template-columns: auto 1fr auto; }
   .a-pagerow__act { grid-column: auto; flex-wrap: nowrap; }
 }

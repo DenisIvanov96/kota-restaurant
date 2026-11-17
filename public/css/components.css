@@ -176,30 +176,19 @@
 .public-theme :focus-visible, .lightbox :focus-visible, .btn:focus-visible, .zoom-btn:focus-visible, .cat-nav a:focus-visible, .btn-special-sm:focus-visible { outline: 3px solid var(--glow); outline-offset: 3px; }
 .zoom-btn:focus-visible { outline-offset: -3px; }
 
-/* Menu download / print (D-48) */
-.menu-dl-bar { display: flex; justify-content: center; margin: 0 auto var(--s-4); }
-.menu-dl-btn { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.menu-dl-btn svg { width: 20px; height: 20px; flex: none; }
-.menu-page-dl { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 0 12px; color: var(--accent); text-decoration: underline; }
-.menu-page-dl svg { width: 18px; height: 18px; flex: none; }
-.menu-page-cap { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 16px; }
-.print-title { display: none; }
-
+/* Print stylesheet for the structured menu (kept; no public print button) */
 @media print {
   @page { margin: 14mm; }
   html, body { background: #fff !important; color: #111 !important; }
   .skip-link, .top-bar, .site-header, .site-footer, .hero, .section:not(.menu-section),
-  main > section:not(.menu-section), .menu-dl-btn, .menu-print-bar button, .cat-nav, .lightbox, .viewer-actions { display: none !important; }
+  main > section:not(.menu-section), .cat-nav, .lightbox, .viewer-actions { display: none !important; }
   .menu-section { background: #fff !important; color: #111 !important; padding: 0 !important; margin: 0 !important; }
   .menu-section h2 { display: none !important; }
-  .menu-print-bar { display: block; margin: 0 0 12pt; text-align: center; }
-  .print-title { display: block !important; font: 700 28pt/1.1 var(--font-display, Georgia, serif); letter-spacing: .12em; color: #111; margin: 0; }
   .menu-section *, .menu-section *::before { color: #111 !important; background: transparent !important; text-shadow: none !important; box-shadow: none !important; }
   .menu-section .dish-leader { border-color: #888 !important; }
   .menu-section .tag-unavail { border: 1px solid #555 !important; color: #444 !important; }
   .menu-section .dish.is-unavail * { color: #555 !important; }
   .menu-section .menu-cats { columns: 1 !important; max-width: none !important; }
-  .menu-print-bar { max-width: none !important; }
   .cat { break-inside: avoid; page-break-inside: avoid; margin-bottom: 14pt; }
   .cat-title { break-after: avoid; page-break-after: avoid; }
   .dish { break-inside: avoid; page-break-inside: avoid; }

@@ -1,6 +1,6 @@
 import { el, getJSON, stateBox } from './dom.js';
 import { loadSite, initNav, applyTopBar, applyInstagram, renderLocation, initYear, realignHash } from './common.js';
-import { renderEventCard, renderStructuredMenu, observeCategories, renderMenuPages, renderPrintBar } from './render.js';
+import { renderEventCard, renderStructuredMenu, observeCategories, renderMenuPages } from './render.js';
 import { telHref } from './format.js';
 import { initI18n, onLangChange, t, apiUrl, localizeLinks } from './i18n.js';
 
@@ -16,18 +16,19 @@ function renderContact(site) {
   const phone = site && site.reservationPhone ? site.reservationPhone.trim() : '';
   renderLocation(document.getElementById('location-list'), site);
   const dl = document.getElementById('contact-list');
-  dl.replaceChildren();
+  const old = document.getElementById('contact-phone-item');
+  if (old) old.remove();
   if (phone) {
     const div = el('div', 'contact-item');
+    div.id = 'contact-phone-item';
     div.append(el('dt', '', t('contact.phone')));
     const dd = el('dd');
     const a = el('a', '', phone);
     a.href = telHref(phone);
     dd.append(a);
     div.append(dd);
-    dl.append(div);
+    dl.prepend(div);
   }
-  dl.hidden = !phone;
   const call = document.getElementById('contact-call');
   if (phone) call.href = telHref(phone);
   call.hidden = !phone;
@@ -100,7 +101,7 @@ async function loadMenu(mine) {
   if (data.mode === 'file') {
     if (!data.file) return menuEmpty();
     const viewer = renderMenuPages(data.file, {
-      pdf: { open: t('pdf.openMenu'), download: t('file.download') },
+      pdf: { open: t('pdf.openMenu') },
     });
     showMenuState(viewer);
     return;
@@ -109,7 +110,6 @@ async function loadMenu(mine) {
   if (!s || !s.categories || !s.categories.length) return menuEmpty();
   const { nav, cats } = renderStructuredMenu(s, data.currencySymbol || '€');
   const frag = document.createDocumentFragment();
-  frag.append(renderPrintBar());
   if (nav) frag.append(nav);
   frag.append(cats);
   menuBox.replaceChildren(frag);

@@ -67,7 +67,7 @@ async function load() {
     frameClass: 'paper',
     imageAlt: t('daily.alt', { date: longDate }),
     zoomLabel: t('daily.zoom'),
-    pdf: { open: t('pdf.open'), openShort: t('pdf.open'), download: t('pdf.download') },
+    pdf: { open: t('pdf.open'), openShort: t('pdf.open') },
   }));
 }
 

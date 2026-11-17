@@ -1,4 +1,7 @@
 import express from 'express';
+import path from 'node:path';
+import { pipeline } from 'node:stream';
+import { prepareZip, ZipTooLargeError } from '../../zip.js';
 import { DOC_TYPES, kindOf } from '../../files.js';
 import { tx } from '../../db.js';
 import {
@@ -10,6 +13,7 @@ import { HttpError, validationError, notFound, parseBool, parseId, normText, has
 export function menuRoutes({ db, nowMs, files }) {
   const r = express.Router();
   const upload = files.uploadSingle('file');
+  const crcCache = new Map();
 
   const draftObj = () => ({ updatedAt: loc(Number(getSetting(db, 'draft_updated_at')) || null), categories: readDraft(db) });
   // ----- pages (file mode, D-46) -----
@@ -170,6 +174,38 @@ export function menuRoutes({ db, nowMs, files }) {
     }));
     const row = pageRows(db, lang).find((x) => x.id === id);
     res.status(201).json(pageObj(row));
+  });
+
+  // All pages of one language (published or not, no fallback) as one ZIP (D-49): stored entries, streamed from disk with backpressure.
+  r.get('/pages/download', async (req, res) => {
+    const lang = req.query.lang === undefined ? 'bg' : parseLang(req.query.lang);
+    const rows = pageRows(db, lang);
+    if (!rows.length) throw notFound();
+    const ac = new AbortController();
+    let zip = null;
+    res.once('close', () => { ac.abort(); if (zip) zip.close(); }); // client abort or normal end: stop reading, release files
+    const entries = rows.map((p, i) => ({
+      name: `kota1-menu-${lang}-page-${String(i + 1).padStart(2, '0')}${path.extname(p.stored_name)}`,
+      path: path.join(files.uploadsDir, p.stored_name),
+      mtimeMs: p.created_at,
+    }));
+    try {
+      zip = await prepareZip(entries, { signal: ac.signal, crcCache });
+    } catch (e) {
+      if (e instanceof ZipTooLargeError) throw new HttpError(413, 'too_large', 'Менюто е твърде голямо за изтегляне като архив.');
+      if (e && e.code === 'ENOENT') throw notFound();
+      if (ac.signal.aborted) return; // client already gone
+      throw e;
+    }
+    if (ac.signal.aborted) { await zip.close(); return; }
+    res.status(200).set({
+      'Content-Type': 'application/zip',
+      'Content-Length': String(zip.size),
+      'Content-Disposition': `attachment; filename="kota1-menu-${lang}.zip"`,
+      'Cache-Control': 'no-store',
+    });
+    if (req.method === 'HEAD') { res.end(); return; }
+    pipeline(zip.stream(), res, () => { /* aborts and read errors just end the response; files are closed on res 'close' */ });
   });
 
   r.put('/pages/order', (req, res) => {

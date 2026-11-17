@@ -585,7 +585,8 @@ export function menuView() {
 
     // pages list
     if (items.length) {
-      pagesHost.append(h('div', { class: 'a-actions' }, btn({ label: 'Преглед на всички страници', variant: 'secondary', icon: 'eye', onClick: () => previewPages(l) })));
+      pagesHost.append(h('div', { class: 'a-actions' }, btn({ label: 'Преглед на всички страници', variant: 'secondary', icon: 'eye', onClick: () => previewPages(l) }),
+        h('a', { class: 'a-btn a-btn--secondary', href: `/api/admin/menu/pages/download?lang=${l}`, 'aria-label': `Изтегли менюто (ZIP) — ${LANG_TITLE[l]}` }, icon('arrow-down'), h('span', { text: 'Изтегли менюто (ZIP)' }))));
       const list = h('ol', { class: 'a-pages', 'aria-label': LANG_TITLE[l] });
       items.forEach((p, i) => list.append(pageRow(l, p, i, items)));
       pagesHost.append(list);
@@ -685,6 +686,7 @@ export function menuView() {
     up.dataset.fk = `pg-${p.id}-up`; down.dataset.fk = `pg-${p.id}-down`;
     up.disabled = i === 0; down.disabled = i === items.length - 1;
     const view = h('a', { href: p.fileUrl, target: '_blank', rel: 'noopener', class: 'a-btn a-btn--secondary', 'aria-label': `Отвори страница ${n} в нов раздел` }, icon('eye'), h('span', { text: 'Отвори' }));
+    const dl = h('a', { href: p.fileUrl, download: true, class: 'a-btn a-btn--secondary', 'aria-label': `Изтегли страница ${n}` }, icon('arrow-down'), h('span', { text: 'Изтегли' }));
     const delBtn = btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий страница ${n}`, onClick: async () => {
       const ok = await confirmDialog({
         title: 'Изтриване на страница', body: para(`Изтриване на страница ${n} („`, [p.originalName], '“)? Това не може да бъде върнато.' + (pagesOf(l).published ? ' Страниците са публикувани — промяната се вижда веднага.' : '')), confirmLabel: 'Изтрий страницата', danger: true,
@@ -692,7 +694,7 @@ export function menuView() {
       });
       if (ok) { toast('Страницата е изтрита.'); fileAlert = null; pagesNote = 'Страницата е изтрита.'; await refreshMeta(); renderPages(); }
     } });
-    return h('li', { class: 'a-pagerow' }, thumb, info, h('div', { class: 'a-pagerow__act' }, up, down, view, delBtn));
+    return h('li', { class: 'a-pagerow' }, thumb, info, h('div', { class: 'a-pagerow__act' }, up, down, view, dl, delBtn));
   }
 
   function previewPages(l) {

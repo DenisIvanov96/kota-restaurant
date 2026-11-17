@@ -104,7 +104,7 @@ export function observeCategories(nav, cats) {
 /**
  * File viewer for the daily menu and file-mode regular menu (DESIGN A5.2 / A6).
  * file: { fileUrl, kind: 'image'|'pdf' }
- * opts: { frameClass: 'paper'|'menu-file', imageAlt, zoomLabel, pdf: { open, openEn, download } , image: { open, download } }
+ * opts: { frameClass: 'paper'|'menu-file', imageAlt, zoomLabel, pdf: { open, openShort } }
  */
 export function renderFileViewer(file, opts) {
   const t = (k, v) => tr(k, v);
@@ -135,9 +135,7 @@ export function renderFileViewer(file, opts) {
     const open = el('a', 'btn');
     open.href = file.fileUrl; open.target = '_blank'; open.rel = 'noopener';
     open.textContent = opts.pdf.open;
-    const dl = el('a', 'btn btn-ghost-dark', opts.pdf.download);
-    dl.href = file.fileUrl; dl.setAttribute('download', '');
-    actions.append(open, dl);
+    actions.append(open);
   } else {
     const btn = el('button', 'zoom-btn');
     btn.type = 'button';
@@ -150,9 +148,7 @@ export function renderFileViewer(file, opts) {
     frame.append(btn);
     const open = el('a', 'btn btn-ghost-dark', t('file.openTab'));
     open.href = file.fileUrl; open.target = '_blank'; open.rel = 'noopener';
-    const dl = el('a', 'btn btn-ghost-dark', t('file.download'));
-    dl.href = file.fileUrl; dl.setAttribute('download', '');
-    actions.append(open, dl);
+    actions.append(open);
   }
   wrap.append(frame, actions);
   return wrap;
@@ -161,23 +157,14 @@ export function renderFileViewer(file, opts) {
 /**
  * Multi-page file menu (D-46). file: { pages:[{fileUrl,mimeType,kind,width?,height?}] } or the old
  * single shape { fileUrl, kind } (treated as one page). Images stack full width with a shared lightbox
- * gallery; PDFs become cards with open/download.
- * opts: { pdf: { open, download } }
+ * gallery; PDFs become cards with an open link.
+ * opts: { pdf: { open } }
  */
 export function renderMenuPages(file, opts = {}) {
   const t = (k, v) => tr(k, v);
   const pages = Array.isArray(file.pages) ? file.pages : [{ fileUrl: file.fileUrl, mimeType: file.mimeType, kind: file.kind }];
   const total = pages.length;
   const wrap = el('div', 'menu-pages');
-  if (total > 0 && !opts.noDownloadAll) {
-    const bar = el('div', 'menu-dl-bar');
-    const all = el('a', 'btn menu-dl-btn');
-    all.append(icon('download'), document.createTextNode(t('menu.downloadAll')));
-    if (total === 1) { all.href = pages[0].fileUrl; all.setAttribute('download', ''); }
-    else { all.href = '/api/public/menu/download?lang=' + getLang(); }
-    bar.append(all);
-    wrap.append(bar);
-  }
   const gallery = [];
   const galleryIdx = new Map();
   pages.forEach((p, i) => {
@@ -193,9 +180,7 @@ export function renderMenuPages(file, opts = {}) {
       const actions = el('div', 'viewer-actions');
       const open = el('a', 'btn', (opts.pdf && opts.pdf.open) || t('pdf.openMenu'));
       open.href = p.fileUrl; open.target = '_blank'; open.rel = 'noopener';
-      const dl = el('a', 'btn btn-ghost-dark', (opts.pdf && opts.pdf.download) || t('file.download'));
-      dl.href = p.fileUrl; dl.setAttribute('download', '');
-      actions.append(open, dl);
+      actions.append(open);
       card.append(actions);
       fig.append(card);
     } else {
@@ -214,28 +199,8 @@ export function renderMenuPages(file, opts = {}) {
     }
     const cap = el('figcaption', 'menu-page-cap');
     if (total > 1) cap.append(document.createTextNode(t('page.of', { n, m: total })));
-    if (p.kind !== 'pdf') {
-      const pdl = el('a', 'menu-page-dl');
-      pdl.href = p.fileUrl; pdl.setAttribute('download', '');
-      pdl.append(icon('download'), document.createTextNode(t('menu.pageDownload', { n })));
-      cap.append(pdl);
-    }
     if (cap.childNodes.length) fig.append(cap);
     wrap.append(fig);
   });
   return wrap;
-}
-
-/** Structured menu print button + print-only KOTA 1 heading (D-48). Returns a node to place above the menu. */
-export function renderPrintBar() {
-  const bar = el('div', 'menu-dl-bar menu-print-bar');
-  const btn = el('button', 'btn menu-dl-btn');
-  btn.type = 'button';
-  btn.append(icon('printer'), document.createTextNode(tr('menu.printMenu')));
-  btn.addEventListener('click', () => window.print());
-  bar.append(btn);
-  const h = el('p', 'print-title', 'KOTA 1');
-  h.setAttribute('aria-hidden', 'true');
-  bar.append(h);
-  return bar;
 }

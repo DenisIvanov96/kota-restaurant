@@ -1,4 +1,5 @@
-// T-41: GET /api/public/menu/download (D-48) - streamed ZIP of the live menu pages.
+// T-44: GET /api/admin/menu/pages/download (D-49) - streamed ZIP of all pages of one language, admin only.
+// The public route (D-48) is gone and must 404.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -28,8 +29,10 @@ const fileMode = async (s, ...langs) => {
   for (const l of langs) assert.equal((await s.api.put('/api/admin/menu/pages/published', { lang: l, published: true })).status, 200);
   assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'file' })).status, 200);
 };
+const URL_ = '/api/admin/menu/pages/download';
+const authH = (s) => ({ Cookie: s.api.cookie });
 const download = async (s, q = '?lang=bg') => {
-  const res = await fetch(`${s.base}/api/public/menu/download${q}`);
+  const res = await fetch(`${s.base}${URL_}${q}`, { headers: authH(s) });
   return { res, buf: Buffer.from(await res.arrayBuffer()) };
 };
 
@@ -90,8 +93,7 @@ test('3 pages (pdf, jpg, png) -> valid ZIP: headers, CRCs, sizes, names, order, 
   const s = await loggedIn();
   try {
     await add(s, 'bg', PDFF); await add(s, 'bg', JPGF); await add(s, 'bg', PNGF);
-    await fileMode(s, 'bg');
-    const { res, buf } = await download(s);
+    const { res, buf } = await download(s); // nothing published, structured mode: still downloadable by an admin
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('content-type'), 'application/zip');
     assert.equal(res.headers.get('content-disposition'), 'attachment; filename="kota1-menu-bg.zip"');
@@ -117,63 +119,77 @@ test('3 pages (pdf, jpg, png) -> valid ZIP: headers, CRCs, sizes, names, order, 
     assert.deepEqual(again.map((e) => e.data.length), [PNG.length, JPG.length, PDF.length]);
     assert.deepEqual(again.map((e) => e.name), ['kota1-menu-bg-page-01.png', 'kota1-menu-bg-page-02.jpg', 'kota1-menu-bg-page-03.pdf']);
     // HEAD works and sends no body
-    const head = await fetch(`${s.base}/api/public/menu/download`, { method: 'HEAD' });
+    const head = await fetch(`${s.base}${URL_}`, { method: 'HEAD', headers: authH(s) });
     assert.equal(head.status, 200); assert.equal((await head.arrayBuffer()).byteLength, 0);
   } finally { await s.close(); }
 });
 
-test('language: default bg, ?lang=en own pages, fallback to the other language, 400 on invalid lang', async () => {
+test('language: default bg, ?lang=en own pages, unpublished included, no fallback, 400 on invalid lang', async () => {
   const s = await loggedIn();
   try {
     await add(s, 'bg', PDFF); await add(s, 'bg', JPGF); await add(s, 'en', PNGF); await add(s, 'en', PNGF);
-    await fileMode(s, 'bg');
-    // only bg is live: en request falls back to bg (named after the language served)
+    // nothing is published: pages of each language are still served, own language only
     let r = await download(s, '?lang=en');
     assert.equal(r.res.status, 200);
+    assert.equal(r.res.headers.get('content-disposition'), 'attachment; filename="kota1-menu-en.zip"');
+    assert.deepEqual(parseZip(r.buf).map((e) => e.name), ['kota1-menu-en-page-01.png', 'kota1-menu-en-page-02.png']);
+    r = await download(s, '?lang=bg');
     assert.equal(r.res.headers.get('content-disposition'), 'attachment; filename="kota1-menu-bg.zip"');
     assert.deepEqual(parseZip(r.buf).map((e) => e.name), ['kota1-menu-bg-page-01.pdf', 'kota1-menu-bg-page-02.jpg']);
-    // en goes live
-    await s.api.put('/api/admin/menu/pages/published', { lang: 'en', published: true });
-    r = await download(s, '?lang=en');
-    assert.equal(r.res.headers.get('content-disposition'), 'attachment; filename="kota1-menu-en.zip"');
-    assert.deepEqual(parseZip(r.buf).map((e) => e.name), ['kota1-menu-en-page-01.png', 'kota1-menu-en-page-02.png']);
     assert.equal(parseZip((await download(s, '')).buf).length, 2); // default bg
-    // bg unpublished: bg request falls back to en
-    await s.api.put('/api/admin/menu/pages/published', { lang: 'bg', published: false });
-    r = await download(s, '?lang=bg');
-    assert.equal(r.res.headers.get('content-disposition'), 'attachment; filename="kota1-menu-en.zip"');
-    assert.deepEqual(parseZip(r.buf).map((e) => e.name), ['kota1-menu-en-page-01.png', 'kota1-menu-en-page-02.png']);
+    // published or not makes no difference
+    await fileMode(s, 'bg');
+    assert.equal(parseZip((await download(s, '?lang=en')).buf).length, 2); // en unpublished, still its own pages
+    // one published + one unpublished page set: both complete (page-level published flag is per language)
+    await s.api.put('/api/admin/menu/pages/published', { lang: 'en', published: true });
+    assert.equal(parseZip((await download(s, '?lang=en')).buf).length, 2);
     // invalid lang
     for (const q of ['?lang=fr', '?lang=', '?lang=bg&lang=en']) {
-      const bad = await s.client().get(`/api/public/menu/download${q}`);
+      const bad = await s.api.get(`${URL_}${q}`);
       assert.equal(bad.status, 400, q); assert.equal(bad.data.error, 'validation'); assert.ok(bad.data.fields.lang);
     }
   } finally { await s.close(); }
 });
 
-test('404 JSON: nothing published, structured mode, no pages; recovers when published', async () => {
+test('no fallback: a language without pages is a 404 JSON even when the other language has pages (published or not)', async () => {
   const s = await loggedIn();
   try {
-    const json404 = async () => {
-      const r = await s.client().get('/api/public/menu/download?lang=bg');
-      assert.equal(r.status, 404); assert.equal(r.data.error, 'not_found'); assert.equal(r.headers.get('cache-control'), 'no-store');
-    };
-    await json404(); // fresh install: structured mode, no pages
-    await add(s, 'bg', PDFF); await add(s, 'en', JPGF);
-    await json404(); // pages exist, nothing published, structured mode
-    await s.api.put('/api/admin/menu/pages/published', { lang: 'bg', published: true });
-    await json404(); // a language is live but mode is structured
-    await fileMode(s, 'bg');
-    assert.equal((await download(s)).res.status, 200);
-    await s.api.put('/api/admin/menu/draft', { categories: [] }); await s.api.post('/api/admin/menu/publish'); // structured mode needs a published menu
-    assert.equal((await s.api.put('/api/admin/menu/mode', { mode: 'structured' })).status, 200);
-    await json404(); // back to structured: no download even though pages stay published
-    // a published language with zero pages is not live
-    const s2 = await loggedIn();
-    try {
-      await s2.api.put('/api/admin/menu/pages/published', { lang: 'bg', published: true });
-      const r = await s2.client().get('/api/public/menu/download'); assert.equal(r.status, 404);
-    } finally { await s2.close(); }
+    for (const q of ['', '?lang=bg', '?lang=en']) {
+      const r = await s.api.get(`${URL_}${q}`); // fresh install, no pages at all
+      assert.equal(r.status, 404, q); assert.equal(r.data.error, 'not_found');
+    }
+    await add(s, 'bg', PDFF);
+    let r = await s.api.get(`${URL_}?lang=en`);
+    assert.equal(r.status, 404); assert.equal(r.data.error, 'not_found');
+    await fileMode(s, 'bg'); // bg live and public
+    r = await s.api.get(`${URL_}?lang=en`);
+    assert.equal(r.status, 404); assert.equal(r.data.error, 'not_found');
+    assert.equal((await s.api.get(`${URL_}?lang=bg`)).status, 200);
+  } finally { await s.close(); }
+});
+
+test('auth: 401 without a session (also after logout and for HEAD); the public route no longer exists (404)', async () => {
+  const s = await loggedIn();
+  try {
+    await add(s, 'bg', PDFF);
+    await fileMode(s, 'bg'); // live in public file mode: still no public ZIP
+    for (const q of ['', '?lang=bg', '?lang=fr']) {
+      const r = await s.client().get(`${URL_}${q}`);
+      assert.equal(r.status, 401, q); assert.equal(r.data.error, 'unauthorized');
+    }
+    assert.equal((await fetch(`${s.base}${URL_}?lang=bg`, { method: 'HEAD' })).status, 401);
+    for (const q of ['', '?lang=bg', '?lang=en']) {
+      for (const method of ['GET', 'HEAD']) {
+        const pub = await fetch(`${s.base}/api/public/menu/download${q}`, { method });
+        assert.equal(pub.status, 404, `${method} ${q}`);
+        if (method === 'GET') { assert.equal((await pub.json()).error, 'not_found'); }
+      }
+    }
+    // admin session on the public path does not help either
+    assert.equal((await fetch(`${s.base}/api/public/menu/download?lang=bg`, { headers: authH(s) })).status, 404);
+    assert.equal((await s.api.get(`${URL_}?lang=bg`)).status, 200);
+    await s.api.post('/api/admin/logout');
+    assert.equal((await fetch(`${s.base}${URL_}?lang=bg`, { headers: authH(s) })).status, 401);
   } finally { await s.close(); }
 });
 
@@ -182,11 +198,10 @@ test('large pages: byte-exact, and a client abort mid-download stops reading, re
   try {
     const big = Buffer.concat([PNG.subarray(0, 8), Buffer.alloc(40 * 1024 * 1024, 7)]);
     for (let i = 0; i < 3; i++) await add(s, 'bg', { buf: big, name: `big${i}.png`, type: 'image/png' });
-    await fileMode(s, 'bg');
     const baseline = uploadFds(s.dataDir);
     // abort after the first chunk
     await new Promise((resolve, reject) => {
-      const req = http.get(`${s.base}/api/public/menu/download?lang=bg`, (res) => {
+      const req = http.get(`${s.base}${URL_}?lang=bg`, { headers: authH(s) }, (res) => {
         assert.equal(res.statusCode, 200);
         res.once('data', () => { req.destroy(); resolve(); });
       });

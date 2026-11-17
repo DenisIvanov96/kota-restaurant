@@ -1,15 +1,11 @@
 import express from 'express';
-import path from 'node:path';
-import { pipeline } from 'node:stream';
-import { prepareZip, ZipTooLargeError } from '../zip.js';
-import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, pickAny, LANGS, latestSnapshot, publicMenuPages, publicMenuPageSet, fileUrlPublic, today, loc } from '../store.js';
+import { getSetting, siteSettings, publicSiteSettings, resolveCategories, pick, pickAny, LANGS, latestSnapshot, publicMenuPages, fileUrlPublic, today, loc } from '../store.js';
 import { kindOf, STORED_NAME_RE } from '../files.js';
 import { isPubliclyVisible } from '../store.js';
 import { HttpError, validationError } from '../http.js';
 
 export function publicApi({ db, nowMs, files }) {
   const r = express.Router();
-  const crcCache = new Map();
 
   // ?lang=bg|en (default bg); anything else is a 400.
   r.use((req, res, next) => {
@@ -61,39 +57,6 @@ export function publicApi({ db, nowMs, files }) {
       out.file = publicMenuPages(db, req.lang);
     }
     res.json(out);
-  });
-
-  // All live pages of the served language as one ZIP (D-48): stored entries, streamed from disk with backpressure.
-  r.get('/menu/download', async (req, res) => {
-    const notFound = () => new HttpError(404, 'not_found', 'Не е намерено.');
-    if (getSetting(db, 'menu_mode') !== 'file') throw notFound();
-    const set = publicMenuPageSet(db, req.lang);
-    if (!set) throw notFound();
-    const ac = new AbortController();
-    let zip = null;
-    res.once('close', () => { ac.abort(); if (zip) zip.close(); }); // client abort or normal end: stop reading, release files
-    const entries = set.rows.map((p, i) => ({
-      name: `kota1-menu-${set.lang}-page-${String(i + 1).padStart(2, '0')}${path.extname(p.stored_name)}`,
-      path: path.join(files.uploadsDir, p.stored_name),
-      mtimeMs: p.created_at,
-    }));
-    try {
-      zip = await prepareZip(entries, { signal: ac.signal, crcCache });
-    } catch (e) {
-      if (e instanceof ZipTooLargeError) throw new HttpError(413, 'too_large', 'Менюто е твърде голямо за изтегляне като архив.');
-      if (e && e.code === 'ENOENT') throw notFound();
-      if (ac.signal.aborted) return; // client already gone
-      throw e;
-    }
-    if (ac.signal.aborted) { await zip.close(); return; }
-    res.status(200).set({
-      'Content-Type': 'application/zip',
-      'Content-Length': String(zip.size),
-      'Content-Disposition': `attachment; filename="kota1-menu-${set.lang}.zip"`,
-      'Cache-Control': 'no-store',
-    });
-    if (req.method === 'HEAD') { res.end(); return; }
-    pipeline(zip.stream(), res, () => { /* aborts and read errors just end the response; files are closed on res 'close' */ });
   });
   return r;
 }
