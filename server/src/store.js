@@ -20,6 +20,7 @@ export function siteSettings(db) {
     addressEn: getSetting(db, 'address_en') ?? '',
     openingHoursEn: getSetting(db, 'opening_hours_en') ?? '',
     currencySymbol: getSetting(db, 'currency_symbol') ?? '€',
+    instagramUrl: getSetting(db, 'instagram_url') ?? '',
   };
 }
 
@@ -36,6 +37,7 @@ export function publicSiteSettings(db, lang) {
     address: pick(lang, s.address, s.addressEn),
     openingHours: pick(lang, s.openingHours, s.openingHoursEn),
     currencySymbol: s.currencySymbol,
+    instagramUrl: s.instagramUrl,
   };
 }
 

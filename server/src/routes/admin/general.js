@@ -4,6 +4,16 @@ import { addDays } from '../../time.js';
 import { HttpError, validationError, has, normText } from '../../http.js';
 import { STORED_NAME_RE } from '../../files.js';
 
+/** Empty, or an https URL on instagram.com / www.instagram.com (no credentials, no port, no whitespace). */
+export function isInstagramUrl(v) {
+  if (v === '') return true;
+  if (v.length > 200 || !/^https:\/\/[^\s\\]+$/i.test(v)) return false;
+  let u;
+  try { u = new URL(v); } catch { return false; }
+  return u.protocol === 'https:' && !u.username && !u.password && !u.port
+    && (u.hostname === 'instagram.com' || u.hostname === 'www.instagram.com');
+}
+
 export function generalRoutes({ db, nowMs, files }) {
   const r = express.Router();
 
@@ -48,6 +58,7 @@ export function generalRoutes({ db, nowMs, files }) {
       addressEn: { max: 200 },
       openingHoursEn: { max: 500 },
       currencySymbol: { max: 5 },
+      instagramUrl: { max: 200, check: isInstagramUrl, msg: 'Въведете валиден https адрес от instagram.com (до 200 символа) или оставете празно.' },
     };
     const next = { ...cur };
     const fields = {};
@@ -57,6 +68,7 @@ export function generalRoutes({ db, nowMs, files }) {
       const v = normText(b[k]);
       if (v.length > s.max) fields[k] = `Най-много ${s.max} символа.`;
       else if (s.re && !s.re.test(v)) fields[k] = s.msg;
+      else if (s.check && !s.check(v)) fields[k] = s.msg;
       else if (k === 'currencySymbol' && v === '') fields[k] = 'Въведете символ.';
       else next[k] = v;
     }
@@ -67,6 +79,7 @@ export function generalRoutes({ db, nowMs, files }) {
     setSetting(db, 'address_en', next.addressEn);
     setSetting(db, 'opening_hours_en', next.openingHoursEn);
     setSetting(db, 'currency_symbol', next.currencySymbol);
+    setSetting(db, 'instagram_url', next.instagramUrl);
     res.json(siteSettings(db));
   });
 

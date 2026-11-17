@@ -221,3 +221,4 @@ Add nullable TEXT columns: `events.title_en`, `events.description_en`, `menu_cat
    - a big "Обадете се за резервация" call button with the phone (`tel:`).
    - location: the address and the map link.
    It has the same header, top bar, footer and language switch as the other pages, and follows the 404/privacy pattern (`public/reservation.html`, `?lang` aware, OG meta with `__SITE_URL__`).
+- **As built (T-26):** `GET/PUT /api/admin/settings` add `instagramUrl`; `GET /api/public/site` returns `instagramUrl` (same in bg/en, may be ''). Invalid → 400 `fields.instagramUrl`. Migration 003 seeds the default address only when empty (a fresh DB now starts with the default address/addressEn).

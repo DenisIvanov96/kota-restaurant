@@ -14,6 +14,7 @@ function fixture({ with404 = true } = {}) {
   fs.mkdirSync(path.join(dir, 'admin'));
   fs.writeFileSync(path.join(dir, 'index.html'), '<link rel="canonical" href="__SITE_URL__/"><p>home __SITE_URL__</p>');
   fs.writeFileSync(path.join(dir, 'privacy.html'), '<meta content="__SITE_URL__/privacy">');
+  fs.writeFileSync(path.join(dir, 'reservation.html'), '<meta content="__SITE_URL__/reservation">');
   fs.writeFileSync(path.join(dir, 'admin', 'index.html'), '<base href="__SITE_URL__/admin/">');
   fs.writeFileSync(path.join(dir, 'style.css'), '/* __SITE_URL__ */ body{}');
   fs.writeFileSync(path.join(dir, 'fonts', 'a.woff2'), 'wOF2');
@@ -91,6 +92,8 @@ test('SITE_URL: token replaced in all html (pages, admin, 404), trailing slash s
       ['/index.html', '<link rel="canonical" href="https://kota1.bg/"><p>home https://kota1.bg</p>'],
       ['/privacy', '<meta content="https://kota1.bg/privacy">'],
       ['/privacy.html', '<meta content="https://kota1.bg/privacy">'],
+      ['/reservation', '<meta content="https://kota1.bg/reservation">'],
+      ['/reservation.html', '<meta content="https://kota1.bg/reservation">'],
       ['/admin/', '<base href="https://kota1.bg/admin/">'],
     ]) {
       const r = await fetch(base + url);
