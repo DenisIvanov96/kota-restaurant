@@ -27,6 +27,8 @@ node --disable-warning=ExperimentalWarning tests/e2e/admin-dates.mjs # T-29 BG d
 node --disable-warning=ExperimentalWarning tests/e2e/langs.mjs    # T-35 separate BG/EN content: owner scenario in the browser, admin tabs, error mapping, guard, XSS, 768 px (ports 3203, 3205)
 node --disable-warning=ExperimentalWarning tests/e2e/pages.mjs    # T-43 multi-page menu: 10-file select, reorder/delete/publish, public pages, lightbox, admin ZIP/per-page downloads and absence of any public download/print UI (D-49), daily menu, a11y (ports 3201, 3202; needs unzip)
 node --disable-warning=ExperimentalWarning tests/e2e/contact.mjs  # T-46 Contacts: "Социални мрежи" Instagram item beside the phone, 390/768/1280, BG/EN (port 3201)
+node --disable-warning=ExperimentalWarning tests/e2e/gallery.mjs  # T-50 gallery + editable About: admin upload/reorder/visibility/delete/25-25, public grid, video lightbox, nav on 6 pages, XSS, a11y (ports 3201-3203, 3202; needs ffmpeg)
+node --disable-warning=ExperimentalWarning tests/e2e/bug19.mjs    # T-50 BUG-19/BUG-21 anchors: same-page nav, cross-page nav and direct /#section load land below the sticky bar (port 3201)
 node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch polish: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link + injection (ports 3201-3203, ~4 min)
 ```
 
@@ -40,6 +42,7 @@ node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch 
 - `api/feedback1.test.mjs` - migration 003 matrix + 004 repair matrix, instagramUrl contract, /reservation route (port 3206).
 - `api/langs.test.mjs` - T-35 (port 3204): per-language event images, daily-menu files, menu files; bidirectional fallback; /media visibility of EN files (disabled/expired/not-today/in_use); imageEn/fileEn upload validation (fake types, oversize, unknown field, no orphans); auth/CSRF on changed routes; migration 005 on a 001..004 database; T-43: menu pages replace menu files (LF1-LF3).
 - `api/uploads.test.mjs` (3201), `api/cleanup.test.mjs` (3202), `api/download.test.mjs` (3203, T-46: admin-only ZIP, public route 404; needs `unzip` and `python3`), `api/migration006.test.mjs` (3204) - T-43: 50 MB uploads + tmp dir, D-45 daily cleanup, ZIP download, migration 006. They create up to 500 MB of files under `QA_SCRATCH` (removed when the suite ends).
+- `api/gallery.test.mjs` (3205) - T-50: gallery admin/public API, type spoofing, 50 MB, 25-item cap + race, order, hidden /media, Range 206/416, About text, XSS, restart.
 - `e2e/pages.mjs` - T-43, see Run.
 - `e2e/langs.mjs` - T-35, see Run.
 - `e2e/feedback1.mjs`, `e2e/admin-dates.mjs` - see Run.

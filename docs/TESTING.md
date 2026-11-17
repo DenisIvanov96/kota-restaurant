@@ -5,6 +5,16 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
+| **T-50 (D-54 narrow scope: only the suites below were run; all others are deferred, see the T-50 section)** | cdcd451 | |
+| api gallery (new, `gallery.test.mjs`: D-51..D-53 API) | cdcd451 | **16/17 - FAIL GA11b (BUG-20)** |
+| api security (S1a now 41 endpoints incl. 5 gallery routes) | cdcd451 | 43/43 |
+| api feedback1 / i18n / langs / migration006 (007 expectations updated) | cdcd451 | 20/20 · 13/13 · 28/28 · 3/3 |
+| npm test (backend) | cdcd451 | 113/113 |
+| e2e gallery (new: admin, About, XSS, public grid, lightbox, empty/error, nav on 6 pages, a11y; 390/768/1280) | cdcd451 | 367/367 |
+| e2e pages (existing menu lightbox + daily image after lightbox.js change) | cdcd451 | 81/81 |
+| e2e bug19 (new: same-page nav, cross-page nav, direct /#section) | cdcd451 | **158/194 - FAIL, 36 checks (BUG-19 reopened, BUG-21)** |
+| e2e feedback1 (IG7f updated) | cdcd451 | **772/775 - FAIL LOC3[bg 390/768/1280] (BUG-19 reopened)** |
+| e2e contact | cdcd451 | 85/85 (ran before the scope change, in scope) |
 | npm test (backend, `server/test/*.test.js`) | e521e80 | 93/93 (at 25bcdfb with T-47: 113/113) |
 | api security (T-46: +3 endpoint entries for the admin ZIP, S1a now 36 endpoints) | e521e80 | 43/43 |
 | api publication / menu | e521e80 | 21/21 · 17/17 |
@@ -32,6 +42,32 @@ Historical note: server code was identical to `0c81447` through `c376609` (`git 
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## Gallery + editable About text + BUG-19 retest - T-50, 2026-11-17, product code `cdcd451` (narrow tier, D-54)
+
+Verdict: **FAIL** - BUG-19 not fixed (worse), BUG-21 (nav regression at 768) and BUG-20 (minor). Gallery and About behave to spec otherwise. Commands: `tests/README.md` (sequential, ports 3201-3209).
+
+### Run (cdcd451) - everything else is DEFERRED to the pre-release full regression
+`api/gallery`, `api/security`, `api/feedback1|i18n|langs|migration006`, `npm test`, `e2e/gallery`, `e2e/pages`, `e2e/bug19`, `e2e/feedback1`, `e2e/contact` (counts in the table above). The 11 known T-47 failures were 11 expectation changes (migration list 001..007 incl. count 6 -> 7 in langs LG1 / migration006 MG1, `about` key in feedback1 F8, security S8e) plus one more found later (feedback1 e2e IG7f `about` key); each checked against D-52 and updated, nothing weakened.
+Covered by the new tests: auth + CSRF + foreign Origin on all 5 gallery routes (+ S1 matrix); every accepted type; 33 spoof cases (PNG as .mp4, MP4 as .png/.webm/.mov, wrong declared type, fake ftyp variants, Matroska, bare EBML, PDF/SVG/HTML/ZIP/GIF, empty) -> 415 and no orphans; exactly 50 MB ok / +1 -> 413, tmp empty; 25 items, 26th 409, 4-way race on the 25th slot -> one winner; order validation (14 bad bodies); PATCH limits/mass assignment; delete removes file + row, compacts positions, tmp empty; hidden items 404 on /media incl. Range/HEAD/conditional; Range 206/416 for mp4/mov/webm; caption and About fallback BG/EN; About 2000 ok / 2001 -> 400; XSS payloads verbatim in JSON and rendered as text in public grid, lightbox, home About, admin list/confirm/settings; restart persistence + orphan sweep; admin upload of images + video, reorder (focus kept), visibility, captions, delete with confirmation, 25/25 disabled state, error rows 415 (real), 413/409 (response mocked); admin tab bar 360/390/768/1280; public grid 390/768/1280 BG/EN, empty/error/skeleton; lightbox image + video (webm, mp4 H.264 play, pause on next/prev/close/Escape, arrow keys do not steal seeking, swipe ignored on video, focus returns to tile); nav on /, /daily-menu, /gallery, /reservation, /privacy, 404 at 390/1280 BG/EN ("Галерия" present, no "За нас"/#about, aria-current on /gallery); contrast, 44 px targets, focus ring, reduced motion.
+
+### Defects
+BUG-19 | major (reopened) | frontend-developer | At 390/768/1280, BG, default content (phone, address, hours, no events) open `/?lang=bg`, click "Локация" (the `/#location` link is then a full page load); also open `/#location` directly, or click "Локация" from /gallery, /daily-menu, /reservation, /privacy | the "Локация" heading lands below the sticky bar (top >= 52 px) | page scrolls to the very bottom: heading at -206 px (390), -142 px (768), -142 px (1280), i.e. above the viewport, only Contact visible | `feedback1.mjs` LOC3[bg 390] `{"t":-205.73,"bar":52}`, LOC3[bg 768] -141.88, LOC3[bg 1280] -142.33 (at fd0169f only LOC3[bg 390] failed, 32.27, so cdcd451 widened it); `bug19.mjs` B21x/B21d: 24 + 6 failures (location from 4 pages x BG/EN x 3 viewports, direct load). Root-cause evidence: default smooth scrolling ends at max scroll (`sy 1316/1316` at 1280); with `prefers-reduced-motion: reduce` the same load lands correctly (`h2 112`, `sy 1062`). Same-page clicks (menu/location/contact, 8 viewport sizes, BG/EN) PASS (`bug19.mjs` B19: all pass), so the case the fix targeted works; menu and contact from other pages work. Fix attempts so far: 1 (cdcd451).
+BUG-21 | minor | frontend-developer | direct load or link `/#about` (the admin "Виж на сайта" link in the new About card opens it), 390/768/1280 | About heading below the sticky bar | lands at max scroll, heading -350 px (390), -318 px (768/1280) | `bug19.mjs` B21d `/#about` 6 failures; same mechanism as BUG-19, also at fd0169f (-128 at 390, -77 at 1280), so pre-existing but now reachable from the admin.
+BUG-22 | major | frontend-developer | 768x1024, BG, one enabled event, open `/` | header fits, no horizontal scroll, language buttons inside the viewport | "Галерия" is wider than "За нас": document scrollWidth 795 > 768, EN button right edge 794 px (outside the viewport); EN language and the no-event case are fine; /daily-menu, /gallery, /reservation fine (no "Събитие" item there); fd0169f same state 768 ok | probe (`event=true bg /: sw=795 OVERFLOW .lang-switch r=795`), also seen by `public.mjs` R2[768] and `i18n.mjs` SW1/HS1/HS3[768] in the early part of the run that was stopped by D-54; breakpoint range not swept (D-54).
+BUG-20 | minor | backend-developer | `GET /media/<video>` with `Range: bytes=999999999-` | 416 with a JSON body labelled `application/json` | 416, `Content-Range: bytes */N` correct, JSON body but `Content-Type: video/mp4; charset=utf-8` | `gallery.test.mjs` GA11b. No effect on playback; applies to all `/media` files.
+
+### Observations
+- Lightbox counter reads "Страница 1 от 5" (existing `page.of` string) where DESIGN E3 shows "3 / 12"; the spec says to reuse `page.of`, so not filed.
+- Fake `ftyp` with a valid brand ("isom") and garbage body is accepted by design (header-only sniffing; same trade-off as images).
+- Interrupted-run findings that are test expectations, not product defects (NOT fixed, suites deferred): `i18n.mjs` AST0/AE fail because Настройки now has two "English" tabs (`tabA(page,'English').count() === 1` must be scoped to the site card); `public.mjs`/`i18n.mjs` 768 failures above are BUG-22.
+- The pre-scope-change part of the run also executed public (89/90, R2[768] = BUG-22), admin 118/118, a11y 48/48, design 22/22, reflow 88/88, i18n 207/216 (SW1/HS1/HS3[768] = BUG-22, AST0/AE = expectation), all at cdcd451; they are NOT counted as the regression for D-54 and must be repeated in the pre-release run.
+
+### NOT RUN
+- Deferred to the pre-release full regression (D-54): launch, langs e2e, admin-dates, the 768/360 width sweeps, public/admin/a11y/design/reflow/i18n (partial runs above), the other API suites (publication, menu, uploads, cleanup, download).
+- Real iOS Safari (MOV playback, swipe/seek behaviour, `#t=0.001` poster frame, Range from iOS); Chromium cannot play `.mov` (`canPlayType('video/quicktime')` empty), so MOV was tested for upload/serving only.
+- Real touch gestures (swipe was dispatched as synthetic TouchEvents).
+- Production/HTTPS behaviour.
 
 ## Admin-only menu download (T-44) + Instagram beside phone (T-45) - T-46, 2026-11-17, `e521e80` (full tier)
 
