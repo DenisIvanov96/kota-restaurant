@@ -319,18 +319,19 @@ await step('M', async () => {
   await page.screenshot({ path: path.join(shots, 'admin-menu-409-390.png') });
   // file tab: upload + publish + mode switch
   await page.getByRole('tab', { name: /Файл/ }).click();
-  // T-33/34: one file section per language; the first is Bulgarian (D-40)
+  // T-38/T-43 (D-46): page manager per language; "Добави страници" opens a multi-select input and uploads start on selection
   await page.locator('input[type=file]').first().setInputFiles(file('menu.png', 'image/png', makePng(300, 400, [10, 120, 200])));
-  await page.getByRole('button', { name: 'Качи български файл', exact: true }).click(); await page.waitForTimeout(800);
-  R.check('MN12 menu file uploaded via UI (unpublished), public unchanged', (await api.get('/api/admin/menu')).data.files.length === 1 && (await anon.get('/api/public/menu')).data.file === null);
-  await page.getByRole('button', { name: 'Публикувай', exact: true }).last().click(); await page.waitForTimeout(600);
+  await page.waitForSelector('.a-pagerow'); await page.waitForTimeout(300);
+  R.check('MN12 menu page uploaded via the page manager (unpublished), public unchanged; counter "1 от 10"', (await api.get('/api/admin/menu')).data.pages.bg.items.length === 1 && (await anon.get('/api/public/menu')).data.file === null && (await page.locator('.a-pagecount').innerText()).includes('1 от 10'));
+  await page.getByRole('switch', { name: /Публикувани — Български страници/ }).click(); await page.waitForTimeout(600);
+  R.check('MN12b publish switch on: flag true in the API (mode still structured so the public menu is still structured)', (await api.get('/api/admin/menu')).data.pages.bg.published === true && (await anon.get('/api/public/menu')).data.file === null);
   await page.getByRole('radio', { name: /Файл/ }).check({ force: true }).catch(async () => { await page.locator('label.a-radio:has-text("Файл")').click(); });
   await page.waitForSelector('dialog[open]'); await page.locator('dialog[open]').getByRole('button', { name: 'Покажи на сайта' }).click(); await page.waitForTimeout(700);
   p = (await anon.get('/api/public/menu')).data;
-  R.check('MN13 mode switch via UI: public = file only (structured null)', p.mode === 'file' && p.file && p.structured === null);
-  // delete live file blocked UI
-  await page.getByRole('button', { name: /Изтрий файла menu.png/ }).click(); await page.locator('dialog[open]').getByRole('button', { name: 'Изтрий файла' }).click(); await page.waitForTimeout(700);
-  R.check('MN14 deleting the LIVE file: server 409 surfaced as visible message; file still there + still public', (await page.locator('[role=alert]').allInnerTexts()).join().includes('показва на клиентите') && (await api.get('/api/admin/menu')).data.files.length === 1 && (await anon.get('/api/public/menu')).data.file !== null, (await page.locator('[role=alert]').allInnerTexts()).join('|'));
+  R.check('MN13 mode switch via UI: public = file only (structured null), one page', p.mode === 'file' && p.file && p.file.pages.length === 1 && p.structured === null);
+  // delete the last page of the LIVE set -> blocked with a visible message
+  await page.getByRole('button', { name: /Изтрий страница 1/ }).click(); await page.locator('dialog[open]').getByRole('button', { name: 'Изтрий страницата' }).click(); await page.waitForTimeout(700);
+  R.check('MN14 deleting the LAST page of the LIVE set: server 409 surfaced as a visible message; page still there + still public', (await page.locator('[role=alert]').allInnerTexts()).join().includes('последната публикувана страница') && (await api.get('/api/admin/menu')).data.pages.bg.items.length === 1 && (await anon.get('/api/public/menu')).data.file !== null, (await page.locator('[role=alert]').allInnerTexts()).join('|'));
   await page.screenshot({ path: path.join(shots, 'admin-menu-file-390.png'), fullPage: true });
   await page.keyboard.press('Escape');
   // back to structured

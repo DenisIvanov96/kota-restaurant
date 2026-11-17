@@ -504,67 +504,70 @@ await step('E-GUARD', async () => {
   await admin.getByRole('button', { name: 'Запази', exact: true }).click(); await admin.waitForTimeout(600);
 });
 
-// ====================================================================================== F. menu FILES per language through the UI
+// ====================================================================================== F. menu PAGES per language through the UI (D-46, rewritten in T-43)
 await step('F-FILES', async () => {
   await go(admin, '#/menu'); await admin.waitForSelector('.a-dish');
   await tab(admin, 'Файл').click(); // mode tab "Файл" (role tab)
-  R.check('FL1 file tab has two sections: "Български файл" and "English файл", each with its own empty state and a language-specific upload button after choosing a file', (await admin.getByRole('heading', { name: 'Български файл' }).count()) === 1 && (await admin.getByRole('heading', { name: 'English файл' }).count()) === 1);
-  const secs = admin.locator('section.a-fileslang');
-  await secs.nth(0).locator('input[type=file]').setInputFiles(file('menu-bg.png', 'image/png', RED));
-  R.check('FL2 BG section shows the "Качи български файл" button (and not the English one)', (await secs.nth(0).getByRole('button', { name: 'Качи български файл' }).count()) === 1 && (await secs.nth(0).getByRole('button', { name: 'Качи английски файл' }).count()) === 0);
-  await secs.nth(0).getByRole('button', { name: 'Качи български файл' }).click(); await admin.waitForTimeout(900);
-  await secs.nth(1).locator('input[type=file]').setInputFiles(file('menu-en.png', 'image/png', BLUE));
-  R.check('FL3 EN section shows "Качи английски файл"', (await secs.nth(1).getByRole('button', { name: 'Качи английски файл' }).count()) === 1);
-  await secs.nth(1).getByRole('button', { name: 'Качи английски файл' }).click(); await admin.waitForTimeout(900);
-  const files = (await api.get('/api/admin/menu')).data.files;
-  R.check('FL4 uploads land in the right language (lang=bg for the first, lang=en for the second); each listed only in its section', files.find((x) => x.originalName === 'menu-bg.png').lang === 'bg' && files.find((x) => x.originalName === 'menu-en.png').lang === 'en' && (await secs.nth(0).locator('article:has-text("menu-bg.png")').count()) === 1 && (await secs.nth(1).locator('article:has-text("menu-en.png")').count()) === 1 && (await secs.nth(0).locator('article:has-text("menu-en.png")').count()) === 0);
-  await secs.nth(0).getByRole('button', { name: 'Публикувай', exact: true }).click(); await admin.waitForTimeout(700);
-  await secs.nth(1).getByRole('button', { name: 'Публикувай', exact: true }).click(); await admin.waitForTimeout(700);
-  R.check('FL5 publishing the EN file does not unpublish the BG file (one published per language)', (await api.get('/api/admin/menu')).data.files.filter((x) => x.published).length === 2);
+  const ptabs = admin.locator('[aria-label="Език на страниците"] [role=tab]');
+  const pageInput = admin.locator('.a-upload--pages input[type=file]');
+  const rows = () => admin.locator('.a-pagerow');
+  R.check('FL1 file tab has the page manager with language tabs Български / English; the BG tab shows "Български страници", counter "0 от 10 страници" and "Добави страници"', (await ptabs.count()) === 2 && (await admin.getByRole('heading', { name: 'Български страници' }).count()) === 1 && (await admin.locator('.a-pagecount').innerText()).includes('0 от 10') && (await admin.getByRole('button', { name: 'Добави страници' }).count()) === 1);
+  await pageInput.setInputFiles(file('menu-bg.png', 'image/png', RED)); await admin.waitForSelector('.a-pagerow'); await admin.waitForTimeout(400);
+  R.check('FL2 selecting a file in the BG tab uploads it at once (no extra button): page 1 listed, counter "1 от 10"', (await rows().count()) === 1 && (await admin.locator('.a-pagecount').innerText()).includes('1 от 10') && (await rows().first().innerText()).includes('menu-bg.png'));
+  await ptabs.nth(1).click(); await admin.waitForTimeout(200);
+  R.check('FL3 EN tab: heading "English pages", empty (0 от 10), BG page not listed', (await admin.getByRole('heading', { name: 'English pages' }).count()) === 1 && (await rows().count()) === 0 && (await admin.locator('.a-pagecount').innerText()).includes('0 от 10'));
+  await pageInput.setInputFiles(file('menu-en.png', 'image/png', BLUE)); await admin.waitForSelector('.a-pagerow'); await admin.waitForTimeout(400);
+  const pg = (await api.get('/api/admin/menu')).data.pages;
+  R.check('FL4 uploads land in the right language (bg for the first, en for the second); each listed only in its own tab', pg.bg.items.length === 1 && pg.en.items.length === 1 && pg.bg.items[0].originalName === 'menu-bg.png' && pg.en.items[0].originalName === 'menu-en.png' && pg.bg.items[0].lang === 'bg' && pg.en.items[0].lang === 'en' && (await rows().first().innerText()).includes('menu-en.png'));
+  await admin.getByRole('switch', { name: /Публикувани — English pages/ }).click(); await admin.waitForTimeout(600);
+  await ptabs.nth(0).click(); await admin.waitForTimeout(200);
+  await admin.getByRole('switch', { name: /Публикувани — Български страници/ }).click(); await admin.waitForTimeout(600);
+  const pf = (await api.get('/api/admin/menu')).data.pages;
+  R.check('FL5 publishing BG does not unpublish EN (flag per language)', pf.bg.published === true && pf.en.published === true);
   await admin.getByRole('radio', { name: /Файл/ }).check({ force: true }).catch(async () => { await admin.locator('label.a-radio:has-text("Файл")').click(); });
   await admin.waitForSelector('dialog[open]'); await admin.locator('dialog[open]').getByRole('button', { name: 'Покажи на сайта' }).click(); await admin.waitForTimeout(800);
   R.check('FL6 switch to file mode works (mode=file)', (await api.get('/api/admin/menu')).data.mode === 'file');
-  // second BG file: replace confirmation mentions the current BG file and only one per language
-  await secs.nth(0).locator('input[type=file]').setInputFiles(file('menu-bg2.png', 'image/png', GREEN));
-  await secs.nth(0).getByRole('button', { name: 'Качи български файл' }).click(); await admin.waitForTimeout(900);
-  await secs.nth(0).locator('article:has-text("menu-bg2.png")').getByRole('button', { name: 'Публикувай', exact: true }).click();
-  await admin.waitForSelector('dialog[open]');
-  const ct = await admin.locator('dialog[open]').innerText();
-  R.check('FL7 publishing a second BG file asks to replace "menu-bg.png" ("Само един файл на език")', /menu-bg\.png/.test(ct) && /Само един файл на език/.test(ct), ct.replace(/\n/g, ' | '));
-  await admin.locator('dialog[open]').getByRole('button', { name: 'Публикувай' }).click(); await admin.waitForTimeout(800);
-  const f2 = (await api.get('/api/admin/menu')).data.files;
-  R.check('FL8 after confirming: bg2 and en published, old bg unpublished', f2.find((x) => x.originalName === 'menu-bg2.png').published && f2.find((x) => x.originalName === 'menu-en.png').published && !f2.find((x) => x.originalName === 'menu-bg.png').published);
+  // second BG page: live at once (warning says so), appended as page 2, then moved to position 1 with the arrow button
+  await ptabs.nth(0).click(); await admin.waitForTimeout(200);
+  await pageInput.setInputFiles(file('menu-bg2.png', 'image/png', GREEN)); await admin.waitForFunction(() => document.querySelectorAll('.a-pagerow').length === 2); await admin.waitForTimeout(400);
+  const warn = await admin.locator('.a-alert, [class*=alert]').allInnerTexts();
+  R.check('FL7 a second BG page is appended (position 2) and is live at once; the UI warns "Тези страници са публикувани ... се вижда веднага"', (await api.get('/api/public/menu?lang=bg')).data.file.pages.length === 2 && warn.join(' ').includes('се вижда веднага') && (await rows().nth(1).innerText()).includes('menu-bg2.png'));
+  await admin.getByRole('button', { name: 'Премести страница 2 нагоре' }).click(); await admin.waitForTimeout(800);
+  const ord = (await api.get('/api/admin/menu')).data.pages.bg.items.map((x) => x.originalName);
+  R.check('FL8 "Премести страница 2 нагоре" reorders through the API: [menu-bg2.png, menu-bg.png]; the page list follows; the live region announces the move', ord.join() === 'menu-bg2.png,menu-bg.png' && (await rows().first().innerText()).includes('menu-bg2.png') && /преместена на позиция 1 от 2/.test(await admin.locator('#pages-live').innerText()), ord.join());
   // public in file mode
   const { context, page } = await newPage(browser, { width: 390, height: 844 });
-  await page.goto(base + '/', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-file img');
-  R.check('FL9 public БГ in file mode shows the GREEN BG file; EN click switches to the BLUE EN file without reload', isGreen(await pixel(page, '.menu-file img')) && await (async () => {
+  await page.goto(base + '/', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-pages img');
+  const order = await page.locator('.menu-pages .menu-page-image img').count();
+  R.check('FL9 public БГ shows 2 pages in the admin order (GREEN, then RED); EN click switches to the single BLUE EN page without reload', order === 2 && isGreen(await pixel(page, '.menu-pages .menu-page-image img')) && await (async () => {
+    const second = await page.locator('.menu-pages .menu-page-image img').nth(1).evaluate((img) => new Promise((res) => { const go = () => { const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight; const x = c.getContext('2d'); x.drawImage(img, 0, 0); res([...x.getImageData(1, 1, 1, 1).data]); }; img.complete && img.naturalWidth ? go() : img.addEventListener('load', go); }));
+    if (!isRed(second)) return false;
     await page.evaluate(() => { window.__marker = 'm'; }); await clickLang(page, 'en');
-    await page.waitForFunction(() => { const i = document.querySelector('.menu-file img'); if (!i || !i.complete || !i.naturalWidth) return false; const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); return c.getContext('2d').getImageData(1, 1, 1, 1).data[2] > 150; }, null, { timeout: 4000 });
-    return (await page.evaluate(() => window.__marker)) === 'm' && isBlue(await pixel(page, '.menu-file img'));
+    await page.waitForFunction(() => { const is = document.querySelectorAll('.menu-pages .menu-page-image img'); const i = is[0]; if (is.length !== 1 || !i || !i.complete || !i.naturalWidth) return false; const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); return c.getContext('2d').getImageData(1, 1, 1, 1).data[2] > 150; }, null, { timeout: 4000 });
+    return (await page.evaluate(() => window.__marker)) === 'm' && isBlue(await pixel(page, '.menu-pages .menu-page-image img'));
   })());
   // unpublish EN through the API -> fallback in EN mode
-  await api.patch(`/api/admin/menu/files/${f2.find((x) => x.originalName === 'menu-en.png').id}/published`, { json: { published: false } });
+  await api.put('/api/admin/menu/pages/published', { json: { lang: 'en', published: false } });
   await clickLang(page, 'bg'); await page.waitForTimeout(300); await clickLang(page, 'en'); await page.waitForTimeout(700);
-  R.check('FL10 EN unpublished -> EN visitor falls back to the BG file (GREEN)', isGreen(await pixel(page, '.menu-file img')));
+  R.check('FL10 EN unpublished -> EN visitor falls back to the BG pages (2 pages, GREEN first)', (await page.locator('.menu-pages .menu-page-image img').count()) === 2 && isGreen(await pixel(page, '.menu-pages .menu-page-image img')));
   await context.close();
-  // dashboard observation
-  await api.patch(`/api/admin/menu/files/${f2.find((x) => x.originalName === 'menu-en.png').id}/published`, { json: { published: true } });
+  // dashboard
+  await api.put('/api/admin/menu/pages/published', { json: { lang: 'en', published: true } });
   await go(admin, '#/'); await admin.waitForTimeout(700);
   const dash = await admin.locator('main').innerText();
   console.log('OBSERVATION dashboard text (both languages published):', dash.replace(/\n/g, ' | ').slice(0, 600));
-  R.check('FL11 dashboard renders without error while two files are published (observation: lists only publishedFile)', /табло/i.test(dash) && (await admin.locator('[role=alert]').count()) === 0);
+  R.check('FL11 dashboard shows both languages with their page counts ("2 страници", "1 страница") and no error', /Български:.*Публикувано.*2 страници/s.test(dash) && /English:.*Публикувано.*1 страница/s.test(dash) && (await admin.locator('[role=alert]').count()) === 0);
   await admin.screenshot({ path: path.join(shots, 'langs-dashboard.png') });
-  // in_use through the UI: switch back to structured first so nothing is blocking
+  // delete through the UI: EN page (allowed, BG stays live), then BG pages until the last one is refused
   await go(admin, '#/menu'); await admin.waitForSelector('#tab-file');
   await tab(admin, 'Файл').click();
-  const ids = (await api.get('/api/admin/menu')).data.files;
-  const sec1 = admin.locator('section.a-fileslang').nth(1);
-  const delBtn = sec1.locator('article:has-text("menu-en.png")').getByRole('button', { name: /Изтрий/ });
-  await delBtn.click(); await admin.waitForSelector('dialog[open]'); await admin.locator('dialog[open]').getByRole('button', { name: 'Изтрий файла' }).click(); await admin.waitForTimeout(800);
-  R.check('FL12 deleting the published EN file is allowed while the BG file stays published (in_use only for the last published file)', (await api.get('/api/admin/menu')).data.files.length === ids.length - 1 && (await admin.locator('[role=alert]:visible').count()) === 0);
-  const sec0 = admin.locator('section.a-fileslang').nth(0);
-  await sec0.locator('article:has-text("menu-bg2.png")').getByRole('button', { name: /Изтрий/ }).click(); await admin.waitForSelector('dialog[open]'); await admin.locator('dialog[open]').getByRole('button', { name: 'Изтрий файла' }).click(); await admin.waitForTimeout(900);
-  R.check('FL13 deleting the LAST published file in file mode is refused with the in-use message and the file stays', (await admin.getByText('Този файл се показва на клиентите.').count()) >= 1 && (await api.get('/api/admin/menu')).data.files.some((x) => x.originalName === 'menu-bg2.png'));
+  await ptabs.nth(1).click(); await admin.waitForTimeout(200);
+  await admin.getByRole('button', { name: 'Изтрий страница 1' }).click(); await admin.waitForSelector('dialog[open]'); await admin.locator('dialog[open]').getByRole('button', { name: 'Изтрий страницата' }).click(); await admin.waitForTimeout(800);
+  R.check('FL12 deleting the only EN page is allowed while BG stays live (in_use only for the last live language)', (await api.get('/api/admin/menu')).data.pages.en.items.length === 0 && (await admin.locator('[role=alert]:visible').count()) === 0);
+  await ptabs.nth(0).click(); await admin.waitForTimeout(200);
+  await admin.getByRole('button', { name: 'Изтрий страница 1' }).click(); await admin.waitForSelector('dialog[open]'); await admin.locator('dialog[open]').getByRole('button', { name: 'Изтрий страницата' }).click(); await admin.waitForTimeout(800);
+  await admin.getByRole('button', { name: 'Изтрий страница 1' }).click(); await admin.waitForSelector('dialog[open]'); await admin.locator('dialog[open]').getByRole('button', { name: 'Изтрий страницата' }).click(); await admin.waitForTimeout(900);
+  R.check('FL13 deleting the LAST page of the only live language in file mode is refused with the in-use message and the page stays', (await admin.getByText('Това е последната публикувана страница').count()) >= 1 && (await api.get('/api/admin/menu')).data.pages.bg.items.length === 1);
 });
 
 await step('A-LOG', async () => {
@@ -589,7 +592,7 @@ await step('G-XSS', async () => {
   await api2.put('/api/admin/settings', { json: { address: P(13), addressEn: P(14), openingHours: P(15, 's'), openingHoursEn: P(16, 's') } });
   await api2.post('/api/admin/daily-menus', { form: form({ date: TODAY, published: 'true' }, { field: 'fileEn', buf: PDF, name: '<img src=x onerror=window.__xss=22>.pdf', type: 'application/pdf' }) });
   const files = [];
-  for (const [l, n] of [['bg', 'a"b.png'], ['en', "c'd<e>.png"]]) files.push((await api2.post('/api/admin/menu/files', { form: form({ lang: l }, { field: 'file', buf: l === 'bg' ? RED : BLUE, name: n, type: 'image/png' }) })).data);
+  for (const [l, n] of [['bg', 'a"b.png'], ['en', "c'd<e>.png"]]) files.push((await api2.post('/api/admin/menu/pages', { form: form({ lang: l }, { field: 'file', buf: l === 'bg' ? RED : BLUE, name: n, type: 'image/png' }) })).data);
 
   const checkXss = async (page, label) => {
     const x = await page.evaluate(() => ({ xss: window.__xss, imgX: document.querySelectorAll('img[src="x"]').length, svg: document.querySelectorAll('svg[onload]').length, injectedScripts: [...document.querySelectorAll('script')].filter((s) => !s.src).length, onerr: document.querySelectorAll('[onerror],[onload]').length }));
@@ -637,7 +640,7 @@ await step('H-768', async () => {
       const sc = await noHScroll(page);
       R.check(`R-ADM[${vp.n}] ${h}: no horizontal scroll`, sc.ok, JSON.stringify(sc));
       if (await tab(page, 'English').count()) {
-        const sizes = await page.locator('.a-langtab').evaluateAll((ts) => ts.map((t) => { const r = t.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
+        const sizes = await page.locator('.a-langtab:visible').evaluateAll((ts) => ts.map((t) => { const r = t.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
         R.check(`R-TAB[${vp.n}] ${h}: language tabs are >=44x44 and inside the viewport`, sizes.length === 2 && sizes.every(([w, hh]) => w >= 44 && hh >= 44), JSON.stringify(sizes));
         // focus ring visible on keyboard focus
         await tab(page, 'Български').focus(); await page.keyboard.press('ArrowRight');

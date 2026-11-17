@@ -195,34 +195,36 @@ await step('FILES', async () => {
   await page.waitForSelector('dialog.lightbox[open]');
   const lb = await page.evaluate(() => { const d = document.querySelector('dialog.lightbox'); return { aria: d.getAttribute('aria-label'), btns: [...d.querySelectorAll('button')].map((b) => (b.getAttribute('aria-label') || '') + '/' + b.textContent.trim()), alt: d.querySelector('img').alt }; });
   R.check('LB1 EN lightbox: dialog aria-label "Enlarged image", "Zoom in", close "Close", image alt english', lb.aria === 'Enlarged image' && lb.btns.some((b) => b.endsWith('/Zoom in')) && lb.btns.some((b) => b.startsWith('Close')) && /Daily menu for Monday/.test(lb.alt), JSON.stringify(lb));
-  await page.locator('dialog.lightbox .lb-btn').first().click();
-  R.check('LB2 EN lightbox zoom toggles to "Zoom out"', (await page.locator('dialog.lightbox .lb-btn').first().textContent()) === 'Zoom out');
+  await page.locator('dialog.lightbox .lb-btn:not(.lb-prev):not(.lb-next)').first().click();
+  R.check('LB2 EN lightbox zoom toggles to "Zoom out"', (await page.locator('dialog.lightbox .lb-btn:not(.lb-prev):not(.lb-next)').first().textContent()) === 'Zoom out');
   R.check('LB3 EN lightbox: no Cyrillic in dialog', (await page.evaluate(() => /[Ѐ-ӿ]/.test(document.querySelector('dialog.lightbox').outerHTML.replace(/src="[^"]*"/g, '')))) === false);
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   await clickLang(page, 'bg'); await settle(page);
   await page.locator('.viewer button').first().click(); await page.waitForSelector('dialog.lightbox[open]');
-  const lb2 = await page.evaluate(() => { const d = document.querySelector('dialog.lightbox'); return { aria: d.getAttribute('aria-label'), z: d.querySelector('.lb-btn').textContent.trim() }; });
+  const lb2 = await page.evaluate(() => { const d = document.querySelector('dialog.lightbox'); return { aria: d.getAttribute('aria-label'), z: d.querySelector('.lb-btn:not(.lb-prev):not(.lb-next)').textContent.trim() }; });
   R.check('LB4 switch to BG, reopen lightbox: labels Bulgarian again ("Увеличена снимка", "Увеличи")', lb2.aria === 'Увеличена снимка' && lb2.z === 'Увеличи', JSON.stringify(lb2));
   await page.keyboard.press('Escape');
   // regular menu: file mode image
-  const f = (await admin.post('/api/admin/menu/files', { form: form({}, { field: 'file', buf: makePng(800, 1100, [90, 90, 160]), name: 'menu.png', type: 'image/png' }) })).data;
-  await admin.patch(`/api/admin/menu/files/${f.id}/published`, { json: { published: true } });
+  const f = (await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: makePng(800, 1100, [90, 90, 160]), name: 'menu.png', type: 'image/png' }) })).data;
+  await admin.put('/api/admin/menu/pages/published', { json: { lang: 'bg', published: true } });
   await admin.put('/api/admin/menu/mode', { json: { mode: 'file' } });
-  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-file img'); await page.waitForTimeout(300);
+  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-pages img'); await page.waitForTimeout(300);
   const mt = await page.locator('#menu-content').textContent();
-  R.check('FM1 EN file-mode image menu: alt "Regular menu", "Tap to enlarge", "Open in new tab", "Download"; no Cyrillic', (await page.locator('.menu-file img').getAttribute('alt')) === 'Regular menu' && mt.includes('Tap to enlarge') && mt.includes('Open in new tab') && mt.includes('Download') && (await uiCyrillic(page)).length === 0, JSON.stringify({ mt, c: await cyrillic(page) }));
+  const zl = await page.locator('.menu-pages .zoom-btn').getAttribute('aria-label');
+  R.check('FM1 EN file-mode image page (served from the BG set by fallback): alt "Menu — page 1", zoom label "Enlarge page 1 of 1", "Download menu", "Download page 1"; no Cyrillic UI', (await page.locator('.menu-pages img').getAttribute('alt')) === 'Menu — page 1' && zl === 'Enlarge page 1 of 1' && mt.includes('Download menu') && mt.includes('Download page 1') && (await uiCyrillic(page)).length === 0, JSON.stringify({ mt, zl, c: await cyrillic(page) }));
   await clickLang(page, 'bg'); await settle(page);
-  R.check('FM2 file-mode image menu EN->BG: "Докосни за увеличение", "Изтегли"', (await page.locator('#menu-content').textContent()).includes('Докосни за увеличение') && (await page.locator('.menu-file img').getAttribute('alt')) === 'Основно меню');
-  // PDF
-  const pdf = (await admin.post('/api/admin/menu/files', { form: form({}, { field: 'file', buf: PDF, name: 'menu.pdf', type: 'application/pdf' }) })).data;
-  await admin.patch(`/api/admin/menu/files/${pdf.id}/published`, { json: { published: true } });
-  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.viewer-pdf'); await page.waitForTimeout(300);
+  R.check('FM2 file-mode image page EN->BG: "Изтегли менюто", "Изтегли страница 1", alt "Меню — страница 1", zoom "Увеличи страница 1 от 1"', (await page.locator('#menu-content').textContent()).includes('Изтегли менюто') && (await page.locator('#menu-content').textContent()).includes('Изтегли страница 1') && (await page.locator('.menu-pages img').getAttribute('alt')) === 'Меню — страница 1' && (await page.locator('.menu-pages .zoom-btn').getAttribute('aria-label')) === 'Увеличи страница 1 от 1');
+  // PDF as the only page (add the PDF, then delete the image page)
+  const pdf = (await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: PDF, name: 'menu.pdf', type: 'application/pdf' }) })).data;
+  await admin.del(`/api/admin/menu/pages/${f.id}`);
+  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-page-pdf'); await page.waitForTimeout(300);
   const pt = await page.locator('#menu-content').textContent();
-  R.check('FM3 EN file-mode PDF menu (390): card "The menu is a PDF file.", "Open menu (PDF)", "Download"; no Cyrillic; links target=_blank rel=noopener', pt.includes('The menu is a PDF file.') && pt.includes('Open menu (PDF)') && pt.includes('Download') && (await page.locator('.viewer-pdf a[target=_blank]').evaluateAll((as) => as.every((a) => /noopener/.test(a.rel)))) && (await uiCyrillic(page)).length === 0, JSON.stringify({ pt, c: await cyrillic(page) }));
+  R.check('FM3 EN file-mode PDF page (390): card "PDF — page 1", "Open menu (PDF)", "Download"; no Cyrillic; links target=_blank rel=noopener', pt.includes('PDF — page 1') && pt.includes('Open menu (PDF)') && pt.includes('Download') && (await page.locator('.menu-page-pdf a[target=_blank]').evaluateAll((as) => as.length > 0 && as.every((a) => /noopener/.test(a.rel)))) && (await uiCyrillic(page)).length === 0, JSON.stringify({ pt, c: await cyrillic(page) }));
   await clickLang(page, 'bg'); await settle(page);
-  R.check('FM4 PDF menu EN->BG: "Менюто е във формат PDF.", "Отвори меню (PDF)"', (await page.locator('#menu-content').textContent()).includes('Менюто е във формат PDF.') && (await page.locator('#menu-content').textContent()).includes('Отвори меню (PDF)'));
-  await page.setViewportSize({ width: 1280, height: 800 }); await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.viewer-pdf'); await page.waitForTimeout(300);
-  R.check('FM5 EN PDF menu at 1280 (embedded or card): no Cyrillic UI, no h-scroll', (await uiCyrillic(page)).length === 0 && (await noHScroll(page)).ok, JSON.stringify(await cyrillic(page)));
+  R.check('FM4 PDF page EN->BG: "PDF — страница 1", "Отвори меню (PDF)"', (await page.locator('#menu-content').textContent()).includes('PDF — страница 1') && (await page.locator('#menu-content').textContent()).includes('Отвори меню (PDF)'));
+  await page.setViewportSize({ width: 1280, height: 800 }); await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-page-pdf'); await page.waitForTimeout(300);
+  R.check('FM5 EN PDF page at 1280: no Cyrillic UI, no h-scroll', (await uiCyrillic(page)).length === 0 && (await noHScroll(page)).ok, JSON.stringify(await cyrillic(page)));
+  void pdf;
   await page.setViewportSize({ width: 390, height: 844 });
   // daily PDF
   await admin.patch(`/api/admin/daily-menus/${dm.id}/published`, { json: { published: false } });

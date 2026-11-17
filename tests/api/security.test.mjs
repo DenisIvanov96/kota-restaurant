@@ -45,8 +45,9 @@ describe('security (dev mode server)', () => {
     ['GET', '/api/admin/daily-menus'], ['POST', '/api/admin/daily-menus'], ['PUT', '/api/admin/daily-menus/1'],
     ['PATCH', '/api/admin/daily-menus/1/published'], ['DELETE', '/api/admin/daily-menus/1'],
     ['GET', '/api/admin/menu'], ['PUT', '/api/admin/menu/draft'], ['POST', '/api/admin/menu/draft/discard'],
-    ['POST', '/api/admin/menu/publish'], ['POST', '/api/admin/menu/files'], ['PATCH', '/api/admin/menu/files/1/published'],
-    ['DELETE', '/api/admin/menu/files/1'], ['PUT', '/api/admin/menu/mode'],
+    ['POST', '/api/admin/menu/publish'], ['POST', '/api/admin/menu/pages'], ['PUT', '/api/admin/menu/pages/order'], ['PUT', '/api/admin/menu/pages/published'],
+    ['DELETE', '/api/admin/menu/pages/1'], ['PUT', '/api/admin/menu/mode'],
+    ['POST', '/api/admin/menu/files'], ['PATCH', '/api/admin/menu/files/1/published'], ['DELETE', '/api/admin/menu/files/1'], // removed in T-38: must still not answer unauthenticated requests with anything but 401
     ['GET', '/api/admin/does-not-exist'],
   ];
   test(`S1a all ${ENDPOINTS.length} admin endpoints: no cookie + CSRF header => 401`, async () => {
@@ -211,14 +212,14 @@ describe('security (dev mode server)', () => {
     assert.equal(up(), n0, 'no orphan files');
     assert.equal((await admin.get(EV)).data.events.filter((e) => e.title === 'upload test').length, 0, 'no event row created');
   });
-  test('S5b invalid daily-menu and menu-file uploads rejected', async () => {
+  test('S5b invalid daily-menu and menu-page uploads rejected', async () => {
     const n0 = up();
     for (const [label, buf, name, type] of BAD) {
       if (label.includes('PDF bytes named .png') || label === 'PNG bytes renamed .pdf') { /* covered below */ }
       const r1 = await admin.post('/api/admin/daily-menus', { form: form({ date: '2026-07-01', published: 'true' }, { field: 'file', buf, name, type }) });
       assert.ok([400, 415].includes(r1.status), `daily ${label} -> ${r1.status}`);
-      const r2 = await admin.post('/api/admin/menu/files', { form: form({}, { field: 'file', buf, name, type }) });
-      assert.ok([400, 415].includes(r2.status), `menufile ${label} -> ${r2.status}`);
+      const r2 = await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf, name, type }) });
+      assert.ok([400, 415].includes(r2.status), `menu page ${label} -> ${r2.status}`);
     }
     assert.equal(up(), n0);
   });
@@ -226,23 +227,25 @@ describe('security (dev mode server)', () => {
     const r = await admin.post(EV, { form: evForm({ buf: PDF, name: 'x.pdf', type: 'application/pdf' }) });
     assert.equal(r.status, 415);
   });
-  test('S5d oversize uploads => 413 (event 5MB, daily 10MB, menu file 15MB), no orphans', async () => {
+  test('S5d oversize uploads => 413 at 50 MB + 1 (event, daily, menu page), no orphans (D-44; the 5/10/15 MB limits are gone)', async () => {
     const n0 = up();
-    const big = (mb, head) => Buffer.concat([head, Buffer.alloc(mb * 1024 * 1024 - head.length + 1, 0x41)]);
-    let r = await admin.post(EV, { form: evForm({ buf: big(5, PNG.subarray(0, 8)), name: 'big.png', type: 'image/png' }) });
+    const big = (head) => Buffer.concat([head, Buffer.alloc(50 * 1024 * 1024 - head.length + 1, 0x41)]);
+    let r = await admin.post(EV, { form: evForm({ buf: big(PNG.subarray(0, 8)), name: 'big.png', type: 'image/png' }) });
     assert.equal(r.status, 413, 'event ' + r.status);
-    r = await admin.post('/api/admin/daily-menus', { form: form({ date: '2026-07-02', published: 'true' }, { field: 'file', buf: big(10, Buffer.from('%PDF-1.4\n')), name: 'big.pdf', type: 'application/pdf' }) });
+    r = await admin.post('/api/admin/daily-menus', { form: form({ date: '2026-07-02', published: 'true' }, { field: 'file', buf: big(Buffer.from('%PDF-1.4\n')), name: 'big.pdf', type: 'application/pdf' }) });
     assert.equal(r.status, 413, 'daily ' + r.status);
-    r = await admin.post('/api/admin/menu/files', { form: form({}, { field: 'file', buf: big(15, Buffer.from('%PDF-1.4\n')), name: 'big.pdf', type: 'application/pdf' }) });
-    assert.equal(r.status, 413, 'menu ' + r.status);
+    r = await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: big(Buffer.from('%PDF-1.4\n')), name: 'big.pdf', type: 'application/pdf' }) });
+    assert.equal(r.status, 413, 'menu page ' + r.status);
     assert.equal(up(), n0);
   });
-  test('S5e files exactly at the limit are accepted (5MB image)', async () => {
+  test('S5e a file of exactly 50 MB is accepted (event image) and a 6 MB image (old limit 5 MB) too', async () => {
     const head = PNG.subarray(0, 8);
-    const buf = Buffer.concat([head, Buffer.alloc(5 * 1024 * 1024 - head.length, 0)]);
-    const r = await admin.post(EV, { form: evForm({ buf, name: 'edge.png', type: 'image/png' }) });
-    assert.equal(r.status, 201, String(r.status));
-    await admin.del(`${EV}/${r.data.id}`);
+    for (const mb of [6, 50]) {
+      const buf = Buffer.concat([head, Buffer.alloc(mb * 1024 * 1024 - head.length, 0)]);
+      const r = await admin.post(EV, { form: evForm({ buf, name: 'edge.png', type: 'image/png' }) });
+      assert.equal(r.status, 201, `${mb} MB -> ${r.status}`);
+      await admin.del(`${EV}/${r.data.id}`);
+    }
   });
   test('S5f polyglot: valid PNG header + trailing <script> is served only as image/png with nosniff + CSP (cannot execute)', async () => {
     const poly = Buffer.concat([PNG, Buffer.from('<script>window.__xss=1</script>')]);
@@ -259,7 +262,7 @@ describe('security (dev mode server)', () => {
   });
   test('S5g hostile original filenames are sanitised; stored name is random hex; path never leaks', async () => {
     for (const name of ['../../../../etc/passwd.png', '..\\..\\win.png', 'a"b<c>d.png', 'x\r\nSet-Cookie: a=b.png', 'é\u0000.png', 'a'.repeat(400) + '.png']) {
-      const r = await admin.post('/api/admin/menu/files', { form: form({}, { field: 'file', buf: PNG, name, type: 'image/png' }) });
+      const r = await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: PNG, name, type: 'image/png' }) });
       if (r.status !== 201) { assert.ok([400, 415].includes(r.status), name + ' -> ' + r.status); continue; }
       assert.match(r.data.fileUrl, /^\/api\/admin\/media\/[a-f0-9]{32}\.png$/);
       assert.ok(r.data.originalName.length <= 200);
@@ -267,7 +270,7 @@ describe('security (dev mode server)', () => {
       const m = await admin.get(r.data.fileUrl);
       assert.equal(m.status, 200);
       assert.doesNotMatch(m.headers.get('content-disposition'), /[\r\n]/);
-      await admin.del(`/api/admin/menu/files/${r.data.id}`);
+      await admin.del(`/api/admin/menu/pages/${r.data.id}`);
     }
   });
   test('S5h wrong multipart field name / multiple files / no file => 4xx, no orphans', async () => {
@@ -278,16 +281,34 @@ describe('security (dev mode server)', () => {
     fd = new FormData(); fd.append('title', 't'); fd.append('image', new Blob([PNG], { type: 'image/png' }), 'a.png'); fd.append('image', new Blob([PNG], { type: 'image/png' }), 'b.png');
     r = await admin.post(EV, { form: fd });
     assert.ok(r.status >= 400 && r.status < 500, 'two files ' + r.status);
-    r = await admin.post('/api/admin/menu/files', { form: form({}) });
+    r = await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }) });
+    assert.equal(r.status, 400);
+    r = await admin.post('/api/admin/menu/pages', { form: form({ lang: 'xx' }, { field: 'file', buf: PNG, name: 'a.png', type: 'image/png' }) });
     assert.equal(r.status, 400);
     assert.equal(up(), n0);
   });
   test('S5i accepted types: jpg, png, webp, pdf all pass (sanity for rejection logic)', async () => {
     for (const [buf, name, type, ep] of [[JPG, 'a.jpg', 'image/jpeg'], [JPG, 'a.jpeg', 'image/jpeg'], [PNG, 'a.png', 'image/png'], [WEBP, 'a.webp', 'image/webp'], [PDF, 'a.pdf', 'application/pdf']]) {
-      const r = await admin.post('/api/admin/menu/files', { form: form({}, { field: 'file', buf, name, type }) });
+      const r = await admin.post('/api/admin/menu/pages', { form: form({ lang: 'en' }, { field: 'file', buf, name, type }) });
       assert.equal(r.status, 201, name);
-      await admin.del(`/api/admin/menu/files/${r.data.id}`);
+      await admin.del(`/api/admin/menu/pages/${r.data.id}`);
     }
+  });
+  test('S5j menu pages are not public until their language is published AND mode=file; admin media needs a session; page uploads need CSRF', async () => {
+    const r = await admin.post('/api/admin/menu/pages', { form: form({ lang: 'en' }, { field: 'file', buf: PNG, name: 'p.png', type: 'image/png' }) });
+    assert.equal(r.status, 201);
+    const pubUrl = r.data.fileUrl.replace('/api/admin', '');
+    assert.equal((await anon.get(pubUrl)).status, 404, 'unpublished page: /media 404');
+    assert.equal((await anon.get(r.data.fileUrl)).status, 401, 'admin media needs a session');
+    assert.equal((await admin.put('/api/admin/menu/pages/published', { json: { lang: 'en', published: true } })).status, 200);
+    assert.equal((await anon.get(pubUrl)).status, 404, 'published flag but mode=structured: still 404');
+    assert.equal((await anon.get('/api/public/menu')).data.file, null);
+    assert.equal((await admin.put('/api/admin/menu/pages/published', { json: { lang: 'en', published: false } })).status, 200);
+    const noCsrf = await admin.post('/api/admin/menu/pages', { csrf: false, form: form({ lang: 'en' }, { field: 'file', buf: PNG, name: 'p.png', type: 'image/png' }) });
+    assert.ok([401, 403].includes(noCsrf.status), 'no CSRF header: ' + noCsrf.status);
+    const cross = await admin.post('/api/admin/menu/pages', { origin: 'https://evil.example', form: form({ lang: 'en' }, { field: 'file', buf: PNG, name: 'p.png', type: 'image/png' }) });
+    assert.equal(cross.status, 403);
+    await admin.del(`/api/admin/menu/pages/${r.data.id}`);
   });
 
   // ---- S6: traversal + non-served paths ----

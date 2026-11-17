@@ -213,17 +213,18 @@ for (const vp of VIEWPORTS) {
 // ---------- file-mode menu + PDF menu ----------
 {
   const { context, page, log } = await newPage(browser, { width: 390, height: 844 });
-  const f = (await admin.post('/api/admin/menu/files', { form: form({}, { field: 'file', buf: makePng(800, 1100, [90, 90, 160]), name: 'menu.png', type: 'image/png' }) })).data;
-  await admin.patch(`/api/admin/menu/files/${f.id}/published`, { json: { published: true } });
+  const f = (await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: makePng(800, 1100, [90, 90, 160]), name: 'menu.png', type: 'image/png' }) })).data;
+  await admin.put('/api/admin/menu/pages/published', { json: { lang: 'bg', published: true } });
   await visit(page, '/');
-  R.check('F0 file uploaded+published but mode still structured => structured menu shown', (await page.locator('.cat').count()) === 3 && (await page.locator('.menu-file').count()) === 0);
+  R.check('F0 pages uploaded+published but mode still structured => structured menu shown', (await page.locator('.cat').count()) === 3 && (await page.locator('.menu-pages').count()) === 0);
   await admin.put('/api/admin/menu/mode', { json: { mode: 'file' } });
   await visit(page, '/');
-  R.check('F1 mode=file: image menu shown, structured categories gone (only one version public); alt text', (await page.locator('.menu-file img').count()) === 1 && (await page.locator('.cat').count()) === 0 && (await page.locator('.menu-file img').getAttribute('alt')) === 'Основно меню' && (await page.locator('.menu-file img').evaluate((i) => i.naturalWidth)) === 800);
-  const pdf = (await admin.post('/api/admin/menu/files', { form: form({}, { field: 'file', buf: PDF, name: 'menu.pdf', type: 'application/pdf' }) })).data;
-  await admin.patch(`/api/admin/menu/files/${pdf.id}/published`, { json: { published: true } });
+  R.check('F1 mode=file: one image page shown, structured categories gone (only one version public); alt text "Меню — страница 1"; no "Страница N от M" caption for a single page', (await page.locator('.menu-pages .menu-page-image img').count()) === 1 && (await page.locator('.cat').count()) === 0 && (await page.locator('.menu-pages .menu-page-image img').getAttribute('alt')) === 'Меню — страница 1' && (await page.locator('.menu-pages .menu-page-image img').evaluate((i) => i.naturalWidth)) === 800 && !(await page.locator('.menu-pages').innerText()).includes('Страница 1 от'));
+  R.check('F1b single page: "Изтегли менюто" is a direct download link to the page file', (await page.locator('.menu-dl-btn').getAttribute('href')) === (await new Client(srv.url).get('/api/public/menu')).data.file.pages[0].fileUrl && (await page.locator('.menu-dl-btn').getAttribute('download')) !== null);
+  const pdf = (await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: PDF, name: 'menu.pdf', type: 'application/pdf' }) })).data;
   await visit(page, '/');
-  R.check('F2 PDF menu: open/download links, card fallback visible at 390 (embed not rendered in headless)', (await page.locator('.viewer-pdf').count()) === 1 && (await page.locator('.viewer-pdf a[target=_blank]').count()) === 1 && (await page.locator('.pdf-card').isVisible()));
+  R.check('F2 image + PDF pages: page 2 is a PDF card with open (new tab) + download links, captions "Страница 1 от 2" / "Страница 2 от 2", "Изтегли менюто" now points at the ZIP endpoint', (await page.locator('.menu-page-pdf .pdf-card').isVisible()) && (await page.locator('.menu-page-pdf a[target=_blank]').count()) === 1 && (await page.locator('.menu-pages .menu-page-cap').allInnerTexts()).join('|').includes('Страница 1 от 2') && (await page.locator('.menu-pages').innerText()).includes('Страница 2 от 2') && (await page.locator('.menu-dl-btn').getAttribute('href')) === '/api/public/menu/download?lang=bg');
+  void pdf; void f;
   R.check('F3 file-mode page: no console errors', log.console.length === 0 && log.pageErrors.length === 0, JSON.stringify(log.console));
   await admin.put('/api/admin/menu/mode', { json: { mode: 'structured' } });
   await context.close();

@@ -154,8 +154,9 @@ describe('events + daily menu publication (time travel)', () => {
   test('D1 uploads work for pdf, jpg, png, webp (create unpublished, correct kind/mime/size)', async () => {
     await restartAt(T0);
     const base = uploads().length; // event images from E-tests still on disk
-    const cases = [['2026-06-01', PDF, 'menu.pdf', 'application/pdf', 'pdf'], ['2026-06-02', JPG, 'menu.jpg', 'image/jpeg', 'image'],
-      ['2026-06-03', png([5, 5, 5]), 'menu.png', 'image/png', 'image'], ['2026-06-04', WEBP, 'menu.webp', 'image/webp', 'image']];
+    // future dates: since D-45 a past-dated menu is removed by the next upload (see D9 and cleanup.test.mjs)
+    const cases = [['2026-07-01', PDF, 'menu.pdf', 'application/pdf', 'pdf'], ['2026-07-02', JPG, 'menu.jpg', 'image/jpeg', 'image'],
+      ['2026-07-03', png([5, 5, 5]), 'menu.png', 'image/png', 'image'], ['2026-07-04', WEBP, 'menu.webp', 'image/webp', 'image']];
     for (const [date, buf, name, type, kind] of cases) {
       const r = await dm(date, 'false', buf, name, type);
       assert.equal(r.status, 201, `${name}: ${r.text()}`);
@@ -205,8 +206,10 @@ describe('events + daily menu publication (time travel)', () => {
     const t = await today();
     assert.equal(t.menu, null, 'no menu today (only yesterday exists) => "no menu today" state');
     assert.equal(t.today, '2026-06-16');
-    // admin still sees yesterday's menu
-    assert.ok((await admin.get('/api/admin/daily-menus')).data.menus.some((m) => m.id === d15.id));
+    // D-45: the admin list shows today + upcoming only, so yesterday's menu is hidden there; it is deleted by the next upload, not by the clock alone
+    assert.ok(!(await admin.get('/api/admin/daily-menus')).data.menus.some((m) => m.id === d15.id), 'yesterday hidden from the admin list');
+    assert.equal((await admin.get('/api/admin/daily-menus')).data.today, '2026-06-16');
+    assert.equal((await admin.get(d15.fileUrl)).status, 200, 'no upload happened yet, so the file is still on disk (cleanup is upload-triggered)');
     await admin.patch(`/api/admin/daily-menus/${d16.id}/published`, { json: { published: true } });
   });
   test('D5 winter midnight: 2026-12-01 Sofia day starts at 22:00Z the day before (UTC+2)', async () => {
@@ -222,6 +225,9 @@ describe('events + daily menu publication (time travel)', () => {
   });
   test('D6 replacing a file updates public content; old /media URL stops working; old file deleted; 409 without replace', async () => {
     await restartAt(T0);
+    // the uploads made in D5 (clock 2026-12-02 / 2026-10-26) triggered the D-45 cleanup, which deleted d15 (06-15) and d16 (06-16): recreate today's menu
+    assert.equal((await admin.get('/api/admin/daily-menus')).data.menus.length, 0, 'D5 uploads auto-deleted every earlier menu');
+    d15 = (await dm('2026-06-15', 'true', png([50, 60, 71]), 'today2.png', 'image/png')).data;
     const before = uploads().length;
     const old = (await today()).menu.fileUrl;
     const dup = await dm('2026-06-15', 'true', png([50, 60, 70]), 'dup.png', 'image/png');
@@ -264,11 +270,18 @@ describe('events + daily menu publication (time travel)', () => {
     assert.equal((await anon.get(url)).status, 404);
     assert.ok(uploads().length < n);
   });
-  test('D9 past-dated menus can be created and stay hidden; /media 404', async () => {
-    const r = await dm('2026-06-14', 'true', PDF, 'old.pdf', 'application/pdf'); d14 = r.data;
+  test('D9 D-45: a past-dated menu can be created (that upload is exempt), is hidden from public + admin list, and the NEXT upload deletes it with its file', async () => {
+    const base = uploads().length;
+    const r = await dm('2026-06-14', 'true', PDF, 'old.pdf', 'application/pdf'); d14 = r.data; assert.equal(r.status, 201);
+    assert.equal(uploads().length, base + 1, 'the just-written past menu is kept');
     assert.equal((await today()).menu, null);
     assert.equal((await anon.get(r.data.fileUrl.replace('/api/admin/media/', '/media/'))).status, 404);
-    await admin.del(`/api/admin/daily-menus/${d14.id}`);
+    assert.ok(!(await admin.get('/api/admin/daily-menus')).data.menus.some((m) => m.id === d14.id), 'hidden from the admin list');
+    const nxt = await dm('2026-06-25', 'false', PDF, 'next.pdf', 'application/pdf'); assert.equal(nxt.status, 201);
+    assert.equal(uploads().length, base + 1, 'old.pdf removed from disk (net: only next.pdf added)');
+    assert.equal((await admin.put(`/api/admin/daily-menus/${d14.id}`, { form: form({ published: 'false' }) })).status, 404, 'row deleted');
+    await admin.del(`/api/admin/daily-menus/${nxt.data.id}`);
+    assert.equal(uploads().length, base);
   });
   test('D10 /media unknown/never-existing names => 404; valid-looking random name => 404', async () => {
     for (const n of ['0123456789abcdef0123456789abcdef.png', 'x.png', '0123456789abcdef0123456789abcdef.exe', '0123456789abcdef0123456789abcdef.html']) {

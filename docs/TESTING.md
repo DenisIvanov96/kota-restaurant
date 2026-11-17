@@ -5,29 +5,68 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
-| npm test (backend) | fc935f8 | 70/70 |
-| api security / publication / menu | fc935f8 | 42/42 · 21/21 · 17/17 (full api run 141/141 incl. the new suite) |
-| api i18n (T-17) | fc935f8 | 13/13 (I13 expects 001..005) |
-| api feedback1 | fc935f8 | 20/20 (F1 and N1-N5 expect 001..005) |
-| api langs (T-35, new: per-language event images / daily files / menu files, fallback, /media visibility, upload validation, auth/CSRF, migration 005) | fc935f8 | 28/28 |
-| e2e public | 39ca70d | 89/89 (U5 now accepts the EN default address on the BG site, D-43; BUG-18 closed by design) |
-| e2e a11y | fc935f8 | 48/48 (focus audit now identifies stops by position: two identical "Избери файл" buttons) |
-| e2e admin | 39ca70d | 117/117 |
-| e2e design | fc935f8 | 22/22 |
-| e2e i18n (T-17) | fc935f8 | 240/240 (admin English blocks AE/AMN/AST rewritten for the language tabs) |
-| e2e reflow (T-20) | fc935f8 | 88/88 |
-| e2e launch (T-25) | fc935f8 | 916/916 |
-| e2e feedback1 (T-29) | fc935f8 | 775/775 |
-| e2e admin-dates (T-29/T-32) | fc935f8 | 100/100 |
-| e2e langs (T-35/T-37: owner scenario, admin tabs, error mapping incl. new ERR-1d and D-413 mocked 413/400/415 checks, guard, XSS, 768 px) | 39ca70d | 185/185 |
+| npm test (backend, `server/test/*.test.js`) | 8b5c0c6 | 92/92 |
+| api security / publication / menu | 8b5c0c6 | 43/43 · 21/21 · 17/17 (S5d/S5e now 50 MB, new S5j) |
+| api i18n / feedback1 / langs | 8b5c0c6 | 13/13 · 20/20 · 28/28 (migrations 001..006; langs LF1-3 rewritten for pages) |
+| api uploads (T-43, new: 50 MB boundary on every upload route, tmp dir always empty, abort, memory, 16-way race on the 10-page limit) | 8b5c0c6 | 14/14 (full api run 173/173; UP8 added afterwards and run alone) |
+| api cleanup (T-43, new: D-45 daily-menu auto-cleanup) | 8b5c0c6 | 6/6 |
+| api download (T-43, new: ZIP download D-48, incl. 10 x 50 MB) | 8b5c0c6 | 9/9 |
+| api migration006 (T-43, new: D-47 legacy menu_files) | 8b5c0c6 | 3/3 |
+| e2e public | 8b5c0c6 | 90/90 |
+| e2e admin | 8b5c0c6 | 118/118 |
+| e2e langs | 8b5c0c6 | 185/185 (F-FILES rewritten for the page manager) |
+| e2e i18n | 8b5c0c6 | 240/240 (FM1-FM5 rewritten for `.menu-pages`; lightbox zoom button selector excludes prev/next) |
+| e2e pages (T-43, new: 10-file select, reorder/delete/publish, public pages, lightbox, downloads/ZIP, print, a11y) | 8b5c0c6 | 72/72 |
+| e2e a11y | 8b5c0c6 | 48/48 |
+| e2e design | 8b5c0c6 | 22/22 |
+| e2e reflow | 8b5c0c6 | 88/88 |
+| e2e launch | 8b5c0c6 | 916/916 |
+| e2e feedback1 | 8b5c0c6 | 775/775 |
+| e2e admin-dates | 8b5c0c6 | 100/100 |
 | width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run) |
 
-Suites with commit 39ca70d were re-run in T-37 (only `public/admin/js/daily.js` and `events.js` changed since `01e69f6`; server and api suites are unchanged since fc935f8, other e2e suites are unaffected by those two files and were NOT re-run). All other suites ran sequentially at fc935f8 (T-35 full tier: server migration 005, multipart, /media and admin changed). Earlier per-suite commits are superseded.
+All suites ran sequentially at 8b5c0c6 in T-43 (full tier: schema 006, uploads, shared code `render.js`/`i18n.js`/`components.css`/`store.js`/`files.js` changed). a11y, design, reflow, feedback1, admin-dates and launch were run unmodified; the other suites were updated for intended changes first (see the T-43 section).
 
 Historical note: server code was identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## Owner feedback round 3 + menu download + release regression (T-43) - 2026-11-17, `8b5c0c6` (full tier)
+
+Verdict: **PASS**. No defect found (BUG-19+ not needed). Every failure seen at the start of the run was an obsolete expectation of a change specified in `docs/ARCHITECTURE.md` "Owner feedback round 3 (D-44..D-46)", "As built (T-38)" and "Menu download (D-48)", or a mistake in a new test (fixed, listed below).
+
+### Intended-change expectations updated (each verified against the spec first)
+| Test | Obsolete expectation | New expectation |
+|---|---|---|
+| feedback1 F1, N1-N5; i18n I13; langs LG1 | applied migrations 001..005 | 001..006 (`006_menu_pages.sql`); LG1 also: published legacy file -> bg flag on, `pages.bg.items[0]` |
+| menu M7-M13 | `/menu/files*`, one published file | `/menu/pages` (+ `/order`, `/published`, `DELETE /pages/:id`): per-language flag, ordered pages, live at once, `in_use` for the last page / last live language, `nothing_published` also for a flag on an empty language |
+| langs LF1-LF3 | per-file publish, `files`, dashboard `publishedFile(s)` | pages API; `GET /api/admin/menu` has no `files`; dashboard `menu.pages {bg,en:{published,count}}`; removed endpoints answer 404 |
+| langs LU4, security S5d/S5e | 5 / 10 / 15 MB limits | 50 MB (6 / 11 / 16 MB accepted; 50 MB + 1 -> 413; exactly 50 MB -> 201) |
+| langs LU5/LU6/LA1, security S1a/S5b/S5g/S5h/S5i | `/menu/files` | `/menu/pages` (+ order/published/delete); LU5 now reports the offending field (`fields.fileEn`) instead of `file` (observation below) |
+| publication D1, D4, D6-D9 | past menus created freely, listed and kept | D-45: past-dated menu created (that upload exempt), hidden from public and admin list (`GET` = today + upcoming), deleted with its file by the NEXT upload; D4 asserts "hidden in the admin list, still on disk until an upload"; D5 uploads at a later clock delete the earlier menus, so D6 recreates today's menu |
+| admin MN12-MN14 (M) | "Качи български файл" button, per-file publish | page manager: file input uploads at once, switch "Публикувани — Български страници", delete of the last live page -> "последната публикувана страница" |
+| public F0-F2 | `.menu-file` single image/PDF | `.menu-pages` / `.menu-page-image` / `.menu-page-pdf`, alt "Меню — страница N", single page without caption, direct download link |
+| i18n FM1-FM5 | `.menu-file`, "Tap to enlarge", "The menu is a PDF file." | `.menu-pages`: "Enlarge page 1 of 1", "Download menu", "Download page 1", "PDF — page 1"; lightbox zoom button selector `.lb-btn:not(.lb-prev):not(.lb-next)` (prev/next buttons were added before it) |
+| langs F-FILES FL1-FL13, G-XSS, R-TAB | file sections, `/menu/files` | page manager flow (tabs, auto upload, switches, reorder, public order/colours, fallback, dashboard counts, delete rules); XSS names via `/menu/pages`; R-TAB measures visible tabs only (the pages tabs exist hidden) |
+
+### New targeted tests
+- `tests/api/uploads.test.mjs` (UP0-UP8, port 3201): 50 MB exactly -> 201 and stored size 52428800; 50 MB + 1 -> 413 `file_too_large` with `fields.<field>` on POST events (`image`, `imageEn`), POST daily-menus (`file`, `fileEn`), POST `/menu/pages` (bg, en), PUT events/daily; `tmp/` empty after success, 413, 415, 400, 409 and client abort (polled up to 3 s: the file is unlinked a few ms after the response); a temp file exists in `tmp/` while a 30 MB body is in flight (disk storage); abort at 8 MB removes it, no row, no upload file; start-up sweep of leftovers; peak RSS 89 -> 115 MB after 300 MB of uploads; 16 simultaneous page uploads -> exactly 10 x 201 + 6 x 409, positions 1..10; concurrent deletes keep positions contiguous.
+- `tests/api/cleanup.test.mjs` (CL1-CL6, port 3202): past menus deleted with BG+EN files from DB and disk (files table = disk), today/future kept; the clock alone deletes nothing; PUT/PATCH without file, failed (415) upload and event uploads do not clean; PUT adding `fileEn` and `replace=true` do; Sofia midnight both summer (20:59:59Z keeps, 21:00:00Z deletes) and winter (21:59:59Z / 22:00:00Z); admin list = today + upcoming.
+- `tests/api/download.test.mjs` (DL1-DL9, port 3203): 404 in every non-public state; ZIP headers (`application/zip`, `attachment; filename="kota1-menu-bg.zip"`, `no-store`, `nosniff`, exact Content-Length, HEAD); own ZIP parser (EOCD, central dir, local headers, CRC32 via `zlib.crc32`) + `unzip -t` + `python3 zipfile.testzip`; entries `kota1-menu-<lang>-page-NN.<ext>` in admin order, renumbered after deletes; served-language naming and EN/BG fallback; invalid `lang` -> 400 (11 variants), extra query/path input ignored, traversal paths 404, POST/PUT/DELETE/PATCH 4xx; unpublish + delete mid-download completes as a valid ZIP (3 x 25 MB, paused client) and the next request reflects the change; abort x5 leaves no file descriptors; missing file on disk -> 404; 10 x 50 MB (500 MB ZIP in ~2 s) `unzip -t` OK, server peak RSS 117 -> 120 MB.
+- `tests/api/migration006.test.mjs` (MG1-MG3, port 3204): 001..005 DB with 3 bg (one published, not the newest) + 2 en (none published) legacy files, an unreferenced `files` row, an event image and a daily file: bg keeps the published one (flag 1), en keeps the newest (flag 0), position 1, legacy `published` zeroed, other legacy files + orphan rows and disk files deleted, referenced files kept, idempotent restart, integrity/foreign-key checks; en-only published; unpublished single legacy file.
+- `tests/e2e/pages.mjs` (72 checks, ports 3201 and 3202): 11 files at once refused client-side; 10 files at once -> 10 sequential uploads (no overlap, progress bar, queued rows, throttled uplink); 11th blocked (UI and API 409); reorder with arrows (+ disabled ends, live region, focus kept), delete with confirm, renumbering; publish per language; public pages in admin order (pixel colours), "Страница N от M", alt text, PDF card; unpublished pages' `/media` 404; lightbox prev/next/arrow keys/touch swipe/Escape/focus return, PDF skipped with real page numbers, EN labels; EN/BG fallback in both directions and the in_use refusal; single page -> direct download link; ZIP downloaded through the browser (`kota1-menu-bg.zip`/`-en.zip`, `unzip -t`, entry bytes = live page), per-page download; structured menu print button calls `window.print()` (keyboard too), print media hides header/top bar/footer/hero/nav/button and shows "KOTA 1" + categories + prices on a white background, real PDF via `page.pdf()` + `pdftotext` contains the menu and not the address/phone/nav; computed contrast, focus ring, lightbox focus trap, heading order, 44 px targets and no h-scroll at 390/768/1280; daily wizard note + daily image download links.
+
+### Observations (not defects)
+- `POST /menu/pages` with a wrongly named file field now reports `fields.<that field>` (e.g. `fileEn`) like the other routes; the removed single-file route reported `file`. The admin UI only sends `file`.
+- Flags survive deleting all pages of a language (a flag may be set on an empty language): uploading the next page to such a language is live at once. This is the specified "live = flag on AND >= 1 page"; the UI warns for published sets.
+- `tmp/` temp files are unlinked a few ms AFTER the response is sent (tests poll up to 3 s); no leftover was ever seen.
+- Slow uplink: a 50 MB upload sent at ~160 KB/s (324 s, longer than Node's default 300 s `requestTimeout`) still returned 201 (probe, not in the repo).
+- ZIP built in-house: no ZIP64 (> 4 GB would answer 413); 10 x 50 MB is 500 MB, well inside.
+
+### NOT RUN
+- Caddy `max_size 55MB` and HTTPS (no proxy in the sandbox); real mobile browsers and Safari (headless Chromium only; the touch swipe is a synthetic TouchEvent); real printers (only Chromium's PDF output); browser "Save as PDF" dialog.
+- width sweep 320-420 px (not re-run).
 
 ## Retest BUG-16 / BUG-17 / BUG-18 (T-37) - 2026-11-17, `39ca70d` (targeted)
 

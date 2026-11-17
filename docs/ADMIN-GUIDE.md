@@ -27,7 +27,7 @@ If you are logged out while editing (for example after 12 hours of inactivity), 
 ## 2. Events (Събития)
 **Create an event:** **Събития → Ново събитие**
 - **Заглавие** (title) is required. **Описание** (description) is optional. New lines are kept.
-- **Снимка** (image) is optional: JPG, PNG or WebP, up to 5 MB. Landscape photos look best.
+- **Снимка** (image) is optional: JPG, PNG or WebP, up to 50 MB. Landscape photos look best.
 - **Дата на събитието** is when the event happens. Customers see it on the banner.
 - **Показвай от** is when the banner starts showing. Leave it empty to show it right away.
 - **Скрий след** is when the banner disappears automatically. Leave it empty to keep it until you turn it off.
@@ -48,7 +48,7 @@ All times are Bulgarian time.
 
 ## 3. Daily lunch menu (Обедно меню)
 Upload in four steps: **Избери файл → Избери дата → Преглед → Публикувай**
-1. **Избери файл:** choose a photo (JPG, PNG, WebP) or a PDF of the menu, up to 10 MB.
+1. **Избери файл:** choose a photo (JPG, PNG, WebP) or a PDF of the menu, up to 50 MB.
 2. **Избери дата:** tap **Днес** (today) or **Утре** (tomorrow), or pick any date.
 3. **Преглед:** check that it is the right file and readable.
 4. **Публикувай:** publish it. A progress bar shows the upload. You can also save it without publishing and publish it later.
@@ -59,6 +59,8 @@ Upload in four steps: **Избери файл → Избери дата → Пр
 - Yesterday's menu is never shown as today's. If nothing is uploaded for today, customers see "no menu today".
 
 **Replace a menu:** upload a new file for the same date. You are asked to confirm **Замени** (replace), and the old file is removed.
+
+**Old menus are deleted automatically:** when you upload a new lunch menu, menus for past dates are removed (files included). Today's and future menus are kept.
 
 **List:** shows all menus, grouped into **Предстоящи** (upcoming) and **Минали** (past). The one customers see today is marked **На живо днес**. From the list you can publish or hide a menu, replace its file, or **Изтрий** it (asks for confirmation).
 
@@ -81,8 +83,13 @@ Your changes are a **draft (чернова)**. Customers keep seeing the old men
 
 If you try to leave with unsaved changes, you are warned.
 
-### Uploading a whole-menu file
-Use the **Файл** tab. Upload a PDF or photo (up to 15 MB), preview it, then publish it. Only one file can be live at a time. The live file cannot be deleted or hidden while "Файл" is the selected mode. Switch to the structured menu first, or publish a newer file.
+### Uploading the menu as pages (photos or PDF)
+Use the **Файл** tab. There is a separate list for **Български** and **English**.
+- Upload up to **10 pages per language** (PDF, JPG, PNG or WebP, up to 50 MB each). You can select several files at once.
+- Put the pages in order with the up/down arrows. Remove a page with **Изтрий**.
+- Publish each language separately. If one language has no published pages, customers see the other one.
+
+Customers flip through the pages ("Страница 1 от 5") and can **download the menu**: one page downloads directly, several pages download as one ZIP file. A structured menu can be printed or saved as PDF with **Изтегли / Принтирай**.
 
 ## 5. Settings (Настройки)
 - **Site information:**
