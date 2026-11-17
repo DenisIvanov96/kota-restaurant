@@ -1,7 +1,7 @@
 import { el, icon } from './dom.js';
 import { t } from './i18n.js';
 
-let dlg, scroll, img, zoomBtn, closeBtn, closeText, lastTrigger, prevBtn, nextBtn, posEl;
+let dlg, scroll, img, video, capEl, zoomBtn, closeBtn, closeText, lastTrigger, prevBtn, nextBtn, posEl;
 let gallery = null; // { items:[{src,alt}], index }
 
 function build() {
@@ -29,8 +29,15 @@ function build() {
   bar.append(prevBtn, posEl, nextBtn, zoomBtn, close);
   scroll = el('div', 'lb-scroll');
   img = el('img', 'lb-img');
-  scroll.append(img);
-  dlg.append(bar, scroll);
+  video = el('video', 'lb-video');
+  video.controls = true;
+  video.playsInline = true;
+  video.preload = 'metadata';
+  video.hidden = true;
+  scroll.append(img, video);
+  capEl = el('p', 'lb-cap');
+  capEl.hidden = true;
+  dlg.append(bar, scroll, capEl);
   document.body.append(dlg);
 
   zoomBtn.addEventListener('click', () => {
@@ -39,16 +46,19 @@ function build() {
     zoomBtn.setAttribute('aria-pressed', String(zoomed));
   });
   close.addEventListener('click', () => dlg.close());
+  dlg.addEventListener('cancel', () => video.pause());
   prevBtn.addEventListener('click', () => step(-1));
   nextBtn.addEventListener('click', () => step(1));
   dlg.addEventListener('keydown', (e) => {
     if (!gallery) return;
+    // Arrow keys seek inside a focused video; they must not change the slide.
+    if (e.target === video) return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
   });
   let sx = null, sy = 0;
   scroll.addEventListener('touchstart', (e) => {
-    sx = e.touches.length === 1 && !scroll.classList.contains('is-zoomed') ? e.touches[0].clientX : null;
+    sx = e.touches.length === 1 && e.target !== video && !scroll.classList.contains('is-zoomed') ? e.touches[0].clientX : null;
     sy = e.touches[0].clientY;
   }, { passive: true });
   scroll.addEventListener('touchend', (e) => {
@@ -61,16 +71,40 @@ function build() {
   // Tap on the dark backdrop / empty scroll area closes
   dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target === scroll) dlg.close(); });
   dlg.addEventListener('close', () => {
+    stopVideo(true);
     img.removeAttribute('src');
     gallery = null;
     if (lastTrigger && lastTrigger.isConnected) lastTrigger.focus();
   });
 }
 
+function stopVideo(release) {
+  if (!video) return;
+  video.pause();
+  if (release) { video.removeAttribute('src'); video.load(); }
+}
+
 function show() {
   const multi = gallery && gallery.items.length > 1;
   const it = gallery ? gallery.items[gallery.index] : null;
-  if (it) { img.alt = it.alt || ''; img.src = it.src; }
+  const isVideo = !!it && it.kind === 'video';
+  stopVideo(true);
+  scroll.classList.toggle('is-fit', !!it && !!it.kind);
+  if (it) {
+    img.hidden = isVideo;
+    video.hidden = !isVideo;
+    if (isVideo) {
+      img.removeAttribute('src');
+      video.setAttribute('aria-label', it.caption || it.alt || '');
+      video.src = it.src;
+    } else {
+      img.alt = it.caption ? '' : (it.alt || '');
+      img.src = it.src;
+    }
+    capEl.textContent = it.caption || '';
+    capEl.hidden = !it.caption;
+  }
+  zoomBtn.hidden = isVideo;
   prevBtn.hidden = nextBtn.hidden = posEl.hidden = !multi;
   if (multi) {
     prevBtn.disabled = gallery.index === 0;

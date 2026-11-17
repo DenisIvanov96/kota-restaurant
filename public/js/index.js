@@ -34,12 +34,23 @@ function renderContact(site) {
   call.hidden = !phone;
 }
 
+/* About text: owner-written (plain text, paragraphs split on blank lines) or the built-in default when not set. */
+function renderAbout(site) {
+  const body = document.getElementById('about-body');
+  if (!body) return;
+  const raw = site && typeof site.about === 'string' ? site.about.replace(/\r\n?/g, '\n').trim() : '';
+  const paras = raw ? raw.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean) : [];
+  if (!paras.length) paras.push(t('about.text'));
+  body.replaceChildren(...paras.map((p) => el('p', '', p)));
+}
+
 function loadSiteInfo(mine) {
   return loadSite().then((site) => {
     if (mine !== gen) return;
     applyTopBar(site);
     applyInstagram(site);
     renderContact(site);
+    renderAbout(site);
     realignHash();
   });
 }

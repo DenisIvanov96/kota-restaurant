@@ -9,13 +9,14 @@ export function settingsView(ctx) {
   el.append(body);
   let dead = false;
   let siteDirty = () => false;
+  let aboutDirty = () => false;
 
   async function load() {
     body.replaceChildren(skeleton(3));
     try {
       const s = await get('/api/admin/settings');
       if (dead) return;
-      body.replaceChildren(siteCard(s), passwordCard(), totpCard(), profileCard());
+      body.replaceChildren(siteCard(s), aboutCard(s), passwordCard(), totpCard(), profileCard());
     } catch (e) { if (!dead) { body.replaceChildren(loadError(null, load)); reportError(e); } }
   }
 
@@ -62,6 +63,53 @@ export function settingsView(ctx) {
           let first = null;
           for (const [k, msg] of Object.entries(err.fields)) if (m[k]) { if (m[k] === addrEn || m[k] === hoursEn) langBox.select('en', false); else if (m[k] === addr || m[k] === hours) langBox.select('bg', false); m[k].setError(msg); first = first || m[k]; }
           if (first) first.input.focus();
+        } else reportError(err);
+      } finally { setBusy(save, false); }
+    });
+    return form;
+  }
+
+  // ---- 1b. About text
+  function aboutCard(s) {
+    const ta = (lang, label, value) => {
+      const f = field({ label, multiline: true, rows: 8, max: 2000, value: value || '', helper: 'Ако оставите този език празен, ще се показва другият.' });
+      f.input.setAttribute('lang', lang);
+      return f;
+    };
+    const bg = ta('bg', 'Текст на български', s.aboutBg);
+    const en = ta('en', 'Text in English', s.aboutEn);
+    const status = h('p', { class: 'a-vh', role: 'status', 'aria-live': 'polite' });
+    const limitNote = (f) => {
+      const n = f.value.length;
+      if (n === 2000) status.textContent = 'Достигнат е максимумът.'; else if (n === 1900) status.textContent = 'Остават 100 знака.';
+    };
+    const box = langTabs({ label: 'Език на текста „За нас“', panels: { bg: [bg.el], en: [en.el] }, filled: (l) => !!(l === 'en' ? en : bg).value.trim() });
+    for (const f of [bg, en]) f.input.addEventListener('input', () => { limitNote(f); box.update(); });
+    const snap = () => JSON.stringify([bg.value, en.value]);
+    let base = snap();
+    aboutDirty = () => snap() !== base;
+    const save = btn({ label: 'Запази текста', variant: 'primary', type: 'submit' });
+    const view = h('a', { class: 'a-btn a-btn--ghost', href: '/#about', target: '_blank', rel: 'noopener' }, h('span', { text: 'Виж на сайта' }), h('span', { class: 'a-vh', text: ' (отваря се в нов раздел)' }));
+    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Текст „За нас“' }),
+      h('p', { class: 'a-help', text: 'Показва се в секция „За нас“ на началната страница. Оставете празно, за да се показва стандартният текст. Празен ред започва нов абзац.' }),
+      box.el, status, h('div', { class: 'a-actionrow' }, save, view));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      bg.setError(''); en.setError('');
+      setBusy(save, true);
+      try {
+        const r = await put('/api/admin/settings', { aboutBg: bg.value.trim() || null, aboutEn: en.value.trim() || null });
+        bg.value = r.aboutBg || ''; en.value = r.aboutEn || '';
+        box.update();
+        base = snap();
+        toast('Текстът е запазен.');
+      } catch (err) {
+        if (err.status === 400 && err.fields && (err.fields.aboutBg || err.fields.aboutEn)) {
+          const lang = err.fields.aboutBg ? 'bg' : 'en';
+          const f = lang === 'bg' ? bg : en;
+          box.select(lang, false);
+          f.setError(`Текст „За нас“ (${lang === 'bg' ? 'български' : 'English'}): ${err.fields[lang === 'bg' ? 'aboutBg' : 'aboutEn']}`);
+          f.input.focus();
         } else reportError(err);
       } finally { setBusy(save, false); }
     });
@@ -190,5 +238,5 @@ export function settingsView(ctx) {
   }
 
   load();
-  return { el, dirty: () => !dead && siteDirty(), destroy() { dead = true; } };
+  return { el, dirty: () => !dead && (siteDirty() || aboutDirty()), destroy() { dead = true; } };
 }

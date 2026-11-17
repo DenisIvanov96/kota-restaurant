@@ -6,6 +6,7 @@ import { dashboardView } from './dashboard.js';
 import { eventsView, eventFormView } from './events.js';
 import { dailyView } from './daily.js';
 import { menuView } from './menu.js';
+import { galleryView } from './gallery.js';
 import { settingsView } from './settings.js';
 
 const root = document.getElementById('app');
@@ -21,6 +22,7 @@ const NAV = [
   { key: 'events', label: 'Събития', icon: 'calendar', href: '#/events' },
   { key: 'daily', label: 'Обедно меню', icon: 'utensils', href: '#/daily-menu' },
   { key: 'menu', label: 'Основно меню', icon: 'book-open', href: '#/menu' },
+  { key: 'gallery', label: 'Галерия', icon: 'image', href: '#/gallery' },
   { key: 'settings', label: 'Настройки', icon: 'settings', href: '#/settings' },
 ];
 
@@ -37,11 +39,12 @@ function parseHash() {
   }
   if (seg[0] === 'daily-menu') return { name: 'daily', title: 'Обедно меню', nav: 'daily', query };
   if (seg[0] === 'menu') return { name: 'menu', title: 'Основно меню', nav: 'menu', query };
+  if (seg[0] === 'gallery') return { name: 'gallery', title: 'Галерия', nav: 'gallery', query };
   if (seg[0] === 'settings') return { name: 'settings', title: 'Настройки', nav: 'settings', query };
   return { name: 'dashboard', title: 'Табло', nav: 'dashboard', query };
 }
 
-const VIEWS = { dashboard: dashboardView, events: eventsView, 'event-form': eventFormView, daily: dailyView, menu: menuView, settings: settingsView };
+const VIEWS = { dashboard: dashboardView, events: eventsView, 'event-form': eventFormView, daily: dailyView, menu: menuView, gallery: galleryView, settings: settingsView };
 
 // ---------- guard ----------
 /** Resolves true when it is OK to leave the current view. */

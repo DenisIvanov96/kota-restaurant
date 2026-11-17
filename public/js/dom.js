@@ -16,6 +16,7 @@ const ICONS = {
   external: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   'arrow-left': '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  play: '<path d="M8 5v14l11-7z" fill="currentColor"/>',
   'arrow-right': '<path d="M5 12h14M12 5l7 7-7 7"/>',
 };
 export function icon(name, className) {

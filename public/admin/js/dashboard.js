@@ -103,6 +103,12 @@ export function dashboardView(ctx) {
       mc.append(h('div', { class: 'a-actions' }, linkBtn('#/menu', 'Прегледай и публикувай', 'primary')));
     } else mc.append(h('div', { class: 'a-actions' }, linkBtn('#/menu', 'Редактирай меню')));
     grid.append(mc);
+    if (d.gallery) {
+      const g = d.gallery;
+      grid.append(h('section', { class: 'a-card a-dash-card' }, h('h2', { text: 'Галерия' }),
+        h('p', { class: 'a-help', text: `Галерия: ${g.count} / 25, видими: ${g.visible}` }),
+        h('div', { class: 'a-actions' }, linkBtn('#/gallery', 'Управление на галерията'))));
+    }
     frag.append(grid);
     return frag;
   }

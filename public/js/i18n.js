@@ -35,7 +35,18 @@ export const STRINGS = {
     'nav.menu': 'Меню',
     'nav.daily': 'Обедно меню',
     'nav.event': 'Събитие',
-    'nav.about': 'За нас',
+    'nav.gallery': 'Галерия',
+    'title.gallery': 'Галерия — Kota1 Restaurant',
+    'meta.gallery': 'Снимки и видео от Kota1 Restaurant.',
+    'gallery.title': 'Галерия',
+    'gallery.intro': 'Снимки и видео от Kota1.',
+    'gallery.empty': 'Скоро ще добавим снимки.',
+    'gallery.error': 'Галерията не може да се зареди.',
+    'gallery.photoN': 'Снимка {n} от {m}',
+    'gallery.videoN': 'Видео {n} от {m}',
+    'gallery.video': 'Видео',
+    'gallery.home': 'Към началото',
+    'gallery.loading': 'Зареждане…',
     'nav.contact': 'Контакти',
     'nav.aria': 'Основна навигация',
     'nav.toggle': 'Навигация',
@@ -162,7 +173,18 @@ export const STRINGS = {
     'nav.menu': 'Menu',
     'nav.daily': 'Daily Special',
     'nav.event': 'Event',
-    'nav.about': 'About',
+    'nav.gallery': 'Gallery',
+    'title.gallery': 'Gallery — Kota1 Restaurant',
+    'meta.gallery': 'Photos and videos from Kota1 Restaurant.',
+    'gallery.title': 'Gallery',
+    'gallery.intro': 'Photos and videos from Kota1.',
+    'gallery.empty': 'Photos coming soon.',
+    'gallery.error': 'The gallery could not be loaded.',
+    'gallery.photoN': 'Photo {n} of {m}',
+    'gallery.videoN': 'Video {n} of {m}',
+    'gallery.video': 'Video',
+    'gallery.home': 'Back to home',
+    'gallery.loading': 'Loading…',
     'nav.contact': 'Contact',
     'nav.aria': 'Main navigation',
     'nav.toggle': 'Navigation',
@@ -304,7 +326,7 @@ export function t(key, vars, lang) {
 
 export function onLangChange(fn) { listeners.push(fn); }
 
-const isInternal = (h) => h === '/' || h.startsWith('/#') || /^\/(daily-menu|privacy|reservation)([?#]|$)/.test(h);
+const isInternal = (h) => h === '/' || h.startsWith('/#') || /^\/(daily-menu|privacy|reservation|gallery)([?#]|$)/.test(h);
 
 /** Internal page links keep the language: '/#menu' -> '/?lang=en#menu'. Other URLs are returned unchanged. */
 export function langHref(href) {
