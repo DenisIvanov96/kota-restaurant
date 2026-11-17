@@ -89,7 +89,7 @@ Use the **Файл** tab. There is a separate list for **Български** an
 - Put the pages in order with the up/down arrows. Remove a page with **Изтрий**.
 - Publish each language separately. If one language has no published pages, customers see the other one.
 
-Customers flip through the pages ("Страница 1 от 5") and can **download the menu**: one page downloads directly, several pages download as one ZIP file. A structured menu can be printed or saved as PDF with **Изтегли / Принтирай**.
+Customers flip through the pages ("Страница 1 от 5"). There is no download button for customers. Only you can download: **Изтегли менюто (ZIP)** downloads all pages of that language (published or not) as one ZIP file, and **Изтегли** next to a page downloads that page.
 
 ## 5. Settings (Настройки)
 - **Site information:**
