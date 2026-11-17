@@ -30,3 +30,8 @@
 | D-26 | 2026-11-16 | Mobile nav panel omits "Обедно меню" (pill always visible) — accepted | BUG-D6 part 1 | PM |
 | D-27 | 2026-11-16 | Public site gets a БГ / EN language switch covering UI text and content; content has optional English fields with Bulgarian fallback; admin stays Bulgarian | User request after preview ("Everything", "Admin stays Bulgarian") | User |
 | D-28 | 2026-11-16 | Language fallback resolved server-side via `?lang=`; choice persisted in URL + localStorage | Keeps public JS simple; shareable English links | PM |
+| D-29 | 2026-11-17 | Self-host fonts; no Google Fonts requests | GDPR: Google Fonts transmits visitor IPs to Google (user approved) | User |
+| D-30 | 2026-11-17 | SVG + PNG favicons from the KOTA 1 mark | User request | User |
+| D-31 | 2026-11-17 | HTML 404 page (status 404) for page requests; JSON 404 stays for API | User request | User |
+| D-32 | 2026-11-17 | Open Graph/Twitter meta with `SITE_URL` env token replacement | Social link previews need absolute URLs; domain not chosen yet | PM |
+| D-33 | 2026-11-17 | Privacy notice draft page; map as an outbound link, not an embed | GDPR basics; an embedded map would load Google on every visit | PM |

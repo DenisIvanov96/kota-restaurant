@@ -202,3 +202,11 @@ Add nullable TEXT columns: `events.title_en`, `events.description_en`, `menu_cat
   - Draft menu: category `nameEn` (0–100), item `nameEn` (0–100), `descriptionEn` (0–500); `GET /api/admin/menu` returns them in `draft` and `published`. `hasUnpublishedChanges` must consider them.
   - Settings: `addressEn` (≤200), `openingHoursEn` (≤500).
   - Same validation rules as the BG fields (CRLF normalised, trimmed, plain text). English fields are always optional.
+
+## Launch polish (D-29..D-33)
+- **Self-hosted fonts (D-29):** Oswald 400/500/700 and Source Sans 3 400/600/700, `woff2`, latin + latin-ext + cyrillic + cyrillic-ext subsets, in `public/fonts/` with `@font-face` in `public/css/fonts.css` (loaded by public pages and admin) and the SIL OFL licence text in `public/fonts/OFL.txt`. No request to Google at runtime. CSP becomes `style-src 'self'; font-src 'self'` (remove fonts.googleapis.com / fonts.gstatic.com).
+- **Favicon (D-30):** `public/favicon.svg` (KOTA 1 mark), `public/favicon-32.png`, `public/apple-touch-icon.png` (180×180); linked from every public page and the admin.
+- **404 page (D-31):** `public/404.html`, bilingual via the i18n module, same header/footer. The server returns it with **status 404** for unknown non-`/api`, non-`/media` GET/HEAD paths whose `Accept` includes `text/html`; everything else keeps the JSON 404.
+- **Link previews (D-32):** Open Graph + Twitter card meta on `/`, `/daily-menu`, `/privacy` (og:title, og:description, og:type=restaurant/website, og:locale bg_BG + alternate en_GB, og:image 1200×630 `public/images/og-image.png`, og:url). Absolute URLs use the token `__SITE_URL__`; the server replaces it in served `.html` files with env **`SITE_URL`** (e.g. `https://kota1.bg`, no trailing slash) or with an empty string when unset. HTML stays `Cache-Control: no-cache`.
+- **Privacy notice (D-33):** `/privacy` (`public/privacy.html`), BG/EN, linked in every public footer. Content is a draft for owner/lawyer review with marked placeholders (legal entity, hosting provider, log retention days).
+- **Map link:** in the contact section, when an address is set, a link "Виж на картата / View on map" → `https://www.google.com/maps/search/?api=1&query=<encodeURIComponent(address)>`, `target="_blank" rel="noopener noreferrer"`. No embedded map (no third-party requests on page load).
