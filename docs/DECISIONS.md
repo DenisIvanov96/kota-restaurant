@@ -40,3 +40,7 @@
 | D-36 | 2026-11-17 | `instagramUrl` setting + Instagram icon link (placeholder to instagram.com when empty) | Owner request | User |
 | D-37 | 2026-11-17 | Always-visible Location section; default address seeded if empty | Owner couldn't find location; address given by owner | User |
 | D-38 | 2026-11-17 | `/reservation` page with sample floor plan, call button, location; real plan later | Owner request | User |
+| D-39 | 2026-11-17 | Event BG/EN tabs incl. optional EN photo; title required in ≥1 language; bidirectional fallback | Owner: "banner should have 2 different places", fallback "whatever is available" | User (recommended options applied; user answered by message) |
+| D-40 | 2026-11-17 | Regular menu: shared structure/prices, BG/EN tabs; whole-menu files per language | Owner wants separate BG/EN menus; shared prices avoid double maintenance (can switch to fully independent menus if owner prefers) | PM default, owner may revise |
+| D-41 | 2026-11-17 | Daily menu: optional EN file per date with fallback | Owner wants language-specific menus | PM default |
+| D-42 | 2026-11-17 | EN media follow the same public-visibility rules | Security | PM |
