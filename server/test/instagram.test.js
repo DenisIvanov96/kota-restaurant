@@ -97,7 +97,7 @@ test('migration 003: fills empty addresses on an existing DB, never overwrites, 
   try {
     const row = (k) => s.db.prepare('SELECT value FROM settings WHERE key = ?').get(k).value;
     assert.equal(row('address'), ''); assert.equal(row('address_en'), '');
-    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 3);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 4);
   } finally { await s.close(); }
 
   // non-empty values preserved (including bg set / en empty)
@@ -115,7 +115,8 @@ test('migration 003: fills empty addresses on an existing DB, never overwrites, 
   s = await loggedIn({ dataDir });
   try {
     const st = (await s.api.get('/api/admin/settings')).data;
-    assert.equal(st.address, 'ул. Моя 5'); assert.equal(st.addressEn, '85 Ralevitsa St, Sofia');
+    assert.equal(st.address, 'ул. Моя 5'); assert.equal(st.addressEn, ''); // BUG-12: no EN default beside an owner BG address
+    assert.equal((await s.client().get('/api/public/site?lang=en')).data.address, 'ул. Моя 5');
   } finally { await s.close(); }
 
   // missing rows entirely (e.g. 002 never inserted address_en)
@@ -125,4 +126,28 @@ test('migration 003: fills empty addresses on an existing DB, never overwrites, 
     const st = (await s.api.get('/api/admin/settings')).data;
     assert.equal(st.address, 'ул. Ралевица 85, София'); assert.equal(st.addressEn, '85 Ralevitsa St, Sofia');
   } finally { await s.close(); }
+});
+
+test('migration 004 (BUG-12 corrective): clears a wrongly seeded EN default only; idempotent; owner values untouched', async () => {
+  const run = async (prefix, addr, addrEn, applied003 = true) => {
+    const dataDir = oldDb(prefix, (db) => {
+      // state left by the OLD 003 (EN default seeded regardless of the BG address); applied003=false: 003 still pending
+      db.prepare("UPDATE settings SET value = ? WHERE key = 'address'").run(addr);
+      db.prepare("UPDATE settings SET value = ? WHERE key = 'address_en'").run(addrEn);
+      if (applied003) db.prepare('INSERT INTO schema_migrations(name, applied_at) VALUES (?, 1)').run('003_default_address.sql');
+    });
+    const s = await startApp({ dataDir });
+    try {
+      const row = (k) => s.db.prepare('SELECT value FROM settings WHERE key = ?').get(k).value;
+      const out = [row('address'), row('address_en')];
+      assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 4);
+      return out;
+    } finally { await s.close(); }
+  };
+  const DEF_BG = 'ул. Ралевица 85, София', DEF_EN = '85 Ralevitsa St, Sofia';
+  assert.deepEqual(await run('kota-m4a-', 'ул. Витоша 1, София', DEF_EN), ['ул. Витоша 1, София', '']); // wrong state is repaired
+  assert.deepEqual(await run('kota-m4b-', DEF_BG, DEF_EN), [DEF_BG, DEF_EN]); // legit default pair kept
+  assert.deepEqual(await run('kota-m4c-', 'ул. Витоша 1, София', '1 Vitosha St, Sofia'), ['ул. Витоша 1, София', '1 Vitosha St, Sofia']); // owner EN kept
+  assert.deepEqual(await run('kota-m4d-', '', '', false), [DEF_BG, DEF_EN]); // 003 seeds both together
+  assert.deepEqual(await run('kota-m4e-', '', '1 Own St', false), [DEF_BG, '1 Own St']); // owner EN kept; BG seeded
 });

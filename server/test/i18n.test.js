@@ -27,13 +27,13 @@ test('migration 002 on an existing DB: old data survives and reads with fallback
 
   const s = await loggedIn({ dataDir });
   try {
-    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 3);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 4);
     for (const lang of ['bg', 'en']) {
       const ev = (await pub(s, `events?lang=${lang}`)).data;
       assert.equal(ev.lang, lang);
       assert.deepEqual([ev.events[0].title, ev.events[0].description], ['Стар', 'описание']);
-      // 003 fills only the empty English address; the old Bulgarian one is kept
-      assert.equal((await pub(s, `site?lang=${lang}`)).data.address, lang === 'bg' ? 'ул. Стара 1' : '85 Ralevitsa St, Sofia');
+      // BUG-12: the default English address is NOT seeded over a stored BG address: EN falls back to the BG one
+      assert.equal((await pub(s, `site?lang=${lang}`)).data.address, 'ул. Стара 1');
       const m = (await pub(s, `menu?lang=${lang}`)).data;
       assert.equal(m.structured.categories[0].name, 'Салати');
       assert.equal(m.structured.categories[0].items[0].name, 'Шопска');
@@ -44,7 +44,7 @@ test('migration 002 on an existing DB: old data survives and reads with fallback
     assert.equal(adm.hasUnpublishedChanges, false); // draft (no En) equals old snapshot (no En)
     const st = (await s.api.get('/api/admin/settings')).data;
     assert.equal(st.address, 'ул. Стара 1'); // 003 never overwrites a stored address
-    assert.equal(st.addressEn, '85 Ralevitsa St, Sofia'); assert.equal(st.openingHoursEn, '');
+    assert.equal(st.addressEn, ''); // BUG-12: EN default only seeded together with the BG one; assert.equal(st.openingHoursEn, '');
     assert.equal((await s.api.get('/api/admin/events')).data.events[0].titleEn, '');
   } finally { await s.close(); }
 });
