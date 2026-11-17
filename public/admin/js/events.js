@@ -15,10 +15,11 @@ function showWindow(ev) {
   return `Показва се: ${from} ${to}`;
 }
 
+const evTitle = (ev) => ev.title || ev.titleEn || 'Без заглавие';
 async function deleteEvent(ev) {
   return confirmDialog({
     title: 'Изтриване на събитие',
-    body: para('Сигурни ли сте, че искате да изтриете „', [ev.title], '“? Снимката също ще бъде изтрита. Това не може да бъде върнато.'),
+    body: para('Сигурни ли сте, че искате да изтриете „', [evTitle(ev)], '“? Снимките също ще бъде изтрита. Това не може да бъде върнато.'),
     confirmLabel: 'Изтрий събитието', danger: true,
     run: async () => { await del(`/api/admin/events/${ev.id}`); },
   });
@@ -65,9 +66,9 @@ export function eventsView() {
   }
 
   function row(ev) {
-    const thumb = ev.imageUrl ? h('img', { class: 'a-thumb', src: ev.imageUrl, alt: '', loading: 'lazy' }) : h('span', { class: 'a-thumb a-thumb--tile' }, icon('calendar'));
+    const thumb = (ev.imageUrl || ev.imageEnUrl) ? h('img', { class: 'a-thumb', src: ev.imageUrl || ev.imageEnUrl, alt: '', loading: 'lazy' }) : h('span', { class: 'a-thumb a-thumb--tile' }, icon('calendar'));
     const sw = makeSwitch({
-      label: `Показвай „${ev.title}“`, checked: ev.enabled,
+      label: `Показвай „${evTitle(ev)}“`, checked: ev.enabled,
       onChange: async (next) => {
         try {
           const u = await patch(`/api/admin/events/${ev.id}/enabled`, { enabled: next });
@@ -82,12 +83,12 @@ export function eventsView() {
     if (ev.status === 'expired') note.append(h('p', { class: 'a-warn-text', text: 'Изтекъл срок — променете „Скрий след“, за да се покаже отново.' }));
     if (ev.status === 'scheduled' && ev.startsAt) note.append(h('p', { class: 'a-help', text: `Ще се покаже от ${formatDateTime(ev.startsAt)}.` }));
     const info = h('div', { class: 'a-event__info' },
-      h('h2', { class: 'a-event__title', text: ev.title }), statusBadge(ev.status),
+      h('h2', { class: 'a-event__title', text: evTitle(ev) }), statusBadge(ev.status),
       h('p', { class: 'a-help', text: ev.eventAt ? `Събитие: ${formatDateTime(ev.eventAt)}` : 'Без дата на събитието' }),
       h('p', { class: 'a-help', text: showWindow(ev) }));
     const actions = h('div', { class: 'a-event__act' },
       h('a', { href: `#/events/${ev.id}`, class: 'a-btn a-btn--secondary' }, icon('pencil'), h('span', { text: 'Редактирай' })),
-      btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий „${ev.title}“`, onClick: async () => {
+      btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий „${evTitle(ev)}“`, onClick: async () => {
         if (await deleteEvent(ev)) { toast('Събитието е изтрито.'); events = events.filter((x) => x.id !== ev.id); render(); }
       } }));
     return h('article', { class: `a-card a-event${ev.status === 'expired' ? ' is-expired' : ''}`, role: 'listitem' }, thumb, info, swWrap, actions, note);
@@ -128,7 +129,7 @@ export function eventFormView(ctx) {
     let saving = false;
     let saved = false;
 
-    const title = field({ label: 'Заглавие', required: true, max: 120, value: ev ? ev.title : '', onInput: () => { if (title.error) vTitle(); refreshD(); }, onBlur: () => vTitle() });
+    const title = field({ label: 'Заглавие', max: 120, value: ev ? ev.title : '', onInput: () => { if (title.error) vTitle(); refreshD(); }, onBlur: () => vTitle() });
     const desc = field({ label: 'Описание', multiline: true, rows: 6, max: 2000, value: ev ? ev.description : '', helper: 'Обикновен текст. Новите редове се запазват.', onInput: refreshD, onBlur: () => vDesc() });
     const titleEn = field({ label: 'Title (English)', max: 120, value: ev ? ev.titleEn || '' : '', helper: EN_HELP, onInput: () => { if (title.error) vTitle(); refreshD(); } });
     const descEn = field({ label: 'Description (English)', multiline: true, rows: 5, max: 2000, value: ev ? ev.descriptionEn || '' : '', helper: EN_HELP, onInput: refreshD });

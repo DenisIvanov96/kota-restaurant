@@ -164,7 +164,7 @@ export function dailyView(ctx) {
   async function conflict(existing) {
     return modal({
       title: 'Вече има меню за тази дата',
-      body: h('p', { text: `За ${formatDateLong(existing ? existing.date : w.date)} вече има качено меню (${existing && existing.published ? 'Публикувано' : 'Чернова'}). Искате ли да го замените с новия файл? Старият файл ще бъде изтрит.` }),
+      body: h('p', { text: `За ${formatDateLong(existing ? existing.date : w.date)} вече има качено меню (${existing && existing.published ? 'Публикувано' : 'Чернова'}). Старото меню (и двата езика) ще бъде заменено с новите файлове и изтрито. Език, за който не качите файл, ще остане празен. Да заменя ли?` }),
       buttons: [{ label: 'Избери друга дата', value: 'other', focus: true }, { label: 'Замени', value: 'replace', variant: 'danger' }],
     });
   }
