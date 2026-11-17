@@ -283,7 +283,7 @@ async function raceIndex(id, { start, delay, clicks, final }) {
     await page.waitForTimeout(4000); await page.waitForLoadState('networkidle').catch(() => {});
     const st = await page.evaluate(() => ({
       html: document.documentElement.lang, ev: [...document.querySelectorAll('.event-title')].map((n) => n.textContent), evh: document.getElementById('event-heading')?.textContent,
-      cats: [...document.querySelectorAll('.cat-title')].map((n) => n.textContent), addr: [...document.querySelectorAll('#contact-list dd')].map((n) => n.textContent), hdr: document.getElementById('menu-heading').textContent, pressed: document.querySelector('.lang-btn[aria-pressed=true]').dataset.lang,
+      cats: [...document.querySelectorAll('.cat-title')].map((n) => n.textContent), addr: [...document.querySelectorAll('#contact-list dd')].map((n) => (n.querySelector('.address-text') || n).textContent), hdr: document.getElementById('menu-heading').textContent, pressed: document.querySelector('.lang-btn[aria-pressed=true]').dataset.lang,
       price: document.querySelector('.dish-price')?.textContent, url: location.search, nEvSections: document.querySelectorAll('#event').length,
     }));
     const wantEn = final === 'en';
