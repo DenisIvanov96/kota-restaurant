@@ -34,13 +34,13 @@ node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch 
 - `api/publication.test.mjs` - events (enable/disable/expiry/future/images) and daily menus (today/tomorrow/yesterday, Sofia midnight, DST, replace) with clock advance.
 - `api/menu.test.mjs` - structured draft/publish/discard, file mode, mode switch, live-file protection, restart persistence.
 - `api/i18n.test.mjs` - `?lang` resolution/fallback, En-field leakage, admin En auth/CSRF/limits, migration 002 on a pre-i18n DB (port 3209).
-- `api/feedback1.test.mjs` - migration 003 matrix, instagramUrl contract, /reservation route (port 3206).
+- `api/feedback1.test.mjs` - migration 003 matrix + 004 repair matrix, instagramUrl contract, /reservation route (port 3206).
 - `e2e/feedback1.mjs`, `e2e/admin-dates.mjs` - see Run.
 - `e2e/launch.mjs` - fonts self-hosted + zero third-party requests, CSP exact string, HTML/JSON 404, SITE_URL token replacement and validation, OG/Twitter meta, favicons, privacy page, footer link, map link and address injection.
 - `e2e/*.mjs` - see above.
 
 ## Notes
 - Fonts are self-hosted since D-29; `launch.mjs` asserts zero requests to non-localhost hosts. `lib/browser.mjs` still collects failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` as environmental noise (legacy; any such request would now be a defect): failed requests to `fonts.googleapis.com` / `fonts.gstatic.com` are collected separately as environmental noise and ignored.
-- Open defects at 9fd7c8d: BUG-12 (major), BUG-13..15 (minor); see `docs/TESTING.md` (T-29). BUG-1..11 are fixed.
+- BUG-1..15 are all fixed and verified (BUG-12..15 at 2dd4acb, see `docs/TESTING.md` T-32).
 - `admin.mjs` dismisses persistent error toasts before pressing Save (they cover the sticky save bar at 390 px, BUG-5), as a user would.
 - Production-mode checks use `NODE_ENV=production` with default `HOST`; `KOTA_NOW` is ignored there (verified).

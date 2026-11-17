@@ -5,22 +5,22 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
-| npm test (backend) | 9fd7c8d | 56/56 |
-| api security / publication / menu | 9fd7c8d | 42/42 · 21/21 · 17/17 (S8e now expects the public `instagramUrl` key) |
-| api i18n (T-17) | 9fd7c8d | 12/13: FAIL `I13` (BUG-12: migration 003 seeds the default EN address over a stored BG address) |
-| api feedback1 (T-29, new: migration 003 matrix, instagramUrl contract, /reservation route) | 9fd7c8d | 13/15: FAIL `M4`, `M5` (BUG-12) |
+| npm test (backend) | 2dd4acb | 57/57 |
+| api security / publication / menu | 2dd4acb | 42/42 · 21/21 · 17/17 (security re-run: server migrations changed; S8e expects the public `instagramUrl` key) |
+| api i18n (T-17) | 2dd4acb | 13/13 (I13 expects 001..004) |
+| api feedback1 (T-29/T-32: migration 003 matrix M1-M6, new 004 repair matrix N1-N5, instagramUrl contract, /reservation route) | 2dd4acb | 20/20 (api total 113/113) |
 | e2e public | 9fd7c8d | 89/89 (C2 -> #location, U5 -> new always-on top bar / Location) |
-| e2e a11y | 9fd7c8d | 48/48 |
-| e2e admin | 9fd7c8d | 117/117 (date steps use the `.a-dt-date`/`.a-dt-time` pickers) |
+| e2e a11y | 2dd4acb | 48/48 |
+| e2e admin | 2dd4acb | 117/117 (date steps use the `.a-dt-date`/`.a-dt-time` pickers) |
 | e2e design | 9fd7c8d | 22/22 |
 | e2e i18n (T-17) | 9fd7c8d | 240/240 (RT1 strings + RACE address selector updated, intended) |
 | e2e reflow (T-20) | 9fd7c8d | 88/88 (RF-focus: top-bar link is now the first stop after the skip link) |
 | e2e launch (T-25) | 9fd7c8d | 916/916 (E5/E6/E7 -> #location, CSP3 Instagram href allowed, SU12 4 pages) |
-| e2e feedback1 (T-29, new: sticky top bar, /reservation, Location, Instagram, OG) | 9fd7c8d | 775/775 |
-| e2e admin-dates (T-29, new: BG date/time pickers under an en-US browser, Instagram settings live) | 9fd7c8d | 83/86: FAIL `TY3` (BUG-15), `VAL4` (BUG-13), `VAL8` (BUG-14) |
+| e2e feedback1 (T-29, new: sticky top bar, /reservation, Location, Instagram, OG) | 2dd4acb | 775/775 |
+| e2e admin-dates (T-29/T-32: BG date/time pickers under an en-US browser, Instagram settings live; +VAL4b-f, VAL8a-e, TY3b-e) | 2dd4acb | 100/100 |
 | width sweep 320-420 px (T-21/T-22, ad hoc, not in repo) | 2ef9c11 | 404 combos, 0 failures (NOT re-run; the 320 px top-bar reflow is covered by `feedback1.mjs` TB*) |
 
-All suites above were run sequentially at 9fd7c8d (full tier: server `store.js`, `routes/admin/general.js`, migration 003 and shared `i18n.js`, `common.js`, `style.css`, all page HTML changed). Earlier per-suite commits are superseded.
+Suites marked 2dd4acb were run sequentially there (T-32 retest); the others (public, design, i18n, reflow, launch) keep their 9fd7c8d PASS: `git diff 9fd7c8d..2dd4acb --stat -- public server/src` touches only `public/admin/js/{datetime,events,ui}.js`, which those suites do not drive (they only POST events through the API). All suites were originally run sequentially at 9fd7c8d (full tier: server `store.js`, `routes/admin/general.js`, migration 003 and shared `i18n.js`, `common.js`, `style.css`, all page HTML changed). Earlier per-suite commits are superseded.
 
 
 Historical note: server code was identical to `0c81447` through `c376609` (`git diff c77218a..c376609` touches only `public/**`); the browser suites were re-run at `c376609`. `5884ce2` changes only `public/css/style.css` (header `flex: none` + wrap breakpoint 379 px); public, a11y and reflow were re-run there; admin, design and i18n were NOT re-run at `5884ce2` (their pages are unaffected by the two header rules, last result at `c376609`).
@@ -28,9 +28,22 @@ Historical note: server code was identical to `0c81447` through `c376609` (`git 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
 
+## Retest of BUG-12..15 (T-32) - 2026-11-17, `2dd4acb`
+
+Verdict: **PASS** - BUG-12, BUG-13, BUG-14, BUG-15 verified fixed; no blocker/major open. Changed by QA: `tests/api/feedback1.test.mjs` (F1 migration list 001..004; new 004 repair matrix N1-N5), `tests/api/i18n.test.mjs` (I13 list includes `004_fix_default_address_en.sql`), `tests/e2e/admin-dates.mjs` (VAL4b-f, VAL8a-e, TY3b-e added). Address assertions were not weakened.
+
+| Bug | Result | Evidence |
+|---|---|---|
+| BUG-12 | FIXED | M1-M6 pass (003 alone no longer seeds EN over a stored BG address); I13 pass; N1: DB with the old (9fd7c8d) 003 already applied, BG custom + EN default -> after 004 the EN site shows the BG address; N2 owner-entered EN kept; N3/N4 defaults kept; N5 BG empty + custom EN kept; all idempotent on restart; 004 recorded. Known limit (by design): an owner EN address byte-identical to the default EN text with a custom BG address is indistinguishable from the damage and is cleared (falls back to BG). |
+| BUG-13 | FIXED | VAL4 + VAL4b-f: one shared `.a-error` element; the invalid input (and only it) has `aria-invalid`, `is-invalid` and an `aria-describedby` resolving to the visible message; date error -> date only; cleared/corrected -> no stale reference; a time error survives a date edit; both invalid -> exactly one message and one referencing input. The shared-element design gives the correct accessibility outcome. |
+| BUG-14 | FIXED | VAL8a-c: summary links for an invalid time in "Дата на събитието", "Показвай от", "Скрий след" focus the time input (invalid, described by the message); VAL8d date-error links still focus the date input; VAL8e range error focuses a "Скрий след" input. |
+| BUG-15 | FIXED | TY3 typed and pasted `5.6.2026` -> `05.06.2026`; TY3b char-by-char (digits-only chunking unchanged: `20062026`, `15062026`, `15` -> `15.`); TY3c paste variants (`5/6/2026`, ISO); TY3d no error after blur; TY3e Backspace works. Cosmetic only: while typing, `5.6.` shows `05.6.` (padded once the next character arrives); final value is correct. |
+
+Regression (server changed -> api all incl. security; shared admin JS -> admin, admin-dates, a11y, feedback1): npm test 57/57, api 113/113, e2e admin 117/117, a11y 48/48, feedback1 775/775, admin-dates 100/100. NOT RUN (code unchanged since PASS at 9fd7c8d): e2e public, design, i18n, reflow, launch.
+
 ## Owner feedback round 1 + release regression (T-29) - 2026-11-17, `9fd7c8d` (full tier)
 
-Verdict: **FAIL** - 0 blocker, 1 major (BUG-12), 3 minor (BUG-13, BUG-14, BUG-15). Everything else passed; no product file was changed by QA.
+Verdict at 9fd7c8d: **FAIL** (BUG-12 major, BUG-13..15 minor; all fixed and verified in T-32 above). Everything else passed; no product file was changed by QA.
 
 ### Environment note (not a product defect)
 A foreign server process (PID 3065, `DATA_DIR=/tmp/kota-qa/launch-OaiLmK`, started 09:35 from `tests/e2e/launch.mjs`, parent PID 1) was still listening on port 3201 and silently answered the `public`, `launch` and `security` suites: the first baseline run showed false failures (U2/U4/T1/T2/T3, `launch` could not start). It was NOT killed (not QA's process). `tests/lib/harness.mjs` now refuses to start when something already answers on the port and supports `QA_PORT_MAP=3201=3209` to run around a stuck port. All numbers below were run with `QA_PORT_MAP=3201=3209`. The foreign process should be stopped by whoever started it.

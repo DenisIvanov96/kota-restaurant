@@ -61,19 +61,62 @@ describe('migration 003 on existing databases (D-37: default address only where 
   });
 });
 
+/** DB in the state of a deployment that already ran the OLD (buggy) 003 from 9fd7c8d: 001+002 + old 003 applied and recorded; server start then applies 004. */
+async function oldBuggy003Db(settings) {
+  const dir = tmpDir('fb1m4'); dirs.push(dir); fs.mkdirSync(path.join(dir, 'uploads'), { recursive: true });
+  const db = new DatabaseSync(path.join(dir, 'kota.db'));
+  db.exec(fs.readFileSync(path.join(MIG, '001_init.sql'), 'utf8')); db.exec(fs.readFileSync(path.join(MIG, '002_i18n.sql'), 'utf8'));
+  for (const [k, v] of Object.entries(settings)) db.prepare('INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(k, v);
+  // the old 003 exactly as shipped at 9fd7c8d (seeds address_en independently of address)
+  db.exec(`INSERT OR IGNORE INTO settings(key, value) VALUES ('address', ''), ('address_en', ''), ('instagram_url', '');
+    UPDATE settings SET value = '${DEF_BG}' WHERE key = 'address' AND TRIM(value) = '';
+    UPDATE settings SET value = '${DEF_EN}' WHERE key = 'address_en' AND TRIM(value) = '';`);
+  db.exec('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)');
+  for (const n of ['001_init.sql', '002_i18n.sql', '003_default_address.sql']) db.prepare('INSERT INTO schema_migrations(name, applied_at) VALUES (?, ?)').run(n, Date.now());
+  const pre = db.prepare("SELECT value FROM settings WHERE key='address_en'").get().value;
+  db.close();
+  const srv = await startServer({ port: PORT, dataDir: dir, now: T0 });
+  const anon = new Client(srv.url);
+  return { dir, srv, pre, site: async (lang) => (await anon.get(`/api/public/site?lang=${lang}`)).data };
+}
+
+describe('migration 004 repairs databases that already ran the old 003 (BUG-12)', () => {
+  const cases = [
+    ['N1 BG custom + EN = default (damage from old 003): EN cleared -> falls back to BG', { address: 'ул. Витоша 1, София' }, 'ул. Витоша 1, София', 'ул. Витоша 1, София', DEF_EN],
+    ['N2 BG custom + owner-entered EN kept', { address: 'ул. Витоша 1, София', address_en: '1 Vitosha St, Sofia' }, 'ул. Витоша 1, София', '1 Vitosha St, Sofia', '1 Vitosha St, Sofia'],
+    ['N3 nothing stored (old 003 seeded both defaults): both defaults stay', {}, DEF_BG, DEF_EN, DEF_EN],
+    ['N4 BG = default + EN = default: kept', { address: DEF_BG, address_en: DEF_EN }, DEF_BG, DEF_EN, DEF_EN],
+    ['N5 BG empty + EN custom (old 003 filled BG default): both kept', { address: '', address_en: '5 Custom St, Sofia' }, DEF_BG, '5 Custom St, Sofia', '5 Custom St, Sofia'],
+  ];
+  for (const [name, settings, bg, en, pre] of cases) {
+    test(name, async () => {
+      const { dir, srv, site, pre: before } = await oldBuggy003Db(settings);
+      try {
+        assert.equal(before, pre, 'precondition: address_en after old 003');
+        assert.equal((await site('bg')).address, bg); assert.equal((await site('en')).address, en);
+        const chk = new DatabaseSync(path.join(dir, 'kota.db'));
+        assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), ['001_init.sql', '002_i18n.sql', '003_default_address.sql', '004_fix_default_address_en.sql']);
+        chk.close();
+      } finally { await srv.stop(); }
+      const s2 = await startServer({ port: PORT, dataDir: dir, now: T0 }); // idempotent restart
+      try { const a = new Client(s2.url); assert.equal((await a.get('/api/public/site?lang=bg')).data.address, bg); assert.equal((await a.get('/api/public/site?lang=en')).data.address, en); } finally { await s2.stop(); }
+    });
+  }
+});
+
 describe('fresh database + instagramUrl setting contract', () => {
   const dir = tmpDir('fb1api'); dirs.push(dir); createAdmin(dir);
   let srv; let admin; let anon;
   test('F0 start', async () => { srv = await startServer({ port: PORT, dataDir: dir, now: T0 }); admin = new Client(srv.url); await admin.login(); anon = new Client(srv.url); });
   after(async () => { if (srv) await srv.stop(); });
 
-  test('F1 fresh DB: public + admin settings carry the default addresses; instagramUrl is ""; applied migrations are 001..003', async () => {
+  test('F1 fresh DB: public + admin settings carry the default addresses; instagramUrl is ""; applied migrations are 001..004', async () => {
     assert.equal((await anon.get('/api/public/site')).data.address, DEF_BG);
     assert.equal((await anon.get('/api/public/site?lang=en')).data.address, DEF_EN);
     const s = (await admin.get('/api/admin/settings')).data;
     assert.equal(s.address, DEF_BG); assert.equal(s.addressEn, DEF_EN); assert.equal(s.instagramUrl, '');
     const chk = new DatabaseSync(path.join(dir, 'kota.db'));
-    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), ['001_init.sql', '002_i18n.sql', '003_default_address.sql']);
+    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), ['001_init.sql', '002_i18n.sql', '003_default_address.sql', '004_fix_default_address_en.sql']);
     chk.close();
   });
   test('F2 the owner can overwrite the default address and clear it; clearing gives "" (client shows the default)', async () => {

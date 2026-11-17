@@ -80,6 +80,18 @@ await step('TY', async () => {
   await d.fill(''); await d.fill('5.6.2026');
   const ty3b = (await dtVal(page, 0)).d;
   R.check('TY3 "5.6.2026" (single-digit day/month, accepted by the parser) typed or pasted keeps its meaning: field shows 5.6.2026 or 05.06.2026, not re-chunked digits', [ty3a, ty3b].every((v) => v === '5.6.2026' || v === '05.06.2026'), `typed -> "${ty3a}", pasted -> "${ty3b}"`);
+  const dig = []; for (const [typed, want] of [['20062026', '20.06.2026'], ['1', '1'], ['15', '15.'], ['150', '15.0'], ['15062026', '15.06.2026'], ['5.6.2026', '05.06.2026'], ['15.6.2026', '15.06.2026'], ['5.06.2026', '05.06.2026'], ['15.06.2026', '15.06.2026']]) { await d.fill(''); await d.pressSequentially(typed); const g = (await dtVal(page, 0)).d; if (g !== want) dig.push(`${typed} -> "${g}" (want "${want}")`); }
+  await d.fill(''); await d.pressSequentially('5.6.');
+  const mid = (await dtVal(page, 0)).d; R.check('TY3b0 intermediate "5.6." typed char-by-char keeps its meaning (not re-chunked): "05.6." or "05.06."', mid === '05.6.' || mid === '05.06.', mid);
+  R.check('TY3b char-by-char: digits-only auto-chunking unchanged (20062026, 15062026, 15 -> "15."), and "5.6.2026", "15.6.2026", "5.06.2026" normalise to padded dd.mm form', dig.length === 0, dig.join(' || '));
+  const pas = []; for (const [pasted, want] of [['5.6.2026', '05.06.2026'], ['5/6/2026', '05.06.2026'], ['05.06.2026', '05.06.2026'], ['20062026', '20.06.2026'], ['2026-06-20', '20.06.2026']]) { await d.fill(''); await d.fill(pasted); const g = (await dtVal(page, 0)).d; if (g !== want) pas.push(`${pasted} -> "${g}" (want "${want}")`); }
+  R.check('TY3c paste (one input event): "5.6.2026", "5/6/2026", "05.06.2026", digits-only and ISO all give a sane dd.mm.yyyy', pas.length === 0, pas.join(' || '));
+  await d.fill(''); await d.pressSequentially('5.6.2026'); await page.locator('h1').click(); await page.waitForTimeout(100);
+  const ty3p = await page.evaluate(() => { const e = document.querySelectorAll('.a-dt-date')[0].closest('.a-field').querySelector('.a-error'); return e && !e.hidden && getComputedStyle(e).display !== 'none' ? e.textContent.trim() : ''; });
+  R.check('TY3d "5.6.2026" (+ time 20:00) is accepted as a valid date: no error after blur', ty3p === '', ty3p);
+  await d.fill('20.06.2026');
+  const bs = []; await d.click(); for (const k of ['Backspace', 'Backspace', 'Backspace']) { await page.keyboard.press(k); bs.push((await dtVal(page, 0)).d); }
+  R.check('TY3e Backspace from "20.06.2026" removes characters (no stuck separator / re-insertion)', bs[0] === '20.06.202' && bs[1].length < bs[0].length && bs[2].length < bs[1].length, JSON.stringify(bs));
   await d.fill(''); await d.pressSequentially('ab/20 jun 2026 PM');
   R.check('TY4 letters and slashes typed into the date field are dropped (digits only); AM/PM cannot be entered in the time field', !/[A-Za-z/]/.test((await dtVal(page, 0)).d), (await dtVal(page, 0)).d);
   await t.fill(''); await t.pressSequentially('8:30 PM');
@@ -199,6 +211,28 @@ await step('VAL', async () => {
   const tr = await bad('20.06.2026', '25:00');
   const tDesc = await t0.getAttribute('aria-describedby');
   R.check('VAL4 the TIME input also references the error message (aria-describedby) when the time is the invalid part', !!tDesc && tDesc.includes('-e'), `aria-describedby=${tDesc}`);
+  // shared single error element: the invalid input (and only it) references it; the reference resolves to the visible message
+  const assoc = async (i) => page.evaluate((i) => {
+    const d = document.querySelectorAll('.a-dt-date')[i], t = document.querySelectorAll('.a-dt-time')[i];
+    const res = (el) => (el.getAttribute('aria-describedby') || '').split(' ').filter(Boolean).map((id) => document.getElementById(id)).filter((e) => e && e.classList.contains('a-error'));
+    const txt = (el) => res(el).map((e) => e.textContent.trim() + (e.hidden || getComputedStyle(e).display === 'none' ? ' [HIDDEN]' : ''));
+    return { dInv: d.getAttribute('aria-invalid'), tInv: t.getAttribute('aria-invalid'), dMsg: txt(d), tMsg: txt(t), dCls: d.classList.contains('is-invalid'), tCls: t.classList.contains('is-invalid'), nErr: d.closest('.a-field').querySelectorAll('.a-error').length };
+  }, i);
+  const aT = await assoc(0);
+  R.check('VAL4b invalid TIME: time input aria-invalid + describedby resolves to the visible "Невалиден час"; date input has neither aria-invalid nor the reference; one error element in the field', aT.tInv === 'true' && aT.dInv === null && aT.tMsg.length === 1 && /Невалиден час/.test(aT.tMsg[0]) && !/HIDDEN/.test(aT.tMsg[0]) && aT.dMsg.length === 0 && aT.tCls && !aT.dCls && aT.nErr === 1, JSON.stringify(aT));
+  await bad('20.13.2026', '10:00');
+  const aD = await assoc(0);
+  R.check('VAL4c invalid DATE: date input aria-invalid + describedby resolves to the visible "Невалидна дата"; time input has neither', aD.dInv === 'true' && aD.tInv === null && aD.dMsg.length === 1 && /Невалидна дата/.test(aD.dMsg[0]) && !/HIDDEN/.test(aD.dMsg[0]) && aD.tMsg.length === 0 && aD.dCls && !aD.tCls && aD.nErr === 1, JSON.stringify(aD));
+  await bad('20.06.2026', '25:00'); await bad('20.06.2026', '10:00');
+  const aOk = await assoc(0);
+  R.check('VAL4d error cleared: neither input references an error or is aria-invalid (no stale reference)', aOk.dInv === null && aOk.tInv === null && aOk.dMsg.length === 0 && aOk.tMsg.length === 0 && !aOk.dCls && !aOk.tCls, JSON.stringify(aOk));
+  await bad('20.06.2026', '25:00'); await d0.fill('21.06.2026'); await page.locator('h1').click(); await page.waitForTimeout(120);
+  const aSw = await assoc(0);
+  R.check('VAL4e time error present, then date edited to another valid date: the time error still belongs to the time input only', aSw.tInv === 'true' && aSw.dInv === null && aSw.tMsg.length === 1 && aSw.dMsg.length === 0, JSON.stringify(aSw));
+  await bad('20.13.2026', '25:00');
+  const aBoth = await assoc(0);
+  R.check('VAL4f both date and time invalid: exactly one message shown (the date one), referenced by exactly one input, no dangling reference', aBoth.nErr === 1 && aBoth.dMsg.length + aBoth.tMsg.length === 1 && [aBoth.dInv, aBoth.tInv].filter((x) => x === 'true').length === 1, JSON.stringify(aBoth));
+  await bad('20.06.2026', '10:00');
   // correcting clears the error without another blur
   await t0.fill('21:00'); await page.waitForTimeout(100);
   R.check('VAL5 correcting the value clears the error immediately (while typing)', !(await page.locator('.a-field').filter({ has: page.locator('.a-dt-date') }).nth(0).locator('.a-error').isVisible()));
@@ -213,11 +247,30 @@ await step('VAL', async () => {
   // summary link focuses the offending field
   await page.locator('.a-summary a').first().click(); await page.waitForTimeout(100);
   R.check('VAL7 clicking the summary link moves focus to the date input', await page.evaluate(() => document.activeElement.classList.contains('a-dt-date')));
-  // time error: summary link focuses the TIME input
-  await d1.fill('20.06.2026'); await t1.fill('99:99'); await d0.fill(''); await t0.fill('');
+  // time error: summary link focuses the TIME input (all three event fields)
+  for (const i of [0, 1, 2]) { await page.locator('.a-dt-date').nth(i).fill('20.06.2026'); await page.locator('.a-dt-time').nth(i).fill('99:99'); }
   await page.getByRole('button', { name: 'Запази', exact: true }).click(); await page.waitForTimeout(300);
-  await page.locator('.a-summary a', { hasText: 'Показвай от' }).click(); await page.waitForTimeout(100);
-  R.check('VAL8 summary link for an invalid TIME ("Показвай от: Невалиден час") focuses the time input, not the date input', await page.evaluate(() => document.activeElement.classList.contains('a-dt-time')), await page.evaluate(() => document.activeElement.className));
+  for (const [i, lab] of [[0, 'Дата на събитието'], [1, 'Показвай от'], [2, 'Скрий след']]) {
+    await page.locator('h1').click();
+    await page.locator('.a-summary a', { hasText: lab }).click(); await page.waitForTimeout(100);
+    const st = await page.evaluate((i) => { const a = document.activeElement; return { isTime: a === document.querySelectorAll('.a-dt-time')[i], cls: a.className, inv: a.getAttribute('aria-invalid'), desc: (document.getElementById((a.getAttribute('aria-describedby') || '').split(' ')[0]) || {}).textContent }; }, i);
+    R.check(`VAL8${'abc'[i]} summary link "${lab}: Невалиден час" focuses the TIME input #${i} (not the date), which is aria-invalid and described by the message`, st.isTime && st.inv === 'true' && /Невалиден час/.test(st.desc || ''), JSON.stringify(st));
+  }
+  // date error: summary link still focuses the DATE input (all three); and the range error focuses the Скрий след DATE input
+  for (const i of [0, 1, 2]) { await page.locator('.a-dt-date').nth(i).fill('31.02.2026'); await page.locator('.a-dt-time').nth(i).fill('10:00'); }
+  await page.getByRole('button', { name: 'Запази', exact: true }).click(); await page.waitForTimeout(300);
+  const dres = [];
+  for (const [i, lab] of [[0, 'Дата на събитието'], [1, 'Показвай от'], [2, 'Скрий след']]) {
+    await page.locator('h1').click(); await page.locator('.a-summary a', { hasText: lab }).click(); await page.waitForTimeout(100);
+    dres.push(await page.evaluate((i) => document.activeElement === document.querySelectorAll('.a-dt-date')[i], i));
+  }
+  R.check('VAL8d invalid DATE summary links still focus the matching date input (3 fields)', dres.every(Boolean), JSON.stringify(dres));
+  await page.locator('.a-dt-date').nth(0).fill('20.06.2026'); await page.locator('.a-dt-time').nth(0).fill('10:00');
+  await page.locator('.a-dt-date').nth(1).fill('20.06.2026'); await page.locator('.a-dt-time').nth(1).fill('18:00');
+  await page.locator('.a-dt-date').nth(2).fill('20.06.2026'); await page.locator('.a-dt-time').nth(2).fill('10:00');
+  await page.getByRole('button', { name: 'Запази', exact: true }).click(); await page.waitForTimeout(300);
+  await page.locator('h1').click(); await page.locator('.a-summary a', { hasText: 'Скрий след' }).click(); await page.waitForTimeout(100);
+  R.check('VAL8e range error (Скрий след earlier than Показвай от) summary link focuses a Скрий след input (date or time, the invalid one) and the form is not saved', await page.evaluate(() => { const a = document.activeElement; return a === document.querySelectorAll('.a-dt-date')[2] || a === document.querySelectorAll('.a-dt-time')[2]; }), await page.evaluate(() => document.activeElement.className));
   // range rule
   await d1.fill('20.06.2026'); await t1.fill('18:00');
   await page.locator('.a-dt-date').nth(2).fill('20.06.2026'); await page.locator('.a-dt-time').nth(2).fill('10:00'); await page.locator('h1').click(); await page.waitForTimeout(150);
