@@ -138,8 +138,7 @@ sudo systemctl reload caddy
 ```
 - **Before** starting Caddy, the domain's A (and AAAA) record must point at the server
   **[APPROVAL] DNS change**. Otherwise certificate issuance fails. Caddy retries automatically.
-- Upload limit at the proxy is `request_body max_size 20MB`. The app's own limits are 5–15 MB per
-  file, so 20 MB covers the largest file plus form overhead.
+- Upload limit at the proxy is `request_body max_size 55MB`. The app accepts up to 50 MB per file, one file per request (D-44).
 - Caddy sends `X-Forwarded-For`; `TRUST_PROXY=1` trusts exactly that one hop.
 
 ### 3.7 First-time admin account and owner checklist

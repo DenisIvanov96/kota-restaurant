@@ -4,9 +4,9 @@
 kota.example.com {
 	encode zstd gzip
 
-	# Upload limit at the proxy. The app's own limits are 5-15 MB per file; keep this above 16 MB.
+	# Upload limit at the proxy. The app accepts up to 50 MB per file (one file per request); keep this above 50 MB.
 	request_body {
-		max_size 20MB
+		max_size 55MB
 	}
 
 	# The app runs on localhost only (see firewall rules in docs/DEPLOYMENT.md).
