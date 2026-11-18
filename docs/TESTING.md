@@ -5,6 +5,12 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
+| **T-54 (D-54 narrow scope for D-55 contact email; only the rows below were run, everything else deferred to the pre-go-live regression)** | 24c46d9 | |
+| api security (S8c extended with 7 invalid `contactEmail` cases + `fields.contactEmail`; S8e `email` key) | 24c46d9 | 43/43 |
+| api feedback1 / i18n / langs / migration006 (migration lists now 001..008, public site key list + `email`) | 24c46d9 | 20/20 · 13/13 · 28/28 · 3/3 |
+| e2e email (new: seed, order, privacy, long address 390/768/1280, admin edit/invalid/clear/restart, XSS API + DB injection, focus, contrast) | 24c46d9 | 99/99 |
+| e2e contact (expectations updated for the email item: order, 2-column layout, Tab order) | 24c46d9 | 85/85 (62/85 before the update, all 23 failures = order/layout/Tab expectations of the old phone,social design) |
+| e2e launch (E6d/E6e now clear `contactEmail`; **edit not executed**) | - | NOT RUN (4 min suite, outside the D-54 scope; needs one run before go-live) |
 | **T-51 (D-54 narrow retest of BUG-19..22; only the rows below were run)** | 85a7d38 | |
 | api gallery (GA11b / BUG-20) | 85a7d38 | 17/17 |
 | api security | 85a7d38 | 43/43 |
@@ -48,6 +54,15 @@ Historical note: server code was identical to `0c81447` through `c376609` (`git 
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## Contact email (D-55) - T-54, 2026-11-18, product code `24c46d9` (narrow tier, D-54)
+
+Verdict: see the T-54 handoff. Ports 3201-3208 free before the run, no leftover servers after. Spec: `docs/ARCHITECTURE.md` "Contact email (D-55)".
+- API: `security` 43/43 (server/** changed), `feedback1`/`i18n`/`langs`/`migration006` pass with migration lists `001..008` (`008_contact_email.sql`, 8 rows in `schema_migrations`) and the public `site` keys `about,address,currencySymbol,email,instagramUrl,lang,openingHours,reservationPhone`. `gallery.test.mjs` only checks for 007 by name and needed no change (not run).
+- New `tests/e2e/email.mjs` (port 3201, real server and API, no mocks): A seed + "PUT without the key keeps it"; B seed on home and privacy, BG/EN, 390/1280 (mailto href, order phone-email-social, privacy order phone-email-address); B6 rapid language toggling; C 254-char address at 390/768/1280 BG/EN on home and privacy (no h-scroll, inside viewport); D UI edit (trimmed save, client error, server-only error `a..b@kota.bg` mapped inline, correction, clear, restart does not re-seed); E 17 malformed/XSS values rejected with `fields.contactEmail`, 5 payloads written straight into SQLite render as text on home, privacy and admin field; F Tab order, focus outline, contrast (link 8.47, label 6.65, outline 13.72) at 390/1280.
+- `contact.mjs` (T-46) failed 23 of 85 before the update: SOC3/SW1 (order now phone,email,social), SOC4 at >= 768 (the email takes the cell beside the phone; the Instagram item moves to row 2 under the phone, a layout consequence of D-55 in a 2-column grid), SOC9/SOC10 (Tab goes phone, email, Instagram). Expectations updated to the spec; 85/85 afterwards.
+- Not run (D-54): `launch.mjs` (its E6d/E6e privacy placeholder checks would fail with the seeded email; expectation edited, not executed), `public.mjs`, `i18n.mjs`, `feedback1.mjs` e2e, `admin.mjs`, `a11y.mjs`, `npm test`.
+- Observation: the working tree has an uncommitted change in `public/js/i18n.js` (EN "Daily Special" -> "Daily Specials", not part of 24c46d9, not made by QA). `tests/e2e/i18n.mjs` still expects "Daily Special" (regex checks match both, `includes('Daily Special')` also matches the plural).
 
 ## BUG-19..22 retest - T-51, 2026-11-17, product code `85a7d38` (narrow tier, D-54)
 

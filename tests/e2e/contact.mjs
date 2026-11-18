@@ -50,9 +50,11 @@ for (const lang of ['bg', 'en']) {
       const tag = `${lang} ${vp.name}`;
       R.check(`SOC1[${tag}] Contacts has exactly one "${lang === 'en' ? 'Social media' : 'Социални мрежи'}" item, visible, and the dl is displayed`, s.socItems === 1 && s.socText === (lang === 'en' ? 'Social media' : 'Социални мрежи') && s.socVisible && !s.dlHidden, JSON.stringify({ t: s.socText, n: s.socItems, v: s.socVisible }));
       R.check(`SOC2[${tag}] icon link: aria-label "Instagram", target=_blank rel contains noopener, href = configured URL, svg aria-hidden, no visible text`, s.ig && s.ig.aria === 'Instagram' && s.ig.target === '_blank' && /noopener/.test(s.ig.rel) && s.ig.abs === IG && s.ig.svgHidden === 'true' && s.ig.hasText === '', JSON.stringify(s.ig));
-      R.check(`SOC3[${tag}] phone item first, then social item (DOM order), phone label/number/tel: link intact`, s.order.join() === 'contact-phone-item,contact-social' && s.phoneText.includes(PHONE) && s.phoneHref === 'tel:+359881234567' && s.phoneText.includes(lang === 'en' ? 'Phone' : 'Телефон'), JSON.stringify({ o: s.order, p: s.phoneText, h: s.phoneHref }));
+      R.check(`SOC3[${tag}] phone item first, then email (D-55, seeded), then social item (DOM order), phone label/number/tel: link intact`, s.order.join() === 'contact-phone-item,contact-email-item,contact-social' && s.phoneText.includes(PHONE) && s.phoneHref === 'tel:+359881234567' && s.phoneText.includes(lang === 'en' ? 'Phone' : 'Телефон'), JSON.stringify({ o: s.order, p: s.phoneText, h: s.phoneHref }));
       const sameRow = Math.abs(s.socBox.t - s.phBox.t) < 8; const below = s.socBox.t >= s.phBox.b - 1 && Math.abs(s.socBox.l - s.phBox.l) < 2;
-      if (vp.width >= 768) R.check(`SOC4[${tag}] icon item is BESIDE the phone (same row, to its right)`, sameRow && s.socBox.l >= s.phBox.r - 1, JSON.stringify({ ph: s.phBox, soc: s.socBox }));
+      const emBox = await page.evaluate(() => { const r = document.getElementById('contact-email-item').getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; });
+      // D-55: the email item takes the slot beside the phone on >= 768 (2-column grid); the social item moves to row 2 under the phone.
+      if (vp.width >= 768) R.check(`SOC4[${tag}] >= 768: email is BESIDE the phone (same row, to its right); the icon item is on the next row under the phone (D-55 layout)`, Math.abs(emBox.t - s.phBox.t) < 8 && emBox.l >= s.phBox.r - 1 && below && !sameRow, JSON.stringify({ ph: s.phBox, em: emBox, soc: s.socBox }));
       else R.check(`SOC4[${tag}] at 390 the item WRAPS BELOW the phone (same left edge, starts below it)`, below && !sameRow, JSON.stringify({ ph: s.phBox, soc: s.socBox }));
       R.check(`SOC5[${tag}] reservation-button row has NO Instagram icon/svg/link and contains only the call button`, s.rowIcons === 0 && s.rowChildren.join() === 'contact-call' && s.callHidden === false, JSON.stringify({ n: s.rowIcons, kids: s.rowChildren }));
       R.check(`SOC6[${tag}] Instagram icons on the page: exactly one in #contact and one in the footer; footer icon unchanged (aria Instagram, noopener, _blank, configured URL)`, s.allIg.sort().join() === 'contact,footer' && s.footer.length === 1 && s.footer[0].aria === 'Instagram' && s.footer[0].target === '_blank' && /noopener/.test(s.footer[0].rel) && s.footer[0].href === IG, JSON.stringify({ all: s.allIg, f: s.footer }));
@@ -62,9 +64,9 @@ for (const lang of ['bg', 'en']) {
       const cr = { dt: contrast(dt.fg, dt.bg), phone: contrast(pl.fg, pl.bg), icon: contrast(ic.fg, ic.bg) };
       R.check(`SOC8[${tag}] computed contrast: "Социални мрежи" label >= 4.5, phone link >= 4.5, Instagram icon >= 3 (non-text)`, cr.dt >= 4.5 && cr.phone >= 4.5 && cr.icon >= 3, JSON.stringify({ cr, dt, pl, ic }));
       // keyboard: focus visible on the icon, Tab order phone -> icon -> call button
-      await page.focus('#contact-phone-item a'); await page.keyboard.press('Tab');
+      await page.focus('#contact-email-item a'); await page.keyboard.press('Tab');
       const f = await page.evaluate(() => { const a = document.activeElement; const cs = getComputedStyle(a); return { id: a.className, cls: a.classList.contains('ig-link'), inContact: !!a.closest('#contact-social'), o: cs.outlineStyle, w: parseFloat(cs.outlineWidth), sh: cs.boxShadow }; });
-      R.check(`SOC9[${tag}] keyboard: Tab from the phone link lands on the Instagram icon, which shows a visible focus indicator`, f.cls && f.inContact && ((f.o !== 'none' && f.w >= 2) || f.sh !== 'none'), JSON.stringify(f));
+      R.check(`SOC9[${tag}] keyboard: Tab from the email link (D-55) lands on the Instagram icon, which shows a visible focus indicator`, f.cls && f.inContact && ((f.o !== 'none' && f.w >= 2) || f.sh !== 'none'), JSON.stringify(f));
       await page.keyboard.press('Tab');
       R.check(`SOC10[${tag}] next Tab stop is the reservation button (#contact-call)`, (await page.evaluate(() => document.activeElement.id)) === 'contact-call');
       // click opens Instagram in a new tab (network stubbed - no external traffic)
@@ -87,7 +89,7 @@ await step('SW', async () => {
   for (let i = 0; i < 6; i++) { await page.locator(`.lang-btn[data-lang="${i % 2 ? 'bg' : 'en'}"]`).click(); await page.waitForTimeout(80); }
   await page.waitForTimeout(600);
   let s = await probe(page);
-  R.check('SW1 after 6 rapid BG<->EN toggles (ends BG): exactly one phone item, one social item, labels Bulgarian, order phone,social, 1 icon in #contact', s.phoneItems === 1 && s.socItems === 1 && s.socText === 'Социални мрежи' && s.order.join() === 'contact-phone-item,contact-social' && s.allIg.filter((x) => x === 'contact').length === 1 && s.phoneText.includes('Телефон'), JSON.stringify({ p: s.phoneItems, s: s.socItems, t: s.socText, o: s.order }));
+  R.check('SW1 after 6 rapid BG<->EN toggles (ends BG): exactly one phone item, one social item, labels Bulgarian, order phone,email,social (D-55 seed), 1 icon in #contact', s.phoneItems === 1 && s.socItems === 1 && s.socText === 'Социални мрежи' && s.order.join() === 'contact-phone-item,contact-email-item,contact-social' && s.allIg.filter((x) => x === 'contact').length === 1 && s.phoneText.includes('Телефон'), JSON.stringify({ p: s.phoneItems, s: s.socItems, t: s.socText, o: s.order }));
   await page.locator('.lang-btn[data-lang="en"]').click(); await page.waitForTimeout(500); s = await probe(page);
   R.check('SW2 BG->EN without reload: "Social media" + "Phone", still one of each, icon href kept', s.socText === 'Social media' && s.phoneText.includes('Phone') && s.phoneItems === 1 && s.ig.abs === IG, JSON.stringify(s.socText));
   R.check('SW3 no console/page errors during toggling', log.console.length === 0 && log.pageErrors.length === 0, JSON.stringify(log.console));

@@ -369,10 +369,10 @@ await step('E6', async () => {
   R.check('E6c EN with empty addressEn: displayed text and map link are consistent (link query == displayed address)', st.n === 0 || (st.addrText && st.href === MAP_BASE + encodeURIComponent(st.addrText)), JSON.stringify([st.addrText, st.href]));
   await context.close();
   // privacy: no phone, no address -> unset message
-  await setSettings({ address: '', addressEn: '', reservationPhone: '' });
+  await setSettings({ address: '', addressEn: '', reservationPhone: '', contactEmail: '' }); // D-55: the migration-008 seed email would otherwise suppress the placeholder
   const c2 = await newPage(browser, { width: 390, height: 844 });
   await c2.page.goto(base + '/privacy', { waitUntil: 'networkidle' }); await c2.page.waitForTimeout(250);
-  R.check('E6d privacy contact placeholder shown when phone+address unset (BG)', (await c2.page.locator('#privacy-contact').textContent()).includes('[Телефон и адрес на ресторанта'), await c2.page.locator('#privacy-contact').textContent());
+  R.check('E6d privacy contact placeholder shown when phone+address+email unset (BG)', (await c2.page.locator('#privacy-contact').textContent()).includes('[Телефон и адрес на ресторанта'), await c2.page.locator('#privacy-contact').textContent());
   await c2.page.goto(base + '/privacy?lang=en', { waitUntil: 'networkidle' }); await c2.page.waitForTimeout(250);
   R.check('E6e privacy contact placeholder shown when unset (EN)', (await c2.page.locator('#privacy-contact').textContent()).includes('[Restaurant phone and address'));
   await c2.context.close();

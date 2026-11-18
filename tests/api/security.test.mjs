@@ -431,7 +431,7 @@ describe('security (dev mode server)', () => {
     await admin.put('/api/admin/menu/draft', { json: { categories: [] } });
   });
   test('S8c validation: settings, oversized JSON, bad JSON', async () => {
-    for (const body of [{ reservationPhone: 'call me' }, { reservationPhone: '1'.repeat(31) }, { address: 'x'.repeat(201) }, { openingHours: 'x'.repeat(501) }, { currencySymbol: 'x'.repeat(6) }, { currencySymbol: '' }, { address: 5 }]) {
+    for (const body of [{ reservationPhone: 'call me' }, { reservationPhone: '1'.repeat(31) }, { address: 'x'.repeat(201) }, { openingHours: 'x'.repeat(501) }, { currencySymbol: 'x'.repeat(6) }, { currencySymbol: '' }, { address: 5 }, { contactEmail: 'no-at-sign' }, { contactEmail: 'a@b' }, { contactEmail: 'a b@c.bg' }, { contactEmail: '<img src=x onerror=alert(1)>@x.bg' }, { contactEmail: 'a@b.bg\r\nBcc: x@y.bg' }, { contactEmail: 'a'.repeat(250) + '@b.bg' }, { contactEmail: 5 }]) {
       const r = await admin.put('/api/admin/settings', { json: body });
       assert.equal(r.status, 400, JSON.stringify(body).slice(0, 60) + ' -> ' + r.status);
     }
@@ -441,6 +441,9 @@ describe('security (dev mode server)', () => {
     assert.equal(bad.status, 400);
     const ok = await admin.put('/api/admin/settings', { json: { reservationPhone: '+359 88 123 4567', address: 'ул. Тест 1', openingHours: '10-22', currencySymbol: '€' } });
     assert.equal(ok.status, 200);
+    const badEm = await admin.put('/api/admin/settings', { json: { contactEmail: '<b>x</b>' } }); // D-55: field-level error, nothing stored
+    assert.equal(badEm.status, 400); assert.ok(badEm.data?.fields?.contactEmail, JSON.stringify(badEm.data));
+    assert.notEqual((await anon.get('/api/public/site')).data.email, '<b>x</b>');
   });
   test('S8d SQL-injection-like text is stored literally (parametrised queries)', async () => {
     const t = "Robert'); DROP TABLE events;--";
@@ -455,7 +458,7 @@ describe('security (dev mode server)', () => {
     const e = (await anon.get('/api/public/events')).data.events.find((x) => x.title === 'pub');
     assert.deepEqual(Object.keys(e).sort(), ['description', 'eventAt', 'id', 'imageUrl', 'title']);
     const s = (await anon.get('/api/public/site')).data;
-    assert.deepEqual(Object.keys(s).sort(), ['about', 'address', 'currencySymbol', 'instagramUrl', 'lang', 'openingHours', 'reservationPhone']); // `lang` added by T-14 (D-27); `instagramUrl` added by T-26 (D-36, public by design: it is shown on the site); `about` added by T-47 (D-52: served About text or null, public by design)
+    assert.deepEqual(Object.keys(s).sort(), ['about', 'address', 'currencySymbol', 'email', 'instagramUrl', 'lang', 'openingHours', 'reservationPhone']); // `email` added by T-52 (D-55, public by design: shown on the site); `lang` added by T-14 (D-27); `instagramUrl` added by T-26 (D-36, public by design: it is shown on the site); `about` added by T-47 (D-52: served About text or null, public by design)
     assert.equal(s.lang, 'bg');
     await admin.del(`${EV}/${ev.data.id}`);
   });

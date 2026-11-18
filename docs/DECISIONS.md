@@ -57,3 +57,4 @@
 | D-53 | 2026-11-17 | Video served by our own server via `/media` with Range support (no YouTube/third-party embeds → no cookies/consent banner needed) | GDPR, simplicity | PM |
 | D-54 | 2026-11-17 | Testing scope: QA tests only changed parts + directly connected parts; no full-site regression per change; full regression once before production release or on owner request (replaces the shared-code/architecture full-regression trigger) | Owner instruction | User |
 | D-55 | 2026-11-18 | Contact email shown in Contacts (and privacy page), editable in admin Settings; seeded with placeholder example@gmail.com (migration 008) | Owner request; E-Commerce Act requires an email | User |
+| D-56 | 2026-11-18 | EN label for the daily menu is "Daily Specials" (was "Daily Special"); Contacts at >=768 px show Телефон, Имейл, Социални мрежи in one row so Instagram stays beside the phone (keeps D-50) | Owner request; owner feedback D-50 | User/PM |

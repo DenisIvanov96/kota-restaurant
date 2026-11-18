@@ -554,7 +554,7 @@ describe('migration 005 on a database created before the change', () => {
     await srv.stop(); srv = null;
 
     const chk = new DatabaseSync(path.join(dir, 'kota.db'));
-    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), [...names, '005_separate_languages.sql', '006_menu_pages.sql', '007_gallery.sql']);
+    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), [...names, '005_separate_languages.sql', '006_menu_pages.sql', '007_gallery.sql', '008_contact_email.sql']);
     assert.equal(chk.prepare('SELECT lang FROM menu_files').get().lang, 'bg');
     assert.equal(chk.prepare('SELECT image_en_file_id v FROM events').get().v, null);
     const d = chk.prepare('SELECT file_id, file_en_id, published, menu_date FROM daily_menus').get(); assert.equal(d.file_id, dmFile); assert.equal(d.file_en_id, null); assert.equal(d.published, 1); assert.equal(d.menu_date, TODAY);
@@ -578,7 +578,7 @@ describe('migration 005 on a database created before the change', () => {
     assert.equal((await new Client(srv.url).get('/api/public/site')).status, 200);
     await srv.stop(); srv = null;
     const chk2 = new DatabaseSync(path.join(dir, 'kota.db'));
-    assert.equal(chk2.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 7); chk2.close();
+    assert.equal(chk2.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 8); chk2.close();
   });
 });
 function same2(r, buf) { return r.status === 200 && Buffer.compare(r.buf, buf) === 0; }

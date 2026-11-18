@@ -60,7 +60,7 @@ describe('migration 006 (menu pages) on a legacy database', () => {
     assert.equal((await anon.get('/api/public/site')).status, 200);
     await srv.stop(); srv = null;
     const chk = open(dir);
-    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), [...NAMES, '006_menu_pages.sql', '007_gallery.sql']);
+    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), [...NAMES, '006_menu_pages.sql', '007_gallery.sql', '008_contact_email.sql']);
     const mf = chk.prepare('SELECT m.lang, m.position, m.published, f.original_name FROM menu_files m JOIN files f ON f.id = m.file_id ORDER BY m.lang').all();
     assert.deepEqual(mf.map((r) => [r.lang, r.original_name, r.position, r.published]), [['bg', 'bg-published.pdf', 1, 0], ['en', 'en-b.png', 1, 0]], 'one page per language, legacy published column zeroed');
     const set = Object.fromEntries(chk.prepare("SELECT key, value FROM settings WHERE key LIKE 'menu_pages_published_%'").all().map((r) => [r.key, r.value]));
@@ -90,7 +90,7 @@ describe('migration 006 (menu pages) on a legacy database', () => {
     await srv.stop();
     srv = await startServer({ port: PORT, dataDir: dir, now: T0 }); // idempotent restart: nothing more is deleted
     const chk2 = open(dir);
-    assert.equal(chk2.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 7); assert.equal(chk2.prepare('SELECT COUNT(*) n FROM menu_files').get().n, 3);
+    assert.equal(chk2.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 8); assert.equal(chk2.prepare('SELECT COUNT(*) n FROM menu_files').get().n, 3);
     assert.equal(chk2.prepare('PRAGMA integrity_check').get().integrity_check, 'ok'); assert.deepEqual(chk2.prepare('PRAGMA foreign_key_check').all(), []);
     chk2.close();
     await srv.stop(); srv = null;
