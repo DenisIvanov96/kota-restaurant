@@ -32,7 +32,7 @@ await admin.put('/api/admin/menu/draft', { json: { categories: [
 ] } });
 await admin.post('/api/admin/menu/publish');
 const dm = (await admin.post('/api/admin/daily-menus', { form: form({ date: '2026-06-15', published: 'true' }, { field: 'file', buf: PNG, name: 'dnes.png', type: 'image/png' }) })).data;
-const ALLOWED_BG = ['Десерти', 'Баклава', 'Само БГ', 'само български', 'Пн-Нд 10:00-22:00'];
+const ALLOWED_BG = ['Амора Джелато ЕООД', 'Десерти', 'Баклава', 'Само БГ', 'само български', 'Пн-Нд 10:00-22:00'];
 
 const browser = await chromium.launch();
 const step = async (id, fn) => { try { await fn(); } catch (e) { R.fail(id, String(e.message).split('\n').slice(0, 3).join(' ')); } };

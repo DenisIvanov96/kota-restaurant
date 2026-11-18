@@ -5,6 +5,10 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
+| **T-57 (D-57 real floor plan 102-115 + company details; D-54 narrow scope, only the rows below were run)** | 3ed8ced | |
+| e2e plan (new `plan.mjs`, port 3208: 14 numbers inside own rects/no round/no windows, entrance on left wall between 110 and 113, bar below 114, legend 4, a11y list 14, caption, company line on home BG/EN incl. 3-line wrap at 390, privacy controller line + no `[Юридическо лице` placeholder, other placeholders unchanged; BG/EN x 390/768/1280; no h-scroll/console/CSP) | 3ed8ced | 66/66 |
+| e2e feedback1 (RES4/5/6/7, RESN1, FRESH5 updated to 14 tables/no round/no windows/4-item legend/new caption; new RES5b; IG7f key list + `email` (stale since T-52)) | 3ed8ced | **775/781: FAIL RES5b x6** (BUG-23, table 104 list says "long", drawn square) |
+| e2e launch (E3c allows the company name in the EN privacy page; **edit not executed**) and e2e i18n (ALLOWED_BG + company name for the EN home; **edit not executed**) | - | NOT RUN (outside the D-54 scope; one run needed before go-live) |
 | **T-54 follow-up (D-56: contacts in one row at >= 768, EN "Daily Specials"; only the rows below were run)** | a87cf08 | |
 | e2e email (+10: B7 one row phone/email/social at 768/1280 BG/EN, C3 long email wraps in its cell at 390/768/1280) | a87cf08 | 109/109 |
 | e2e contact (SOC4 updated to D-56: three items in one row, in order) | a87cf08 | 85/85 |
