@@ -109,6 +109,9 @@ function show() {
   if (multi) {
     prevBtn.disabled = gallery.index === 0;
     nextBtn.disabled = gallery.index === gallery.items.length - 1;
+    // a disabled focused button drops focus to BODY (outside the dialog); keep it inside
+    const ae = document.activeElement;
+    if (ae && ae.disabled && dlg.contains(ae)) (ae === nextBtn ? prevBtn : nextBtn).focus();
     posEl.textContent = t('page.of', { n: it.n || gallery.index + 1, m: it.m || gallery.items.length });
   }
   scroll.classList.remove('is-zoomed');

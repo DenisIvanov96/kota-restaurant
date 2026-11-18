@@ -227,6 +227,9 @@ export function renderMenuPages(file, opts = {}) {
       counter.textContent = t('page.of', { n, m: total });
       prev.disabled = cur === 0;
       next.disabled = cur === total - 1;
+      // a focused button that just became disabled drops focus to BODY; keep it in the slider
+      const ae = document.activeElement;
+      if (ae && ae.disabled && (ae === prev || ae === next)) (ae === next ? prev : next).focus();
     }
   }
   function go(d) {

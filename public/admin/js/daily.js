@@ -76,8 +76,13 @@ export function dailyView(ctx) {
     return h('div', { class: 'a-actionrow' }, back && btn({ label: 'Назад', variant: 'ghost', onClick: back }), next);
   }
 
+  let rendering = false; // guard: upl.clear() in syncSecond fires onChange; a nested render would steal the uploaders' elements
   function renderWizard() {
-    if (!today) return;
+    if (!today || rendering) return;
+    rendering = true;
+    try { renderWizardNow(); } finally { rendering = false; }
+  }
+  function renderWizardNow() {
     const card = h('section', { class: 'a-card', 'aria-labelledby': 'wiz-h' });
     wizardHost.replaceChildren(card);
     if (w.done) { card.append(h('h2', { id: 'wiz-h', text: 'Качване на меню' }), doneView()); return; }
@@ -324,8 +329,8 @@ export function dailyView(ctx) {
       const { title, cur, curName, up1, up2, k1, k2, lang, label1 } = cfg;
       box.append(h('span', { class: 'a-label', text: title }), h('p', { class: 'a-help', lang, text: cur ? `Текущ файл: ${curName}` : (lang === 'en' ? 'Няма качен английски файл.' : 'Няма качен български файл.') }));
       if (cfg.removable && cur && !up1.file) {
-        if (st[k1]) box.append(alertBox('info', `${label1} ще бъде премахнат при запазване.`), btn({ label: `Върни ${label1.toLowerCase()}`, variant: 'ghost', onClick: () => { st[k1] = false; redraw(); } }));
-        else box.append(btn({ label: `Премахни ${label1.toLowerCase()}`, variant: 'ghost-danger', onClick: () => { st[k1] = true; redraw(); } }));
+        if (st[k1]) box.append(alertBox('info', `${label1} ще бъде премахнат при запазване.`), btn({ label: `Върни ${cfg.short}`, variant: 'ghost', onClick: () => { st[k1] = false; redraw(); } }));
+        else box.append(btn({ label: `Премахни ${cfg.short}`, variant: 'ghost-danger', onClick: () => { st[k1] = true; redraw(); } }));
       }
       box.append(up1.el);
       const hasFirst = (cur && !st[k1]) || up1.file;
@@ -342,9 +347,15 @@ export function dailyView(ctx) {
         box.append(sec);
       } else if (up2.file) up2.clear();
     }
+    let drawing = false;
     function redraw() {
-      langBox(bgBox, { title: 'Български файл (нов, по избор)', cur: m.fileUrl, curName: m.originalName, cur2: m.file2 && m.file2.fileUrl, cur2Name: m.file2 && m.file2.originalName, up1: uplBg, up2: uplBg2, k1: 'removeBg', k2: 'removeBg2', lang: 'bg', label1: 'Българският файл', removable: false });
-      langBox(enBox, { title: 'English файл (по избор)', cur: m.fileEnUrl, curName: m.originalNameEn, cur2: m.fileEn2 && m.fileEn2.fileUrl, cur2Name: m.fileEn2 && m.fileEn2.originalName, up1: uplEnX, up2: uplEnX2, k1: 'removeEn', k2: 'removeEn2', lang: 'en', label1: 'Английският файл', removable: true });
+      if (drawing) return;
+      drawing = true;
+      try { redrawNow(); } finally { drawing = false; }
+    }
+    function redrawNow() {
+      langBox(bgBox, { title: 'Български файл (нов, по избор)', cur: m.fileUrl, curName: m.originalName, cur2: m.file2 && m.file2.fileUrl, cur2Name: m.file2 && m.file2.originalName, up1: uplBg, up2: uplBg2, k1: 'removeBg', k2: 'removeBg2', lang: 'bg', label1: 'Българският файл', short: 'българския файл', removable: false });
+      langBox(enBox, { title: 'English файл (по избор)', cur: m.fileEnUrl, curName: m.originalNameEn, cur2: m.fileEn2 && m.fileEn2.fileUrl, cur2Name: m.fileEn2 && m.fileEn2.originalName, up1: uplEnX, up2: uplEnX2, k1: 'removeEn', k2: 'removeEn2', lang: 'en', label1: 'Английският файл', short: 'английския файл', removable: true });
     }
     redraw();
     const body = h('div', { class: 'a-form' }, dateF.el, bgBox, enBox);
