@@ -119,7 +119,9 @@ for (const vp of [390, 768, 1280].map((w) => ({ w, h: w < 700 ? 844 : w < 1000 ?
     R.check(`RES1[${id}] /reservation: HTTP 200 text/html, one h1 "${en ? 'Reservations & orders' : 'Резервации и поръчки'}", html lang=${lang}, title`, resp.status() === 200 && /text\/html/.test(resp.headers()['content-type'] || '') && (await page.locator('h1').count()) === 1 && (await page.locator('h1').innerText()).toLowerCase() === (en ? 'reservations & orders' : 'резервации и поръчки') && (await page.getAttribute('html', 'lang')) === lang && (await page.title()) === (en ? 'Reservations & orders — Kota1 Restaurant' : 'Резервации и поръчки — Kota1 Restaurant'), `${resp.status()} ${await page.title()}`);
     // heading order
     const hs = await page.$$eval('h1,h2,h3', (e) => e.map((x) => +x.tagName[1]));
-    R.check(`RES2[${id}] heading order has no skipped levels`, hs.every((l, i) => i === 0 ? l === 1 : l - hs[i - 1] <= 1), hs.join(''));
+    const hn = await page.$$eval('h1,h2,h3', (e) => e.map((x) => x.textContent.trim()));
+    const noLead = await page.evaluate(() => ({ lead: document.querySelectorAll('.page-band .lead, [data-i18n="res.lead"]').length, callH: document.querySelectorAll('#res-call-heading, [data-i18n="res.call.h"], .res-call h2').length }));
+    R.check(`RES2[${id}] heading order has no skipped levels (h1 -> h2 "${en ? 'Orders for home or office' : 'Поръчки за вкъщи или офис'}" -> h2 floor plan); D-54: no lead paragraph, no call-section h2`, hs.every((l, i) => i === 0 ? l === 1 : l - hs[i - 1] <= 1) && hs[1] === 2 && hn[1] === (en ? 'Orders for home or office' : 'Поръчки за вкъщи или офис') && hs[2] === 2 && noLead.lead === 0 && noLead.callH === 0, hs.join('') + ' ' + hn.join(' | ') + ' ' + JSON.stringify(noLead));
     // floor plan
     const svg = await page.evaluate(() => {
       const s = document.getElementById('plan-svg'); const lb = (s.getAttribute('aria-labelledby') || '').split(/\s+/).map((i) => document.getElementById(i));
