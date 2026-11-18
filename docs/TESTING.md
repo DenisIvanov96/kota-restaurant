@@ -5,6 +5,10 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
+| **T-67 (D-54 narrow scope: /reservation lead and call h2 removed, 10% bullet reworded; only the rows below were run; test edits are uncommitted; the two test files were first written against 2a4a9ce wording and re-targeted to ea9444a)** | ea9444a | |
+| e2e d64-pages (RP1: no lead, no call h2/#res-call-heading, call section not aria-labelled; RP2: h1 -> h2 orders -> h2 plan, no skipped level; RP3: new BG/EN 10% bullet; call button + tel: and no-phone note unchanged; port 3204) | ea9444a | PASS 163/163 |
+| e2e feedback1 (RES2 now asserts h1 -> h2 "Поръчки за вкъщи или офис" -> h2, no lead/call h2; run in full; ports 3201-3209 range) | ea9444a | PASS 781/781 |
+| e2e plan (/reservation floor plan, connected) | ea9444a | PASS 66/66 |
 | **T-66 (D-64 / T-65: events slider, top bar + reservation texts, daily "until 16:00"; D-54 narrow scope, only the rows below were run; no `server/**` change so API/security suites are skip-if-unchanged)** | f8d1206 | |
 | e2e events-slider (new, port 3203: 1/2/3 live events x BG/EN x 390/768/1280; arrows >= 44 px and inside the viewport, counter, disabled ends, click, ArrowLeft/Right, synthetic swipe, focus to the other arrow, aria-live, stable frame height, XSS as text, BG<->EN re-render, nav "Събитие" + /#event anchor) | f8d1206 | PASS 117/117 |
 | e2e d64-pages (new, port 3204: static top-bar fallback in 6 HTML files, no-JS bar, top bar on 6 pages x BG/EN x 3 viewports with/without phone, /reservation h1/title/meta/orders/note/call button x BG/EN x 3 viewports, daily note shown/hidden/loading/error) | f8d1206 | PASS 163/163 |
