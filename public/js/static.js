@@ -14,9 +14,12 @@ function renderPrivacyContact(site) {
   const phone = site && site.reservationPhone ? site.reservationPhone.trim() : '';
   const address = site && site.address ? site.address.trim() : '';
   box.replaceChildren();
-  if (!phone && !address) { box.textContent = t('privacy.contact.none'); return; }
+  const email = site && typeof site.email === 'string' ? site.email.trim() : '';
+  if (!phone && !address && !email) { box.textContent = t('privacy.contact.none'); return; }
   if (phone) { const a = el('a', '', phone); a.href = telHref(phone); box.append(`${t('contact.phone')}: `, a); }
-  if (phone && address) box.append(el('br'));
+  if (phone && email) box.append(el('br'));
+  if (email) { const a = el('a', '', email); a.href = 'mailto:' + email; box.append(`${t('contact.email')}: `, a); }
+  if ((phone || email) && address) box.append(el('br'));
   if (address) box.append(`${t('contact.address')}: ${address}`);
 }
 

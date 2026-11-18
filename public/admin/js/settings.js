@@ -23,6 +23,7 @@ export function settingsView(ctx) {
   // ---- 1. site info
   function siteCard(s) {
     const phone = field({ label: 'Телефон за резервации', type: 'tel', inputmode: 'tel', max: 30, value: s.reservationPhone, helper: 'Показва се най-горе на сайта и в „Контакти“. Оставете празно, за да го скриете.', autocomplete: 'off' });
+    const email = field({ label: 'Имейл', type: 'email', inputmode: 'email', max: 254, value: s.contactEmail || '', helper: 'Показва се в „Контакти“ и в страницата за поверителност. Оставете празно, за да го скриете.', autocomplete: 'off', autocapitalize: 'none' });
     const addr = field({ label: 'Адрес', multiline: true, rows: 2, max: 200, value: s.address, helper: 'Оставете празно, за да се скрие.' });
     const hours = field({ label: 'Работно време', multiline: true, rows: 5, max: 500, value: s.openingHours, helper: 'Всеки ред се показва на нов ред на сайта. Пример: Пон–Пет 11:00–23:00' });
     const addrEn = field({ label: 'Address (English)', multiline: true, rows: 2, max: 200, value: s.addressEn || '', helper: EN_HELP });
@@ -32,15 +33,17 @@ export function settingsView(ctx) {
     const langBox = langTabs({ label: 'Език на адреса и работното време', panels: { bg: [addr.el, hours.el], en: [addrEn.el, hoursEn.el] }, filled: (l) => (l === 'en' ? !!(addrEn.value.trim() || hoursEn.value.trim()) : !!(addr.value.trim() || hours.value.trim())) });
     const insta = field({ label: 'Instagram профил', type: 'url', inputmode: 'url', max: 200, value: s.instagramUrl || '', placeholder: 'https://www.instagram.com/вашият-профил', autocomplete: 'off', autocapitalize: 'none', helper: 'Връзка към профила ви в Instagram. Оставете празно, ако нямате профил.' });
     const cur = field({ label: 'Валутен символ', max: 5, value: s.currencySymbol, cls: 'a-field--narrow', helper: 'Показва се след цената, например €.' });
-    const snap = () => JSON.stringify([phone.value, addr.value, hours.value, addrEn.value, hoursEn.value, cur.value, insta.value]);
+    const snap = () => JSON.stringify([phone.value, email.value, addr.value, hours.value, addrEn.value, hoursEn.value, cur.value, insta.value]);
     let base = snap();
     siteDirty = () => snap() !== base;
     const save = btn({ label: 'Запази', variant: 'primary', type: 'submit' });
-    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Информация за сайта' }), phone.el, langBox.el, insta.el, cur.el, h('div', { class: 'a-actionrow' }, save));
+    const form = h('form', { class: 'a-card a-form', novalidate: true }, h('h2', { text: 'Информация за сайта' }), phone.el, email.el, langBox.el, insta.el, cur.el, h('div', { class: 'a-actionrow' }, save));
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      [phone, addr, hours, addrEn, hoursEn, cur, insta].forEach((f) => f.setError(''));
+      [phone, email, addr, hours, addrEn, hoursEn, cur, insta].forEach((f) => f.setError(''));
       if (!/^[+0-9 ()-]*$/.test(phone.value)) { phone.setError('Само цифри, интервали, +, ( ) и -.'); phone.input.focus(); return; }
+      const em = email.value.trim();
+      if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { email.setError('Въведете валиден имейл адрес, например име@домейн.bg.'); email.input.focus(); return; }
       const iu = insta.value.trim();
       if (iu) {
         let ok = false;
@@ -49,8 +52,9 @@ export function settingsView(ctx) {
       }
       setBusy(save, true);
       try {
-        const r = await put('/api/admin/settings', { reservationPhone: phone.value.trim(), address: addr.value.trim(), openingHours: hours.value.trim(), addressEn: addrEn.value.trim(), openingHoursEn: hoursEn.value.trim(), currencySymbol: cur.value.trim(), instagramUrl: iu });
+        const r = await put('/api/admin/settings', { reservationPhone: phone.value.trim(), contactEmail: em, address: addr.value.trim(), openingHours: hours.value.trim(), addressEn: addrEn.value.trim(), openingHoursEn: hoursEn.value.trim(), currencySymbol: cur.value.trim(), instagramUrl: iu });
         phone.value = r.reservationPhone; addr.value = r.address; hours.value = r.openingHours; cur.value = r.currencySymbol;
+        if (r.contactEmail !== undefined) email.value = r.contactEmail || '';
         if (r.instagramUrl !== undefined) insta.value = r.instagramUrl;
         if (r.addressEn !== undefined) addrEn.value = r.addressEn;
         if (r.openingHoursEn !== undefined) hoursEn.value = r.openingHoursEn;
@@ -59,7 +63,7 @@ export function settingsView(ctx) {
         toast('Настройките са запазени.');
       } catch (err) {
         if (err.status === 400 && err.fields) {
-          const m = { reservationPhone: phone, address: addr, openingHours: hours, addressEn: addrEn, openingHoursEn: hoursEn, currencySymbol: cur, instagramUrl: insta };
+          const m = { reservationPhone: phone, contactEmail: email, address: addr, openingHours: hours, addressEn: addrEn, openingHoursEn: hoursEn, currencySymbol: cur, instagramUrl: insta };
           let first = null;
           for (const [k, msg] of Object.entries(err.fields)) if (m[k]) { if (m[k] === addrEn || m[k] === hoursEn) langBox.select('en', false); else if (m[k] === addr || m[k] === hours) langBox.select('bg', false); m[k].setError(msg); first = first || m[k]; }
           if (first) first.input.focus();

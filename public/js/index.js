@@ -29,6 +29,20 @@ function renderContact(site) {
     div.append(dd);
     dl.prepend(div);
   }
+  const oldEmail = document.getElementById('contact-email-item');
+  if (oldEmail) oldEmail.remove();
+  const email = site && typeof site.email === 'string' ? site.email.trim() : '';
+  if (email) {
+    const div = el('div', 'contact-item');
+    div.id = 'contact-email-item';
+    div.append(el('dt', '', t('contact.email')));
+    const dd = el('dd');
+    const a = el('a', '', email);
+    a.href = 'mailto:' + email;
+    dd.append(a);
+    div.append(dd);
+    dl.insertBefore(div, document.getElementById('contact-social'));
+  }
   const call = document.getElementById('contact-call');
   if (phone) call.href = telHref(phone);
   call.hidden = !phone;
