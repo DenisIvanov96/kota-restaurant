@@ -24,7 +24,7 @@ function renderPrivacyContact(site) {
 }
 
 const PLAN_TABLES = [
-  ['long', 102], ['long', 103], ['long', 104], ['long', 105], ['long', 106], ['long', 107], ['long', 108],
+  ['long', 102], ['long', 103], ['square', 104], ['long', 105], ['long', 106], ['long', 107], ['long', 108],
   ['long', 109], ['long', 110], ['long', 111], ['long', 112], ['square', 113], ['square', 114], ['square', 115],
 ];
 
