@@ -24,8 +24,8 @@ function renderPrivacyContact(site) {
 }
 
 const PLAN_TABLES = [
-  ['round', 1], ['round', 2], ['round', 3], ['square', 4], ['square', 5], ['square', 6],
-  ['round', 7], ['round', 8], ['long', 9], ['long', 10], ['round', 11], ['square', 12],
+  ['long', 102], ['long', 103], ['long', 104], ['long', 105], ['long', 106], ['long', 107], ['long', 108],
+  ['long', 109], ['long', 110], ['long', 111], ['long', 112], ['square', 113], ['square', 114], ['square', 115],
 ];
 
 /** Reservation page: phone call button, location, text alternative list of the floor plan tables. */

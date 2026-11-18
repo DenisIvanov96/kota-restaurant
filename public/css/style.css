@@ -172,13 +172,12 @@ html { scroll-padding-top: calc(var(--topbar-h) + 12px); }
 .plan-svg { display: block; width: 100%; max-width: 520px; height: auto; margin: 0 auto; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius-card); }
 .plan-floor { fill: var(--bg-2); stroke: var(--muted); stroke-width: 3; }
 .plan-bar { fill: var(--bg-3); stroke: var(--accent); stroke-width: 2; }
-.plan-window { fill: var(--glow); stroke: var(--accent); stroke-width: 1; }
 .plan-door { fill: var(--accent); }
 .plan-swing { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 6 5; }
 .plan-svg .tbl circle, .plan-svg .tbl rect, .tbl-shape { fill: var(--bg-3); stroke: var(--accent); stroke-width: 2.5; }
 .tbl-shape { stroke-width: 1.5; }
 .plan-svg text { fill: var(--glow); font-family: var(--font-display); font-weight: 500; font-size: 26px; text-anchor: middle; dominant-baseline: central; }
-.plan-svg .plan-label { fill: var(--text); font-size: 24px; letter-spacing: .12em; text-transform: uppercase; }
+.plan-svg .plan-label { fill: var(--text); font-size: 20px; letter-spacing: .12em; text-transform: uppercase; }
 .plan-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-2) var(--s-5); list-style: none; margin: var(--s-4) 0 0; padding: 0; color: var(--text); }
 .plan-legend li { display: inline-flex; align-items: center; gap: var(--s-2); }
 .plan-legend svg { width: 24px; height: 24px; flex: none; }
@@ -191,3 +190,5 @@ html { scroll-padding-top: calc(var(--topbar-h) + 12px); }
   .site-nav .nav-daily a, .site-nav .nav-reservation a { padding: 0 9px; }
   .lang-switch { margin-left: 6px; }
 }
+
+.about-company { margin: var(--s-5) 0 0; padding-top: var(--s-3); border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; line-height: 1.5; max-width: 62ch; overflow-wrap: anywhere; }
