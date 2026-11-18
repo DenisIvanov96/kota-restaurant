@@ -307,3 +307,12 @@ Owner request: a "Галерия / Gallery" button opening its own page with up 
 - Public `GET /api/public/site` gains `email` (string|null).
 - Public UI: home Contacts section gets an item "Имейл" / "Email" with a `mailto:` link (text = the address), placed after the phone (order: Телефон, Имейл, Социални мрежи); hidden when null. The privacy page's `#privacy-contact` also shows the email when set. Build the link with DOM APIs (`href = 'mailto:' + email`), never innerHTML.
 - Admin UI: Настройки → site information card gets an "Имейл" field (`type="email"`, autocomplete off) next to the phone, with inline validation error from the API.
+
+## Limits raised + daily menu second page (D-62)
+- `MAX_MENU_PAGES` 10 → **15** per language; `MAX_GALLERY_ITEMS` 25 → **50**. Server is the authority (409 `too_many_pages` / `gallery_full` unchanged); admin UI reads `max` from the API where it already does, otherwise update its constant and all "N / 10" / "N / 25" texts. Per-file limit stays 50 MB.
+- **Daily menu: up to 2 files per language per date; the second is optional.**
+  - Migration 009: `daily_menus` gains `file2_id` and `file2_en_id` (nullable, → files). Include them in the orphan-file sweep, the past-menu auto-cleanup (D-45, files deleted from disk) and `isPubliclyVisible` (served only while the menu is public, like `file_id`).
+  - Admin API multipart fields: `file`, `file2`, `fileEn`, `fileEn2` (each one file, 50 MB, PDF/JPG/PNG/WebP, same validation). POST: `file2` only allowed when that language also has `file` (else 400 `fields.file2` / `fields.fileEn2`). PUT: provided fields replace the old file (old file deleted); new boolean form fields `removeFile2` / `removeFileEn2` delete the second file. After any PUT a language may not end with a second file and no first file (400). Admin GET item gains `file2` / `fileEn2` objects (same shape as `file` / `fileEn`) or null.
+  - Public `GET /api/public/daily-menu?lang=`: keeps `file` (first page of the served language, same fallback as now — the language is chosen per menu, then both of its pages are used, no mixing) and adds `files: [file, file2?]` (1–2 items, in order).
+  - Public UI (`/daily-menu`): render every item of `files` (image → lightbox with prev/next between the two and "Страница N от M"; PDF → its own open link). One file looks exactly as today.
+  - Admin UI (Обедно меню): in the upload form and in "replace" per language, an optional second slot "Втора страница (по избор)" with its own preview and a remove button; list rows show "2 стр." when there are two.

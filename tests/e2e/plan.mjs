@@ -1,4 +1,4 @@
-// T-57 verification of T-56 / D-57: real floor plan (tables 102-115), company line on home About, privacy controller line.
+// T-57 verification of T-56 / D-57 (text updated for D-61 in T-59): real floor plan (tables 102-115), company line on home About, privacy controller line.
 // Run: node tests/e2e/plan.mjs   (port 3208)
 import { startServer, createAdmin, tmpDir, reporter } from '../lib/harness.mjs';
 import { chromium, newPage, noHScroll, shotDir } from '../lib/browser.mjs';
@@ -10,8 +10,8 @@ const dir = tmpDir('plan'); createAdmin(dir);
 const srv = await startServer({ port: 3208, dataDir: dir, now: '2026-06-15T10:00:00Z' });
 const browser = await chromium.launch();
 const NUMS = Array.from({ length: 14 }, (_, i) => String(102 + i));
-const COMPANY = { bg: 'Амора Джелато ЕООД · ЕИК: 207469415 · Седалище: ул. Сребърна 2-Б, София', en: 'Амора Джелато ЕООД (Amora Dzhelato EOOD) · Company ID (EIK): 207469415 · Registered office: 2-B Srebarna St, Sofia' };
-const CONTROLLER = { bg: 'Администратор на данните: Амора Джелато ЕООД, ЕИК: 207469415, седалище: ул. Сребърна 2-Б, София.', en: 'Data controller: Амора Джелато ЕООД (Amora Dzhelato EOOD), Company ID (EIK): 207469415, registered office: 2-B Srebarna St, Sofia.' };
+const COMPANY = { bg: 'Амора Джелато ЕООД · ЕИК: 207469415 · ИН по ДДС: BG207469415 · Седалище: ул. Сребърна 2-Б, София', en: 'Амора Джелато ЕООД (Amora Dzhelato EOOD) · Company ID (EIK): 207469415 · VAT No.: BG207469415 · Registered office: 2-B Srebarna St, Sofia' };
+const CONTROLLER = { bg: 'Администратор на данните: Амора Джелато ЕООД, ЕИК: 207469415, ИН по ДДС: BG207469415, седалище: ул. Сребърна 2-Б, София.', en: 'Data controller: Амора Джелато ЕООД (Amora Dzhelato EOOD), Company ID (EIK): 207469415, VAT No.: BG207469415, registered office: 2-B Srebarna St, Sofia.' };
 const LEGEND = { bg: ['Квадратна маса', 'Дълга маса', 'Бар', 'Вход'], en: ['Square table', 'Long table', 'Bar', 'Entrance'] };
 const step = async (id, fn) => { try { await fn(); } catch (e) { R.fail(id, String(e.message).split('\n').slice(0, 3).join(' ')); } };
 const clean = async (page, log) => log.console.length === 0 && log.pageErrors.length === 0 && log.failed.length === 0 && (await page.collectCsp()).length === 0;
@@ -62,7 +62,9 @@ for (const w of [390, 768, 1280]) for (const lang of ['bg', 'en']) {
     await page.goto(srv.url + '/privacy' + (lang === 'en' ? '?lang=en' : ''), { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
     const p = await page.evaluate(() => ({ text: document.querySelector('main').innerText, who: [...document.querySelectorAll('main p')].map((e) => e.textContent.trim()), ph: (document.querySelector('main').innerText.match(/\[[^\]]+\]/g) || []) }));
     R.check(`PV1[${id}] privacy controller line is the company details; no "[Юридическо лице" / "Legal entity" placeholder left`, p.who.includes(CONTROLLER[lang]) && !/\[Юридическо лице|Legal entity/.test(p.text), JSON.stringify(p.who.filter((x) => /Администратор|controller/.test(x))));
-    R.check(`PV2[${id}] other placeholders unchanged ([N] and hosting provider still present: ${p.ph.join(' ')})`, /\[N\]/.test(p.text) && (lang === 'en' ? /\[Hosting provider\]/.test(p.text) : /\[Хостинг доставчик\]/.test(p.text)), JSON.stringify(p.ph));
+    // D-61: no bracket placeholders remain; privacy.contact.none fallback only shows when phone, address and email are all unset (seeded here, so it must not appear)
+    const LOGS = lang === 'en' ? 'kept for 14 days' : 'Пазят се 14 дни'; const HOST = lang === 'en' ? 'SuperHosting.BG (Bulgaria)' : 'SuperHosting.BG (България)';
+    R.check(`PV2[${id}] no bracket placeholders left (no "[N]", "[Хостинг", "[Hosting", "[Юридическо"); logs line has "${LOGS}"; hosting line has "${HOST}"`, p.ph.length === 0 && !/\[N\]|\[Хостинг|\[Hosting|\[Юридическо/.test(p.text) && p.text.includes(LOGS) && p.text.includes(HOST), JSON.stringify(p.ph));
     const nh = await noHScroll(page);
     R.check(`PV3[${id}] privacy: no horizontal scroll, no console/CSP errors`, nh.ok && (await clean(page, log)), JSON.stringify([nh, log.console, log.pageErrors, log.failed]));
     await context.close();
