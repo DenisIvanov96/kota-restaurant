@@ -123,7 +123,7 @@ for (const vp of [390, 768, 1280].map((w) => ({ w, h: w < 700 ? 844 : w < 1000 ?
     // floor plan
     const svg = await page.evaluate(() => {
       const s = document.getElementById('plan-svg'); const lb = (s.getAttribute('aria-labelledby') || '').split(/\s+/).map((i) => document.getElementById(i));
-      const tbls = [...s.querySelectorAll('g.tbl')].map((g) => { const sh = g.querySelector('circle, rect'); return { n: g.querySelector('text').textContent.trim(), shape: sh.tagName === 'circle' ? 'round' : (Math.abs(+sh.getAttribute('width') - +sh.getAttribute('height')) < 1 ? 'square' : 'long') }; });
+      const tbls = [...s.querySelectorAll('g.tbl')].map((g) => { const sh = g.querySelector('circle, rect'); return { n: g.querySelector('text').textContent.trim(), shape: sh.tagName === 'circle' ? 'round' : (Math.max(+sh.getAttribute('width'), +sh.getAttribute('height')) / Math.min(+sh.getAttribute('width'), +sh.getAttribute('height')) < 1.15 ? 'square' : 'long') }; });
       const list = [...document.querySelectorAll('#plan-tables li')].map((li) => li.textContent.trim());
       const lr = document.getElementById('plan-tables').getBoundingClientRect(); const sr = s.getBoundingClientRect();
       return { role: s.getAttribute('role'), focusable: s.getAttribute('focusable'), titles: lb.map((e) => e && e.tagName + ':' + e.textContent.trim()), tbls, list, listW: lr.width, listH: lr.height, svgW: sr.width, svgH: sr.height, svgR: sr.right,
@@ -131,13 +131,14 @@ for (const vp of [390, 768, 1280].map((w) => ({ w, h: w < 700 ? 844 : w < 1000 ?
         interactive: s.querySelectorAll('a, button, [tabindex], [onclick]').length, windows: s.querySelectorAll('.plan-window').length, door: s.querySelectorAll('.plan-door').length, bar: s.querySelectorAll('.plan-bar').length, shapes: { round: 0 } };
     });
     R.check(`RES3[${id}] floor plan SVG: role=img with aria-labelledby -> <title> + <desc> (non-empty, ${en ? 'English' : 'Bulgarian'}), not focusable, no interactive children`, svg.role === 'img' && svg.titles.length === 2 && svg.titles[0].startsWith('title:') && svg.titles[1].startsWith('desc:') && svg.titles.every((t) => t && t.length > 12) && svg.focusable === 'false' && svg.interactive === 0 && (en ? !svg.titles.some(cyrIn) : true), JSON.stringify(svg.titles));
-    R.check(`RES4[${id}] plan has 12 numbered tables 1..12 (round/square/long mix), entrance, bar, 4 windows`, svg.tbls.length === 12 && svg.tbls.map((t) => t.n).join() === '1,2,3,4,5,6,7,8,9,10,11,12' && new Set(svg.tbls.map((t) => t.shape)).size === 3 && svg.door === 1 && svg.windows === 4 && svg.labels.length === 2, JSON.stringify(svg.tbls.map((t) => t.n + t.shape[0])));
-    const re = en ? /^Table (\d+), (round|square|long)$/ : /^Маса (\d+), (кръгла|квадратна|дълга)$/;
-    const kind = { round: ['round', 'кръгла'], square: ['square', 'квадратна'], long: ['long', 'дълга'] };
-    const listOk = svg.list.length === 12 && svg.list.every((t, i) => { const m = re.exec(t); return m && +m[1] === +svg.tbls[i].n && m[2] === kind[svg.tbls[i].shape][en ? 0 : 1]; });
-    R.check(`RES5[${id}] hidden text alternative: list of 12 tables, each matches the SVG table number and shape`, listOk, svg.list.join(' | '));
+    const NUMS = Array.from({ length: 14 }, (_, i) => String(102 + i));
+    R.check(`RES4[${id}] plan has 14 numbered tables 102..115 (square/long only, no round), one entrance, one bar, no windows`, svg.tbls.length === 14 && svg.tbls.map((t) => t.n).join() === NUMS.join() && svg.tbls.every((t) => t.shape !== 'round') && svg.door === 1 && svg.windows === 0 && svg.bar === 1 && svg.labels.length === 2, JSON.stringify(svg.tbls.map((t) => t.n + t.shape[0])));
+    const re = en ? /^Table (\d+), (square|long)$/ : /^Маса (\d+), (квадратна|дълга)$/;
+    const kind = { square: ['square', 'квадратна'], long: ['long', 'дълга'] };
+    const listOk = svg.list.length === 14 && svg.list.every((t, i) => { const m = re.exec(t); return m && +m[1] === +svg.tbls[i].n && m[2] === kind[svg.tbls[i].shape][en ? 0 : 1]; });
+    R.check(`RES5[${id}] hidden text alternative: list of 14 tables, each matches the SVG table number and shape`, listOk, svg.list.join(' | '));
     R.check(`RES6[${id}] table list is visually hidden (1x1 clip) yet in the DOM/accessibility tree (not display:none); plan fits the viewport (svg ${Math.round(svg.svgW)}x${Math.round(svg.svgH)})`, svg.listW <= 2 && svg.listH <= 2 && (await page.locator('#plan-tables').evaluate((e) => getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden')) && svg.svgR <= vp.w && svg.svgW > 200, `${svg.listW}x${svg.listH}`);
-    R.check(`RES7[${id}] legend has 6 entries; "sample layout" note shown; labels ${svg.labels.join('/')}`, svg.legend.length === 6 && svg.note === (en ? 'Sample layout — the real plan is coming soon' : 'Примерна схема — реалната ще бъде добавена скоро') && svg.labels.slice().sort().join() === (en ? ['Bar', 'Entrance'] : ['Бар', 'Вход']).join(), JSON.stringify([svg.legend, svg.note]));
+    R.check(`RES7[${id}] legend has 4 entries (square/long/bar/entrance); caption shown; labels ${svg.labels.join('/')}`, svg.legend.length === 4 && svg.note === (en ? 'Mention the table number when you book by phone.' : 'Посочете номера на масата, когато резервирате по телефона.') && svg.labels.slice().sort().join() === (en ? ['Bar', 'Entrance'] : ['Бар', 'Вход']).join(), JSON.stringify([svg.legend, svg.note]));
     // contrast of plan text (computed fills)
     const cc = await page.evaluate(() => { const g = (el, p) => getComputedStyle(el)[p]; const t = document.querySelector('.plan-svg .tbl text'); const sh = document.querySelector('.plan-svg .tbl circle, .plan-svg .tbl rect'); const lab = document.querySelector('.plan-svg .plan-label'); const bar = document.querySelector('.plan-svg .plan-bar'); return { num: [g(t, 'fill'), g(sh, 'fill')], lab: [g(lab, 'fill'), g(bar, 'fill')], floor: [g(lab, 'fill'), getComputedStyle(document.querySelector('.plan-floor')).fill] }; });
     R.check(`RES8[${id}] contrast: table number ${cc.num[0]} on ${cc.num[1]} = ${contrast(...cc.num).toFixed(2)}, bar label ${contrast(...cc.lab).toFixed(2)}, entrance label ${contrast(...cc.floor).toFixed(2)} (all >= 4.5)`, [cc.num, cc.lab, cc.floor].every((p) => contrast(...p) >= 4.5), JSON.stringify(cc));
@@ -366,7 +367,7 @@ await step('FRESH', async () => {
   }
   const { context, page } = await newPage(browser, { width: 390, height: 844 });
   await page.goto(srvB.url + '/reservation', { waitUntil: 'networkidle' }); await page.waitForTimeout(200);
-  R.check('FRESH5 /reservation on a fresh DB: no-phone note, plan, default address + map link', (await page.locator('#res-nophone').isVisible()) && (await page.locator('#plan-tables li').count()) === 12 && (await page.locator('#location-list .address-text').textContent()) === DEF_BG);
+  R.check('FRESH5 /reservation on a fresh DB: no-phone note, plan, default address + map link', (await page.locator('#res-nophone').isVisible()) && (await page.locator('#plan-tables li').count()) === 14 && (await page.locator('#location-list .address-text').textContent()) === DEF_BG);
   await context.close();
   // owner saves an EMPTY address afterwards: the page keeps showing the default (never an empty section)
   await bAdmin.put('/api/admin/settings', { json: { address: '', addressEn: '' } });

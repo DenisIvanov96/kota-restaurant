@@ -288,6 +288,13 @@ sudo -u kota bash -c 'set -a; . /etc/kota-restaurant/kota.env; set +a; cd /opt/k
 Expected output: `2FA disabled for "OWNER_USERNAME"; N session(s) revoked. ...`. `Admin "X" not found` means
 the username was wrong (nothing changed). The owner then logs in with the password and sets up 2FA again.
 
+### 6.3 Replace or remove an admin account
+Create the new account first, then delete the old one (the script refuses to delete the last admin; deleting also ends all of that account's sessions):
+```bash
+sudo -u kota bash -c 'set -a; . /etc/kota-restaurant/kota.env; set +a; cd /opt/kota-restaurant && npm run admin:create -- --username NEW_USERNAME'
+sudo -u kota bash -c 'set -a; . /etc/kota-restaurant/kota.env; set +a; cd /opt/kota-restaurant && npm run admin:delete -- --username OLD_USERNAME'
+```
+
 ## 7. Approval checklist (the user must approve each of these)
 | # | Step | Why it needs approval |
 |---|---|---|

@@ -12,7 +12,8 @@
     "test": "node --disable-warning=ExperimentalWarning --test \"server/test/*.test.js\"",
     "admin:create": "node --disable-warning=ExperimentalWarning server/scripts/create-admin.js",
     "admin:reset-password": "node --disable-warning=ExperimentalWarning server/scripts/reset-password.js",
-    "admin:disable-2fa": "node --disable-warning=ExperimentalWarning server/scripts/disable-2fa.js"
+    "admin:disable-2fa": "node --disable-warning=ExperimentalWarning server/scripts/disable-2fa.js",
+    "admin:delete": "node --disable-warning=ExperimentalWarning server/scripts/delete-admin.js"
   },
   "dependencies": {
     "express": "^5.3.0",
