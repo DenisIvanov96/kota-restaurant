@@ -5,6 +5,10 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
+| **T-54 follow-up (D-56: contacts in one row at >= 768, EN "Daily Specials"; only the rows below were run)** | a87cf08 | |
+| e2e email (+10: B7 one row phone/email/social at 768/1280 BG/EN, C3 long email wraps in its cell at 390/768/1280) | a87cf08 | 109/109 |
+| e2e contact (SOC4 updated to D-56: three items in one row, in order) | a87cf08 | 85/85 |
+| e2e i18n ("Daily Special" -> "Daily Specials" in RT1/DM1/PERS1/URL2/LS4; launch.mjs 404 label also updated, **launch not run**) | a87cf08 | 210/216: only AST0+AE x3 viewports fail, **identical 6 failures at 36b1eac (before D-55)**: pre-existing stale selector (`getByRole('tab', {name: /^English/})` count != 1 on the admin settings page), not caused by D-55/D-56 |
 | **T-54 (D-54 narrow scope for D-55 contact email; only the rows below were run, everything else deferred to the pre-go-live regression)** | 24c46d9 | |
 | api security (S8c extended with 7 invalid `contactEmail` cases + `fields.contactEmail`; S8e `email` key) | 24c46d9 | 43/43 |
 | api feedback1 / i18n / langs / migration006 (migration lists now 001..008, public site key list + `email`) | 24c46d9 | 20/20 · 13/13 · 28/28 · 3/3 |
