@@ -43,9 +43,6 @@ function renderContact(site) {
     div.append(dd);
     dl.insertBefore(div, document.getElementById('contact-social'));
   }
-  const call = document.getElementById('contact-call');
-  if (phone) call.href = telHref(phone);
-  call.hidden = !phone;
 }
 
 /* About text: owner-written (plain text, paragraphs split on blank lines) or the built-in default when not set. */
