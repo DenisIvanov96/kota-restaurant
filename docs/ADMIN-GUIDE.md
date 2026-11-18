@@ -10,7 +10,8 @@ Open the admin at **`https://<your-domain>/admin`** on a phone or computer. On a
 | **Събития** (Events) | The "Събитие / Event" banner on the home page. |
 | **Обедно меню** (Daily Menu) | The lunch menu customers open with the "Обедно меню / Daily Special" button. |
 | **Основно меню** (Regular Menu) | The permanent menu with dishes and prices. |
-| **Настройки** (Settings) | Phone, address, opening hours, your password, two-step login, logging out. |
+| **Галерия** (Gallery) | Photos and videos shown on the /gallery page (up to 50 items, 50 MB each). |
+| **Настройки** (Settings) | Phone, email, address, opening hours, the About text, your password, two-step login, logging out. |
 
 Every change shows on the website **immediately after you save or publish**. Nothing needs to be redeployed.
 
@@ -48,7 +49,7 @@ All times are Bulgarian time.
 
 ## 3. Daily lunch menu (Обедно меню)
 Upload in four steps: **Избери файл → Избери дата → Преглед → Публикувай**
-1. **Избери файл:** choose a photo (JPG, PNG, WebP) or a PDF of the menu, up to 50 MB.
+1. **Избери файл:** choose a photo (JPG, PNG, WebP) or a PDF of the menu, up to 50 MB. Optionally add a second page in **Втора страница (по избор)**; it appears once a first file is chosen. In **Редактирай** you can later add, replace or remove the second page.
 2. **Избери дата:** tap **Днес** (today) or **Утре** (tomorrow), or pick any date.
 3. **Преглед:** check that it is the right file and readable.
 4. **Публикувай:** publish it. A progress bar shows the upload. You can also save it without publishing and publish it later.
@@ -85,11 +86,15 @@ If you try to leave with unsaved changes, you are warned.
 
 ### Uploading the menu as pages (photos or PDF)
 Use the **Файл** tab. There is a separate list for **Български** and **English**.
-- Upload up to **10 pages per language** (PDF, JPG, PNG or WebP, up to 50 MB each). You can select several files at once.
+- Upload up to **15 pages per language** (PDF, JPG, PNG or WebP, up to 50 MB each). You can select several files at once.
 - Put the pages in order with the up/down arrows. Remove a page with **Изтрий**.
 - Publish each language separately. If one language has no published pages, customers see the other one.
 
-Customers flip through the pages ("Страница 1 от 5"). There is no download button for customers. Only you can download: **Изтегли менюто (ZIP)** downloads all pages of that language (published or not) as one ZIP file, and **Изтегли** next to a page downloads that page.
+Customers see one page at a time on the home page and flip with the ◀ ▶ arrows (or swipe on a phone); "Страница 1 от 5" shows below. Tapping a page opens it full screen. There is no download button for customers. Only you can download: **Изтегли менюто (ZIP)** downloads all pages of that language (published or not) as one ZIP file, and **Изтегли** next to a page downloads that page.
+
+## 4a. Gallery (Галерия)
+- Upload up to **50** photos or videos (JPG, PNG, WebP, MP4, MOV, WebM), up to 50 MB each.
+- Put them in order with the arrows and publish or hide each item. Customers see published items on the **Галерия** page.
 
 ## 5. Settings (Настройки)
 - **Site information:**
