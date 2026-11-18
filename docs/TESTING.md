@@ -5,6 +5,12 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
+| **T-66 (D-64 / T-65: events slider, top bar + reservation texts, daily "until 16:00"; D-54 narrow scope, only the rows below were run; no `server/**` change so API/security suites are skip-if-unchanged)** | f8d1206 | |
+| e2e events-slider (new, port 3203: 1/2/3 live events x BG/EN x 390/768/1280; arrows >= 44 px and inside the viewport, counter, disabled ends, click, ArrowLeft/Right, synthetic swipe, focus to the other arrow, aria-live, stable frame height, XSS as text, BG<->EN re-render, nav "Събитие" + /#event anchor) | f8d1206 | PASS 117/117 |
+| e2e d64-pages (new, port 3204: static top-bar fallback in 6 HTML files, no-JS bar, top bar on 6 pages x BG/EN x 3 viewports with/without phone, /reservation h1/title/meta/orders/note/call button x BG/EN x 3 viewports, daily note shown/hidden/loading/error) | f8d1206 | PASS 163/163 |
+| e2e public (U5 expectation updated to "Резервации и поръчки") | f8d1206 | PASS 90/90 |
+| e2e feedback1 (TB1/TBA2/TBA3/RES1/RES9/OG1/FRESH3 expectations updated to D-64 texts; run in full) | f8d1206 | PASS 781/781 (before the update: 675/781, all 106 failures were the old-text assertions) |
+| e2e plan (/reservation floor plan) / daily2 / pages / slider (connected: reservation page, daily page, home index.js) | f8d1206 | PASS 66/66 · 121/121 · 81/81 · 55/55 |
 | **T-64 (D-54 narrow retest of BUG-24/25/26 after T-63; only the rows below were run, no `server/**` change so API/security suites are skip-if-unchanged)** | cd0be9f | |
 | e2e daily2 (+16 checks AD5a-o: wizard EN-first BUG-26 variant, BG+EN 2+2 variant, edit-dialog variants E1/E2/E3 incl. remove/undo/replace, BUG-24 wording; port 3201) | cd0be9f | PASS 121/121 (incl. AD2b, AD3h0, PUB4b x4). The same file at cd0be9f~1 (git archive): 100/108 FAIL AD2b, AD3h0, AD5b + AD5 aborts, PUB4b x4, so the new checks do detect the old defect |
 | e2e langs (ED1/ED2/C-EDIT) | cd0be9f | 155/159: ED1, ED2, ED3-ED7, C-EDIT and ERR-* PASS; only the 4 known pre-existing failures remain (E-GUARD, G-XSS, R-TAB[768], H-768; out of scope) |
@@ -191,6 +197,7 @@ BUG-19 | minor | frontend-developer | At 390x844, BG, default content (phone set
 - New test file: `tests/e2e/lightbox-focus.mjs` (port 3203).
 
 ## Observations (not defects)
+- T-66 (f8d1206): without JavaScript at 390 px the document scrolls horizontally by 22 px on every public page (the header `.nav-toggle` ends at 412 px); identical at the parent commit (f8d1206^) and unrelated to D-64 (the top bar itself fits). With a long event description the events slider frame is as tall as the tallest card, so shorter cards show empty space below the text (by design: stable height, D-64).
 - `?lang[]=en` (array syntax) on the admin ZIP route is ignored and treated as the default `bg` (Express query parsing); same pre-existing behaviour as other routes.
 - A bad `?lang` on the removed public route returns the public router's generic 400 rather than 404; GET/HEAD without a bad lang are 404 as specified.
 - Repo hygiene (for the PM): my T-46 test edits were swept into commits `508f557` (WIP checkpoint) and the T-47 commit before I handed back; `docs/DESIGN.md` showed as modified in the working tree while I worked (not mine). I did not commit anything.

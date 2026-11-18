@@ -57,11 +57,11 @@ for (const withPhone of [true, false]) {
               first: document.body.children[1] === bar || document.body.children[0] === bar, label: label.hidden ? '' : label.textContent.trim(), labelDisp: getComputedStyle(label).display,
               txt: a.textContent.trim(), href: a.getAttribute('href'), ah: ar.height, aw: ar.width, ar: ar.right, al: ar.left, scrollable: document.documentElement.scrollHeight > innerHeight + 50 };
           });
-          const expLabel = lang === 'en' ? 'For reservations:' : 'За резервации:';
+          const expLabel = lang === 'en' ? 'For reservations & orders:' : 'За резервации и поръчки:'; // D-64
           if (withPhone) R.check(`TB1[${id}] bar shown: "${expLabel} ${PHONE}" with a tel: link`, d.n === 1 && d.display !== 'none' && d.label === expLabel && d.txt === PHONE && d.href === TEL, JSON.stringify(d));
           else {
             const u = new URL(d.href, base);
-            R.check(`TB1[${id}] no phone: bar still shown, text "${lang === 'en' ? 'Reservations' : 'Резервации'}" linking to /reservation (lang kept), label hidden`, d.n === 1 && d.display !== 'none' && d.txt === (lang === 'en' ? 'Reservations' : 'Резервации') && u.pathname === '/reservation' && (lang === 'en' ? u.searchParams.get('lang') === 'en' : !u.searchParams.get('lang')) && d.labelDisp === 'none', JSON.stringify(d));
+            R.check(`TB1[${id}] no phone: bar still shown, text "${lang === 'en' ? 'Reservations & orders' : 'Резервации и поръчки'}" linking to /reservation (lang kept), label hidden`, d.n === 1 && d.display !== 'none' && d.txt === (lang === 'en' ? 'Reservations & orders' : 'Резервации и поръчки') && u.pathname === '/reservation' && (lang === 'en' ? u.searchParams.get('lang') === 'en' : !u.searchParams.get('lang')) && d.labelDisp === 'none', JSON.stringify(d));
           }
           R.check(`TB2[${id}] bar is sticky (position ${d.pos}, top ${d.topCss}), at y=0 on load, inside the viewport (${Math.round(d.left)}-${Math.round(d.right)} of ${vp.w}), link target >= 44 px tall, bar height <= 52 px (the --topbar-h that offsets the sticky category chips)`, d.pos === 'sticky' && d.topCss === '0px' && d.top === 0 && d.h <= 52.5 && d.left >= 0 && d.right <= vp.w && d.ar <= vp.w && d.al >= 0 && d.ah >= 44, JSON.stringify(d));
           R.check(`TB3[${id}] top bar is the first element after the skip link (above the header)`, d.first);
@@ -94,7 +94,7 @@ for (const vp of VPS) await step(`TBA[${vp.w}]`, async () => {
   }
   await page.goto(base + '/', { waitUntil: 'networkidle' });
   await page.locator('.lang-btn[data-lang=en]').click(); await page.waitForTimeout(400);
-  R.check(`TBA2[${vp.w}] BG->EN on the page re-renders the bar ("For reservations:") and keeps the tel link`, (await page.locator('#top-label').innerText()) === 'For reservations:' && (await page.getAttribute('#top-phone', 'href')) === TEL);
+  R.check(`TBA2[${vp.w}] BG->EN on the page re-renders the bar ("For reservations & orders:") and keeps the tel link`, (await page.locator('#top-label').innerText()) === 'For reservations & orders:' && (await page.getAttribute('#top-phone', 'href')) === TEL);
   await setSettings({ reservationPhone: '' });
   await page.goto(base + '/', { waitUntil: 'networkidle' });
   const rd = () => page.evaluate(() => ({ t: document.getElementById('top-phone').textContent, h: document.getElementById('top-phone').getAttribute('href'), l: getComputedStyle(document.getElementById('top-label')).display }));
@@ -102,7 +102,7 @@ for (const vp of VPS) await step(`TBA[${vp.w}]`, async () => {
   const n1 = await rd();
   await page.locator('.lang-btn[data-lang=bg]').click(); await page.waitForTimeout(400);
   const n2 = await rd();
-  R.check(`TBA3[${vp.w}] no phone: language switch BG->EN->BG re-translates the bar ("Reservations" -> "Резервации") and keeps the /reservation link (lang param follows), label stays hidden, no tel link`, n1.t === 'Reservations' && /^\/reservation\?lang=en$/.test(n1.h) && n2.t === 'Резервации' && n2.h === '/reservation' && n1.l === 'none' && n2.l === 'none' && (await page.locator('a[href^="tel:"]:not([hidden])').count()) === 0, JSON.stringify([n1, n2]));
+  R.check(`TBA3[${vp.w}] no phone: language switch BG->EN->BG re-translates the bar ("Reservations & orders" -> "Резервации и поръчки") and keeps the /reservation link (lang param follows), label stays hidden, no tel link`, n1.t === 'Reservations & orders' && /^\/reservation\?lang=en$/.test(n1.h) && n2.t === 'Резервации и поръчки' && n2.h === '/reservation' && n1.l === 'none' && n2.l === 'none' && (await page.locator('a[href^="tel:"]:not([hidden])').count()) === 0, JSON.stringify([n1, n2]));
   await setSettings({ reservationPhone: PHONE });
   await context.close();
 });
@@ -116,7 +116,7 @@ for (const vp of [390, 768, 1280].map((w) => ({ w, h: w < 700 ? 844 : w < 1000 ?
     const reqs = []; context.on('request', (r) => reqs.push(r.url()));
     await setSettings({ reservationPhone: PHONE, address: ADDR_BG, addressEn: ADDR_EN, openingHours: 'Пн-Нд 10:00-22:00', openingHoursEn: 'Mon-Sun 10:00-22:00' });
     const resp = await page.goto(base + '/reservation' + (en ? '?lang=en' : ''), { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
-    R.check(`RES1[${id}] /reservation: HTTP 200 text/html, one h1 "${en ? 'Reservation' : 'Резервация'}", html lang=${lang}, title`, resp.status() === 200 && /text\/html/.test(resp.headers()['content-type'] || '') && (await page.locator('h1').count()) === 1 && (await page.locator('h1').innerText()).toLowerCase() === (en ? 'reservation' : 'резервация') && (await page.getAttribute('html', 'lang')) === lang && (await page.title()) === (en ? 'Reservation — Kota1 Restaurant' : 'Резервация — Kota1 Restaurant'), `${resp.status()} ${await page.title()}`);
+    R.check(`RES1[${id}] /reservation: HTTP 200 text/html, one h1 "${en ? 'Reservations & orders' : 'Резервации и поръчки'}", html lang=${lang}, title`, resp.status() === 200 && /text\/html/.test(resp.headers()['content-type'] || '') && (await page.locator('h1').count()) === 1 && (await page.locator('h1').innerText()).toLowerCase() === (en ? 'reservations & orders' : 'резервации и поръчки') && (await page.getAttribute('html', 'lang')) === lang && (await page.title()) === (en ? 'Reservations & orders — Kota1 Restaurant' : 'Резервации и поръчки — Kota1 Restaurant'), `${resp.status()} ${await page.title()}`);
     // heading order
     const hs = await page.$$eval('h1,h2,h3', (e) => e.map((x) => +x.tagName[1]));
     R.check(`RES2[${id}] heading order has no skipped levels`, hs.every((l, i) => i === 0 ? l === 1 : l - hs[i - 1] <= 1), hs.join(''));
@@ -146,7 +146,7 @@ for (const vp of [390, 768, 1280].map((w) => ({ w, h: w < 700 ? 844 : w < 1000 ?
     R.check(`RES8[${id}] contrast: table number ${cc.num[0]} on ${cc.num[1]} = ${contrast(...cc.num).toFixed(2)}, bar label ${contrast(...cc.lab).toFixed(2)}, entrance label ${contrast(...cc.floor).toFixed(2)} (all >= 4.5)`, [cc.num, cc.lab, cc.floor].every((p) => contrast(...p) >= 4.5), JSON.stringify(cc));
     // call button
     const call = await page.evaluate(() => { const a = document.getElementById('res-call'); const r = a.getBoundingClientRect(); return { hidden: a.hidden, vis: r.width > 0, href: a.getAttribute('href'), text: a.textContent.replace(/\s+/g, ' ').trim(), h: r.height, w: r.width, right: r.right, note: document.getElementById('res-nophone').hidden }; });
-    R.check(`RES9[${id}] phone set: big call button "${en ? 'Call to reserve' : 'Обадете се за резервация'} ${PHONE}" -> ${TEL}, >= 44 px, inside viewport; no-phone note hidden`, !call.hidden && call.vis && call.href === TEL && call.text === (en ? 'Call to reserve' : 'Обадете се за резервация') + PHONE && call.h >= 44 && call.right <= vp.w && call.note === true, JSON.stringify(call));
+    R.check(`RES9[${id}] phone set: big call button "${en ? 'Call us' : 'Обадете се'} ${PHONE}" -> ${TEL}, >= 44 px, inside viewport; no-phone note hidden`, !call.hidden && call.vis && call.href === TEL && call.text === (en ? 'Call us' : 'Обадете се') + PHONE && call.h >= 44 && call.right <= vp.w && call.note === true, JSON.stringify(call));
     // location
     const loc = await page.evaluate(() => { const a = document.querySelector('#location-list a.map-link'); return { addr: document.querySelector('#location-list .address-text')?.textContent, href: a?.getAttribute('href'), target: a?.target, rel: a?.rel, hours: document.querySelector('#location-list dd.hours')?.textContent, h2: document.getElementById('res-loc-heading').textContent, n: document.querySelectorAll('a.map-link').length }; });
     R.check(`RES10[${id}] location: address "${en ? ADDR_EN : ADDR_BG}", opening hours, ONE map link to the fixed Google Maps pin, target=_blank rel=noopener noreferrer`, loc.addr === (en ? ADDR_EN : ADDR_BG) && loc.href === MAP && loc.target === '_blank' && /noopener/.test(loc.rel) && /noreferrer/.test(loc.rel) && loc.n === 1 && loc.hours === (en ? 'Mon-Sun 10:00-22:00' : 'Пн-Нд 10:00-22:00') && loc.h2 === (en ? 'Location' : 'Локация'), JSON.stringify(loc));
@@ -339,7 +339,7 @@ await step('OG', async () => {
     const r = await fetch(url + '/reservation', { headers: { accept: 'text/html' } }); const b = await r.text();
     const o = { title: meta(b, 'property', 'og:title'), desc: meta(b, 'property', 'og:description'), type: meta(b, 'property', 'og:type'), url: meta(b, 'property', 'og:url'), img: meta(b, 'property', 'og:image'), loc: meta(b, 'property', 'og:locale'), alt: meta(b, 'property', 'og:locale:alternate'), card: meta(b, 'name', 'twitter:card'), timg: meta(b, 'name', 'twitter:image'), w: meta(b, 'property', 'og:image:width'), h: meta(b, 'property', 'og:image:height') };
     R.check(`OG1 /reservation (${label}): HTTP 200, og:title/description/type, og:url ${site}/reservation, og:image + twitter:image ${site}/images/og-image.png (1200x630), locale bg_BG + en_GB, twitter:card, no leftover __SITE_URL__ token`,
-      r.status === 200 && /text\/html/.test(r.headers.get('content-type')) && r.headers.get('cache-control') === 'no-cache' && o.title === 'Резервация — Kota1 Restaurant' && o.desc.length > 20 && o.type === 'website' && o.url === site + '/reservation' && o.img === site + '/images/og-image.png' && o.timg === o.img && o.w === '1200' && o.h === '630' && o.loc === 'bg_BG' && o.alt === 'en_GB' && o.card === 'summary_large_image' && !b.includes('__SITE_URL__'), JSON.stringify(o));
+      r.status === 200 && /text\/html/.test(r.headers.get('content-type')) && r.headers.get('cache-control') === 'no-cache' && o.title === 'Резервации и поръчки — Kota1 Restaurant' && o.desc.length > 20 && o.type === 'website' && o.url === site + '/reservation' && o.img === site + '/images/og-image.png' && o.timg === o.img && o.w === '1200' && o.h === '630' && o.loc === 'bg_BG' && o.alt === 'en_GB' && o.card === 'summary_large_image' && !b.includes('__SITE_URL__'), JSON.stringify(o));
   }
   const img = await fetch(srvC.url + '/images/og-image.png'); R.check('OG2 og-image.png resolves (200 image/png)', img.status === 200 && /image\/png/.test(img.headers.get('content-type')));
   const hx = await fetch(srvC.url + '/reservation', { method: 'HEAD', headers: { accept: 'text/html' } }); R.check('OG3 HEAD /reservation 200 (+ /reservation?lang=en, /reservation/ do not 500)', hx.status === 200 && (await fetch(srvC.url + '/reservation?lang=en')).status === 200 && (await fetch(srvC.url + '/reservation/', { redirect: 'manual' })).status < 500);
@@ -363,7 +363,7 @@ await step('FRESH', async () => {
     await page.goto(srvB.url + `/?lang=${lang}`, { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
     const d = await page.evaluate(() => ({ vis: document.getElementById('location').getBoundingClientRect().height > 0, addr: document.querySelector('#location .address-text')?.textContent, href: document.querySelector('#location a.map-link')?.getAttribute('href'), hours: document.querySelectorAll('#location dd.hours').length, bar: document.getElementById('top-phone').textContent.trim(), barHref: document.getElementById('top-phone').getAttribute('href'), contact: document.getElementById('contact').getBoundingClientRect().height > 0, call: document.getElementById('contact-call').hidden, ig: document.querySelectorAll('a.ig-link').length, navLoc: !!document.querySelector('#site-nav a[href*="#location"]') }));
     const a = lang === 'en' ? DEF_EN : DEF_BG;
-    R.check(`FRESH3[${lang} ${vp}] untouched DB: Location visible with default "${a}" + map link; no hours row; bar = Резервации link; Contact shows Instagram and the always-visible reservation button (D-58); nav has Location`, d.vis && d.addr === a && d.href === MAP && d.hours === 0 && d.bar === (lang === 'en' ? 'Reservations' : 'Резервации') && d.barHref.startsWith('/reservation') && d.contact && d.call === false && d.ig === 2 && d.navLoc, JSON.stringify(d));
+    R.check(`FRESH3[${lang} ${vp}] untouched DB: Location visible with default "${a}" + map link; no hours row; bar = Резервации и поръчки link; Contact shows Instagram and the always-visible reservation button (D-58); nav has Location`, d.vis && d.addr === a && d.href === MAP && d.hours === 0 && d.bar === (lang === 'en' ? 'Reservations & orders' : 'Резервации и поръчки') && d.barHref.startsWith('/reservation') && d.contact && d.call === false && d.ig === 2 && d.navLoc, JSON.stringify(d));
     R.check(`FRESH4[${lang} ${vp}] clean console`, await clean(page, log));
     await context.close();
   }
