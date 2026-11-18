@@ -316,3 +316,10 @@ Owner request: a "Галерия / Gallery" button opening its own page with up 
   - Public `GET /api/public/daily-menu?lang=`: keeps `file` (first page of the served language, same fallback as now — the language is chosen per menu, then both of its pages are used, no mixing) and adds `files: [file, file2?]` (1–2 items, in order).
   - Public UI (`/daily-menu`): render every item of `files` (image → lightbox with prev/next between the two and "Страница N от M"; PDF → its own open link). One file looks exactly as today.
   - Admin UI (Обедно меню): in the upload form and in "replace" per language, an optional second slot "Втора страница (по избор)" with its own preview and a remove button; list rows show "2 стр." when there are two.
+
+## Home menu pages as a slider (D-63)
+- Home `#menu` in file mode no longer lists every page. It shows **one page at a time** in a fixed-size frame with **left / right arrow buttons**, a counter "Страница N от M" / "Page N of M" and (optional) small dots. Clicking/tapping the page opens the existing lightbox at that page (full size, zoom, prev/next there too).
+- Arrows: real `<button>`s with aria-labels ("Предишна страница" / "Следваща страница"), ≥ 44 px, disabled (not hidden) at the first/last page — no wrap-around. Keyboard: ArrowLeft/ArrowRight when the slider has focus. Touch: horizontal swipe changes page (vertical scroll must still work). Counter is `aria-live="polite"`.
+- Only the current page image is loaded eagerly; the neighbours are preloaded; the rest lazy. Frame keeps one aspect ratio (no layout jump between pages; image `object-fit: contain`).
+- 1 page → no arrows, no counter (looks like a single menu card). PDF pages show the existing PDF card inside the frame.
+- Reduced motion: no slide animation (instant switch). Works at 390 / 768 / 1280, BG and EN.
