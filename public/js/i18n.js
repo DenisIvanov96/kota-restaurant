@@ -58,6 +58,7 @@ export const STRINGS = {
     'about.heading': 'За нас',
     'about.company': 'Амора Джелато ЕООД · ЕИК: 207469415 · Седалище: ул. Сребърна 2-Б, София',
     'about.text': 'Прясна храна и топло посрещане.',
+    'about.photoAlt': 'Интериорът на ресторанта: маси и тапицирани столове пред големи прозорци',
     'contact.heading': 'Контакти',
     'contact.phone': 'Телефон',
     'contact.email': 'Имейл',
@@ -194,6 +195,7 @@ export const STRINGS = {
     'about.heading': 'About',
     'about.company': 'Амора Джелато ЕООД (Amora Dzhelato EOOD) · Company ID (EIK): 207469415 · Registered office: 2-B Srebarna St, Sofia',
     'about.text': 'Fresh food and a warm welcome.',
+    'about.photoAlt': 'The restaurant interior: tables and upholstered chairs by large windows',
     'contact.heading': 'Contact',
     'contact.phone': 'Phone',
     'contact.email': 'Email',
@@ -345,6 +347,7 @@ export function applyStatic(root = document) {
   const lang = getLang();
   document.documentElement.lang = lang;
   root.querySelectorAll('[data-i18n]').forEach((n) => { n.textContent = t(n.dataset.i18n); });
+  root.querySelectorAll('[data-i18n-alt]').forEach((n) => { n.setAttribute('alt', t(n.dataset.i18nAlt)); });
   root.querySelectorAll('[data-i18n-aria]').forEach((n) => { n.setAttribute('aria-label', t(n.dataset.i18nAria)); });
   const page = document.body.dataset.page;
   if (page) {

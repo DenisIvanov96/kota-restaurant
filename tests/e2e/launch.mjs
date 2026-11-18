@@ -12,9 +12,7 @@ const R = reporter('launch');
 const T0 = '2026-06-15T10:00:00Z';
 const ADDR_BG = 'ул. Ралевица 85, София';
 const ADDR_EN = 'Ralevitsa St 85, Sofia';
-const MAP_BASE = 'https://www.google.com/maps/search/?api=1&query=';
-const MAP_BG = MAP_BASE + '%D1%83%D0%BB.%20%D0%A0%D0%B0%D0%BB%D0%B5%D0%B2%D0%B8%D1%86%D0%B0%2085%2C%20%D0%A1%D0%BE%D1%84%D0%B8%D1%8F'; // independently computed (python urllib.parse.quote safe='')
-const MAP_EN = MAP_BASE + 'Ralevitsa%20St%2085%2C%20Sofia';
+const MAP_URL = 'https://maps.app.goo.gl/EQuhsMqma6TcmRqs9'; // fixed pin (D-58)
 const dir = tmpDir('launch'); createAdmin(dir);
 const srv = await startServer({ port: 3201, dataDir: dir, now: T0 });
 const base = srv.url;
@@ -317,9 +315,9 @@ for (const vp of VPS) for (const lang of ['bg', 'en']) {
     const reqs = []; context.on('request', (r) => reqs.push(r.url()));
     await page.goto(base + `/?lang=${lang}`, { waitUntil: 'networkidle' }); await page.waitForTimeout(300);
     const st = await mapState(page); const en = lang === 'en';
-    R.check(`E5a[${lang} ${vp.name}] one map link; href is exactly the encoded Google Maps search URL for "${en ? ADDR_EN : ADDR_BG}"`, st.n === 1 && st.href === (en ? MAP_EN : MAP_BG), `${st.href}`);
+    R.check(`E5a[${lang} ${vp.name}] one map link; href is exactly the fixed Google Maps pin`, st.n === 1 && st.href === MAP_URL, `${st.href}`);
     const u = new URL(st.abs);
-    R.check(`E5b[${lang} ${vp.name}] parsed: https, www.google.com, /maps/search/, api=1, query decodes to the address`, u.protocol === 'https:' && u.hostname === 'www.google.com' && u.pathname === '/maps/search/' && u.searchParams.get('api') === '1' && u.searchParams.get('query') === (en ? ADDR_EN : ADDR_BG) && !u.username);
+    R.check(`E5b[${lang} ${vp.name}] parsed: https, maps.app.goo.gl, no credentials`, u.protocol === 'https:' && u.hostname === 'maps.app.goo.gl' && !u.username);
     R.check(`E5c[${lang} ${vp.name}] target=_blank, rel has noopener + noreferrer`, st.target === '_blank' && /\bnoopener\b/.test(st.rel) && /\bnoreferrer\b/.test(st.rel), st.rel);
     R.check(`E5d[${lang} ${vp.name}] accessible name says it opens in a new tab ("${en ? 'View on map (opens in a new tab)' : 'Виж на картата (отваря се в нов раздел)'}"), icon aria-hidden`, st.text === (en ? 'View on map (opens in a new tab)' : 'Виж на картата (отваря се в нов раздел)') && st.svg, st.text);
     R.check(`E5e[${lang} ${vp.name}] address text node intact ("${en ? ADDR_EN : ADDR_BG}"), no iframe/embedded map`, st.addrText === (en ? ADDR_EN : ADDR_BG) && st.iframe === 0, JSON.stringify(st.addrText));
@@ -333,15 +331,15 @@ for (const vp of VPS) for (const lang of ['bg', 'en']) {
     const fo = focused ? await page.evaluate(() => { const cs = getComputedStyle(document.activeElement); return { o: cs.outlineStyle, w: parseFloat(cs.outlineWidth), col: cs.outlineColor, shadow: cs.boxShadow }; }) : null;
     R.check(`E5j[${lang} ${vp.name}] map link reachable by Tab and shows a visible focus indicator`, !!fo && ((fo.o !== 'none' && fo.w >= 2) || fo.shadow !== 'none'), JSON.stringify(fo));
     // click opens a new tab to Google, current page stays (Google itself is intercepted: no real external request is made)
-    await context.route('https://www.google.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>maps stub</title>' }));
+    await context.route('https://maps.app.goo.gl/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>maps stub</title>' }));
     const [pop] = await Promise.all([context.waitForEvent('page', { timeout: 5000 }), page.locator('a.map-link').click()]);
     await pop.waitForLoadState().catch(() => {});
-    R.check(`E5k[${lang} ${vp.name}] click opens a NEW tab at the encoded URL; original page stays; popup cannot reach opener (noopener)`, pop.url() === (en ? MAP_EN : MAP_BG) && page.url().startsWith(base) && (await pop.evaluate(() => window.opener === null)), pop.url());
+    R.check(`E5k[${lang} ${vp.name}] click opens a NEW tab at the pin URL; original page stays; popup cannot reach opener (noopener)`, pop.url() === MAP_URL && page.url().startsWith(base) && (await pop.evaluate(() => window.opener === null)), pop.url());
     await pop.close();
     R.check(`E5l[${lang} ${vp.name}] clean console/CSP during map flow`, log.console.length === 0 && log.pageErrors.length === 0 && (await page.collectCsp()).length === 0, JSON.stringify(log.console));
     // language switch updates link without reload
     const other = en ? 'bg' : 'en'; await page.locator(`.lang-btn[data-lang="${other}"]`).click(); await page.waitForTimeout(600);
-    const st2 = await mapState(page); R.check(`E5m[${lang} ${vp.name}] language switch to ${other.toUpperCase()}: one map link, href for ${other} address, label translated`, st2.n === 1 && st2.href === (other === 'en' ? MAP_EN : MAP_BG) && st2.text.startsWith(other === 'en' ? 'View on map' : 'Виж на картата'), `${st2.href} ${st2.text}`);
+    const st2 = await mapState(page); R.check(`E5m[${lang} ${vp.name}] language switch to ${other.toUpperCase()}: one map link, same pin href, label translated`, st2.n === 1 && st2.href === MAP_URL && st2.text.startsWith(other === 'en' ? 'View on map' : 'Виж на картата'), `${st2.href} ${st2.text}`);
     await context.close();
   });
 }
@@ -356,7 +354,7 @@ await step('E6', async () => {
       const st = await mapState(page);
       // D-37 (intended change): the Location section is always visible; an empty/blank address falls back to the default address (and its map link)
       const defAddr = lang === 'en' ? '85 Ralevitsa St, Sofia' : 'ул. Ралевица 85, София';
-      R.check(`E6a[${label} ${lang} ${vp.name}] empty address => default address "${defAddr}" + exactly one map link to it; hours row still shown; Location/Contact visible`, st.n === 1 && st.addrText === defAddr && st.href === MAP_BASE + encodeURIComponent(defAddr) && st.dds >= 2 && st.contactHidden === false, JSON.stringify({ n: st.n, a: st.addrText, h: st.href, dds: st.dds, ch: st.contactHidden }));
+      R.check(`E6a[${label} ${lang} ${vp.name}] empty address => default address "${defAddr}" + exactly one map link (fixed pin); hours row still shown; Location/Contact visible`, st.n === 1 && st.addrText === defAddr && st.href === MAP_URL && st.dds >= 2 && st.contactHidden === false, JSON.stringify({ n: st.n, a: st.addrText, h: st.href, dds: st.dds, ch: st.contactHidden }));
       R.check(`E6b[${label} ${lang} ${vp.name}] no console errors`, log.console.length === 0 && log.pageErrors.length === 0);
       await context.close();
     }
@@ -366,7 +364,7 @@ await step('E6', async () => {
   const { context, page } = await newPage(browser, { width: 390, height: 844 });
   await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
   const st = await mapState(page);
-  R.check('E6c EN with empty addressEn: displayed text and map link are consistent (link query == displayed address)', st.n === 0 || (st.addrText && st.href === MAP_BASE + encodeURIComponent(st.addrText)), JSON.stringify([st.addrText, st.href]));
+  R.check('E6c EN with empty addressEn: address shown and map link is the fixed pin', st.n === 0 || (st.addrText && st.href === MAP_URL), JSON.stringify([st.addrText, st.href]));
   await context.close();
   // privacy: no phone, no address -> unset message
   await setSettings({ address: '', addressEn: '', reservationPhone: '', contactEmail: '' }); // D-55: the migration-008 seed email would otherwise suppress the placeholder
@@ -387,19 +385,19 @@ for (const vp of VPS) await step(`E7[${vp.name}]`, async () => {
     if (r.status !== 200) { R.pass(`E7a[${lang} ${vp.name}] payload #${i} rejected by server validation (${r.status})`); continue; }
     const { context, page, log } = await newPage(browser, { width: vp.width, height: vp.height });
     const popups = []; context.on('page', (p) => popups.push(p));
-    await context.route('https://www.google.com/**', (r2) => r2.fulfill({ status: 200, contentType: 'text/html', body: 'stub' }));
+    await context.route('https://maps.app.goo.gl/**', (r2) => r2.fulfill({ status: 200, contentType: 'text/html', body: 'stub' }));
     await page.goto(base + `/?lang=${lang}`, { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
     const st = await mapState(page); const shown = (lang === 'bg' ? pl : pl).trim();
     const u = st.abs ? new URL(st.abs) : null;
-    const lookOk = st.n === 1 && u && u.protocol === 'https:' && u.hostname === 'www.google.com' && u.pathname === '/maps/search/' && !u.hash && [...u.searchParams.keys()].join(',') === 'api,query' && u.searchParams.get('query') === shown && st.href === MAP_BASE + encodeURIComponent(shown) && st.target === '_blank' && /noopener/.test(st.rel);
-    R.check(`E7b[${lang} ${vp.name}] payload ${JSON.stringify(pl).slice(0, 40)}: link stays https://www.google.com/maps/search/ with query == payload (single encoded param, scheme/host unchanged)`, lookOk, `${st.href}`);
+    const lookOk = st.n === 1 && u && st.href === MAP_URL && st.target === '_blank' && /noopener/.test(st.rel);
+    R.check(`E7b[${lang} ${vp.name}] payload ${JSON.stringify(pl).slice(0, 40)}: link stays the fixed pin URL (address cannot alter it)`, lookOk, `${st.href}`);
     const inj = await page.evaluate(() => ({ xss: window.__xss, imgs: document.querySelectorAll('#location img, #location script, #location iframe, #location [onerror], #location [onmouseover]').length, anchors: [...document.querySelectorAll('#location a, #contact a')].map((a) => a.getAttribute('href')), pwn: document.querySelectorAll('main a:not(.map-link)[href*="evil"]').length }));
     R.check(`E7c[${lang} ${vp.name}] payload ${JSON.stringify(pl).slice(0, 40)}: no script ran, no injected elements/attributes, address shown as inert text, no other anchors to evil host`, inj.xss === undefined && inj.imgs === 0 && inj.pwn === 0 && (st.addrText || '').replace(/\s+/g, ' ').trim() === shown.replace(/\s+/g, ' ').trim(), JSON.stringify({ inj, t: st.addrText }));
     // hover + click, make sure no navigation of the current page and popup is Google
     await page.locator('a.map-link').hover();
     const [pop] = await Promise.all([context.waitForEvent('page', { timeout: 5000 }).catch(() => null), page.locator('a.map-link').click()]);
     if (pop) await pop.waitForLoadState().catch(() => {});
-    R.check(`E7d[${lang} ${vp.name}] payload ${JSON.stringify(pl).slice(0, 40)}: click opens only a google.com maps tab; current page unchanged; still no script run`, !!pop && new URL(pop.url()).hostname === 'www.google.com' && page.url().startsWith(base + '/') && (await page.evaluate(() => window.__xss)) === undefined, pop?.url());
+    R.check(`E7d[${lang} ${vp.name}] payload ${JSON.stringify(pl).slice(0, 40)}: click opens only the maps pin tab; current page unchanged; still no script run`, !!pop && new URL(pop.url()).hostname === 'maps.app.goo.gl' && page.url().startsWith(base + '/') && (await page.evaluate(() => window.__xss)) === undefined, pop?.url());
     if (lang === 'en' && vp.name === '390' && i < 2) { // same payload on the privacy page (plain text node) and the public API
       await page.goto(base + '/privacy?lang=en', { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
       const pv = await page.evaluate(() => ({ x: window.__xss, n: document.querySelectorAll('#privacy-contact img, #privacy-contact script, #privacy-contact a:not([href^=tel])[href*="evil"]').length, t: document.getElementById('privacy-contact').textContent }));

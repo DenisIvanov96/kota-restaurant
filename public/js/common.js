@@ -3,6 +3,9 @@ import { getJSON, el, icon } from './dom.js';
 import { telHref } from './format.js';
 import { getLang, apiUrl, t, langHref } from './i18n.js';
 
+// Fixed Google Maps pin for the restaurant (D-58); does not depend on the address text.
+const MAP_URL = 'https://maps.app.goo.gl/EQuhsMqma6TcmRqs9';
+
 const sitePromises = {};
 /** Resolves to the /api/public/site object in the current language, or null when it cannot be loaded. */
 export function loadSite() {
@@ -81,7 +84,7 @@ export function renderLocation(dl, site) {
   item(t('contact.address'), (dd) => {
     dd.append(el('span', 'address-text', address));
     const map = el('a', 'map-link');
-    map.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
+    map.href = MAP_URL;
     map.target = '_blank';
     map.rel = 'noopener noreferrer';
     map.append(el('span', '', t('map.link')), icon('external', 'map-icon'), el('span', 'visually-hidden', ' ' + t('map.newtab')));
