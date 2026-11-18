@@ -14,7 +14,7 @@ const ADDR_BG = 'ул. Витоша 1, София';
 const ADDR_EN = '1 Vitosha St, Sofia';
 const DEF_BG = 'ул. Ралевица 85, София';
 const DEF_EN = '85 Ralevitsa St, Sofia';
-const MAP = 'https://www.google.com/maps/search/?api=1&query=';
+const MAP = 'https://maps.app.goo.gl/EQuhsMqma6TcmRqs9'; // fixed pin (D-55)
 const IG_DEFAULT = 'https://www.instagram.com/';
 const shots = shotDir();
 const step = async (id, fn) => { try { await fn(); } catch (e) { R.fail(id, String(e.message).split('\n').slice(0, 3).join(' ')); } };
@@ -146,7 +146,7 @@ for (const vp of [390, 768, 1280].map((w) => ({ w, h: w < 700 ? 844 : w < 1000 ?
     R.check(`RES9[${id}] phone set: big call button "${en ? 'Call to reserve' : 'Обадете се за резервация'} ${PHONE}" -> ${TEL}, >= 44 px, inside viewport; no-phone note hidden`, !call.hidden && call.vis && call.href === TEL && call.text === (en ? 'Call to reserve' : 'Обадете се за резервация') + PHONE && call.h >= 44 && call.right <= vp.w && call.note === true, JSON.stringify(call));
     // location
     const loc = await page.evaluate(() => { const a = document.querySelector('#location-list a.map-link'); return { addr: document.querySelector('#location-list .address-text')?.textContent, href: a?.getAttribute('href'), target: a?.target, rel: a?.rel, hours: document.querySelector('#location-list dd.hours')?.textContent, h2: document.getElementById('res-loc-heading').textContent, n: document.querySelectorAll('a.map-link').length }; });
-    R.check(`RES10[${id}] location: address "${en ? ADDR_EN : ADDR_BG}", opening hours, ONE map link with the encoded Google Maps URL, target=_blank rel=noopener noreferrer`, loc.addr === (en ? ADDR_EN : ADDR_BG) && loc.href === MAP + encodeURIComponent(en ? ADDR_EN : ADDR_BG) && loc.target === '_blank' && /noopener/.test(loc.rel) && /noreferrer/.test(loc.rel) && loc.n === 1 && loc.hours === (en ? 'Mon-Sun 10:00-22:00' : 'Пн-Нд 10:00-22:00') && loc.h2 === (en ? 'Location' : 'Локация'), JSON.stringify(loc));
+    R.check(`RES10[${id}] location: address "${en ? ADDR_EN : ADDR_BG}", opening hours, ONE map link to the fixed Google Maps pin, target=_blank rel=noopener noreferrer`, loc.addr === (en ? ADDR_EN : ADDR_BG) && loc.href === MAP && loc.target === '_blank' && /noopener/.test(loc.rel) && /noreferrer/.test(loc.rel) && loc.n === 1 && loc.hours === (en ? 'Mon-Sun 10:00-22:00' : 'Пн-Нд 10:00-22:00') && loc.h2 === (en ? 'Location' : 'Локация'), JSON.stringify(loc));
     const ext = reqs.filter((u) => new URL(u).origin !== base);
     R.check(`RES11[${id}] no third-party request while loading the page (no map embed, no fonts CDN)`, ext.length === 0, ext.join(' '));
     R.check(`RES12[${id}] no console/page errors, failed requests or CSP violations; no horizontal scroll`, (await clean(page, log)) && (await noHScroll(page)).ok, JSON.stringify(log.console.concat(log.pageErrors, log.failed)));
@@ -360,7 +360,7 @@ await step('FRESH', async () => {
     await page.goto(srvB.url + `/?lang=${lang}`, { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
     const d = await page.evaluate(() => ({ vis: document.getElementById('location').getBoundingClientRect().height > 0, addr: document.querySelector('#location .address-text')?.textContent, href: document.querySelector('#location a.map-link')?.getAttribute('href'), hours: document.querySelectorAll('#location dd.hours').length, bar: document.getElementById('top-phone').textContent.trim(), barHref: document.getElementById('top-phone').getAttribute('href'), contact: document.getElementById('contact').getBoundingClientRect().height > 0, call: document.getElementById('contact-call').hidden, ig: document.querySelectorAll('a.ig-link').length, navLoc: !!document.querySelector('#site-nav a[href*="#location"]') }));
     const a = lang === 'en' ? DEF_EN : DEF_BG;
-    R.check(`FRESH3[${lang} ${vp}] untouched DB: Location visible with default "${a}" + map link; no hours row; bar = Резервации link; Contact shows Instagram, no call button; nav has Location`, d.vis && d.addr === a && d.href === MAP + encodeURIComponent(a) && d.hours === 0 && d.bar === (lang === 'en' ? 'Reservations' : 'Резервации') && d.barHref.startsWith('/reservation') && d.contact && d.call && d.ig === 2 && d.navLoc, JSON.stringify(d));
+    R.check(`FRESH3[${lang} ${vp}] untouched DB: Location visible with default "${a}" + map link; no hours row; bar = Резервации link; Contact shows Instagram, no call button; nav has Location`, d.vis && d.addr === a && d.href === MAP && d.hours === 0 && d.bar === (lang === 'en' ? 'Reservations' : 'Резервации') && d.barHref.startsWith('/reservation') && d.contact && d.call && d.ig === 2 && d.navLoc, JSON.stringify(d));
     R.check(`FRESH4[${lang} ${vp}] clean console`, await clean(page, log));
     await context.close();
   }
