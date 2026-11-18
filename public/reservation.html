@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Резервация — Kota1 Restaurant</title>
-  <meta name="description" content="Резервирайте маса в Kota1 Restaurant по телефона. Примерна схема на залата и адрес.">
+  <title>Резервации и поръчки — Kota1 Restaurant</title>
+  <meta name="description" content="Резервации и поръчки в Kota1 Restaurant по телефона. Поръчки за вкъщи или офис, схема на залата и адрес.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Kota1 Restaurant">
-  <meta property="og:title" content="Резервация — Kota1 Restaurant">
-  <meta property="og:description" content="Резервирайте маса в Kota1 Restaurant по телефона. Примерна схема на залата и адрес.">
+  <meta property="og:title" content="Резервации и поръчки — Kota1 Restaurant">
+  <meta property="og:description" content="Резервации и поръчки в Kota1 Restaurant по телефона. Поръчки за вкъщи или офис, схема на залата и адрес.">
   <meta property="og:url" content="__SITE_URL__/reservation">
   <meta property="og:image" content="__SITE_URL__/images/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -16,8 +16,8 @@
   <meta property="og:locale" content="bg_BG">
   <meta property="og:locale:alternate" content="en_GB">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Резервация — Kota1 Restaurant">
-  <meta name="twitter:description" content="Резервирайте маса в Kota1 Restaurant по телефона. Примерна схема на залата и адрес.">
+  <meta name="twitter:title" content="Резервации и поръчки — Kota1 Restaurant">
+  <meta name="twitter:description" content="Резервации и поръчки в Kota1 Restaurant по телефона. Поръчки за вкъщи или офис, схема на залата и адрес.">
   <meta name="twitter:image" content="__SITE_URL__/images/og-image.png">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
@@ -30,7 +30,7 @@
 <body data-page="reservation">
   <a class="skip-link" href="#main" data-i18n="skip">Към съдържанието</a>
 
-  <div class="top-bar" id="top-bar"><span id="top-label" data-i18n="topbar.label" hidden>За резервации:</span> <a id="top-phone" href="/reservation" data-i18n="topbar.res">Резервации</a></div>
+  <div class="top-bar" id="top-bar"><span id="top-label" data-i18n="topbar.label" hidden>За резервации и поръчки:</span> <a id="top-phone" href="/reservation" data-i18n="topbar.res">Резервации и поръчки</a></div>
 
   <header class="site-header">
     <div class="header-inner">
@@ -60,14 +60,23 @@
 
   <main id="main" tabindex="-1">
     <section class="page-band">
-      <h1 class="page-title" data-i18n="res.h1">Резервация</h1>
-      <p class="lead" data-i18n="res.lead">Резервирайте маса по телефона. Ще се радваме да ви посрещнем.</p>
+      <h1 class="page-title" data-i18n="res.h1">Резервации и поръчки</h1>
+      <p class="lead" data-i18n="res.lead">Резервирайте маса или направете поръчка по телефона.</p>
     </section>
 
     <section class="section res-call" aria-labelledby="res-call-heading">
-      <h2 id="res-call-heading" data-i18n="res.call.h">Резервация по телефона</h2>
-      <a class="btn btn-special call-big" id="res-call" href="tel:" hidden><span data-i18n="res.call">Обадете се за резервация</span><span class="call-number" id="res-call-number"></span></a>
+      <h2 id="res-call-heading" data-i18n="res.call.h">Резервации и поръчки по телефона</h2>
+      <a class="btn btn-special call-big" id="res-call" href="tel:" hidden><span data-i18n="res.call">Обадете се</span><span class="call-number" id="res-call-number"></span></a>
       <p id="res-nophone" data-i18n="res.nophone">Телефонът за резервации ще бъде добавен скоро.</p>
+    </section>
+
+    <section class="section res-orders" aria-labelledby="res-orders-heading">
+      <h2 id="res-orders-heading" data-i18n="res.orders.h">Поръчки за вкъщи или офис</h2>
+      <ul class="res-orders-list">
+        <li data-i18n="res.orders.1">10% отстъпка за поръчки, които вземате от ресторанта.</li>
+        <li data-i18n="res.orders.2">Безплатна доставка до 3 км от ресторанта.</li>
+        <li data-i18n="res.orders.3">За адреси на повече от 3 км се начислява такса за доставка според разстоянието.</li>
+      </ul>
     </section>
 
     <section class="section" aria-labelledby="plan-heading">
@@ -104,6 +113,7 @@
           <li><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect class="plan-door" x="9" y="2" width="6" height="20"/></svg><span data-i18n="res.legend.entrance">Вход</span></li>
         </ul>
         <figcaption class="plan-note" data-i18n="res.plan.note">Посочете номера на масата, когато резервирате по телефона.</figcaption>
+        <p class="plan-note" data-i18n="res.plan.note2">За по-големи групи можем да пренаредим масите — кажете ни при резервацията.</p>
         <ul class="visually-hidden" id="plan-tables"></ul>
       </figure>
     </section>

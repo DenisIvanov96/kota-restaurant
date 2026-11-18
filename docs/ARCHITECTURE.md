@@ -323,3 +323,9 @@ Owner request: a "Галерия / Gallery" button opening its own page with up 
 - Only the current page image is loaded eagerly; the neighbours are preloaded; the rest lazy. Frame keeps one aspect ratio (no layout jump between pages; image `object-fit: contain`).
 - 1 page → no arrows, no counter (looks like a single menu card). PDF pages show the existing PDF card inside the frame.
 - Reduced motion: no slide animation (instant switch). Works at 390 / 768 / 1280, BG and EN.
+
+## Events slider + orders info (D-64)
+- Home events (`public/js/index.js`, `renderEventSlider`): one live event renders as before (a single `.event-card`). Two or more render as a slider reusing the D-63 menu-slider classes (`.menu-slider`, `.menu-slider-row`, `.slider-btn`, `.menu-slider-count`) plus `.event-slider`/`.event-stage` in `components.css`. All cards sit in one CSS grid cell and only `.is-current` is `visibility: visible`, so the frame height equals the tallest card (no jump) and hidden cards are not focusable or announced. Prev/next buttons (disabled at the ends, focus moves to the other arrow when the focused one is disabled), `aria-live` counter ("Събитие n от m"), ArrowLeft/Right on the focused group, touch swipe. Keys: `event.of`, `event.prev`, `event.next`. The `renderEventCard` (render.js, shared with the admin preview) is unchanged.
+- Top bar: i18n keys `topbar.label` / `topbar.res` now cover orders; static HTML fallbacks match.
+- `/reservation`: h1 "Резервации и поръчки", new orders section (`res.orders.*`, `.res-orders-list`) and `res.plan.note2` (tables can be rearranged). Nav item and element ids unchanged. All texts are static i18n strings, not admin-editable.
+- `/daily-menu`: `#daily-until` ("Актуално до 16:00 ч." / `daily.until`) shown by `daily.js` only when a menu is displayed. Not added to the home hero (no natural spot).

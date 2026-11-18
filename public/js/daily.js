@@ -10,6 +10,7 @@ initYear();
 
 const dateEl = document.getElementById('daily-date');
 const tagEl = document.getElementById('daily-tag');
+const untilEl = document.getElementById('daily-until');
 const view = document.getElementById('daily-view');
 
 loadSite().then((s) => { applyTopBar(s); applyInstagram(s); localizeLinks(); });
@@ -17,6 +18,7 @@ loadSite().then((s) => { applyTopBar(s); applyInstagram(s); localizeLinks(); });
 function loading() {
   dateEl.replaceChildren(el('span', 'skeleton sk-date'));
   tagEl.hidden = true;
+  untilEl.hidden = true;
   const paper = el('div', 'paper');
   paper.setAttribute('role', 'status');
   paper.append(el('span', 'visually-hidden', t('loading')));
@@ -48,6 +50,7 @@ async function load() {
 
   if (!menu) {
     tagEl.hidden = true;
+    untilEl.hidden = true;
     const site = await loadSite();
     if (mine !== seq) return;
     const actions = [{ label: t('toMenu'), href: '/#menu' }];
@@ -62,6 +65,7 @@ async function load() {
     return;
   }
   tagEl.hidden = false;
+  untilEl.hidden = false;
   const longDate = formatDateLong(menu.date);
   const files = Array.isArray(menu.files) && menu.files.length ? menu.files : [{ fileUrl: menu.fileUrl, kind: menu.kind }];
   const total = files.length;

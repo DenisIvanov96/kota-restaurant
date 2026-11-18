@@ -1,4 +1,4 @@
-import { el, getJSON, stateBox } from './dom.js';
+import { el, icon, getJSON, stateBox } from './dom.js';
 import { loadSite, initNav, applyTopBar, applyInstagram, renderLocation, initYear, realignHash } from './common.js';
 import { renderEventCard, renderStructuredMenu, observeCategories, renderMenuPages } from './render.js';
 import { telHref } from './format.js';
@@ -66,6 +66,63 @@ function loadSiteInfo(mine) {
   });
 }
 
+/* Several events: one card at a time, prev/next arrows + counter (D-64; same pattern as the D-63 menu slider).
+   All cards share one grid cell and only the current one is visible, so the frame is as tall as the tallest card. */
+function renderEventSlider(events) {
+  const total = events.length;
+  const wrap = el('div', 'menu-slider event-slider');
+  wrap.tabIndex = 0;
+  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('aria-roledescription', 'carousel');
+  wrap.setAttribute('aria-labelledby', 'event-heading');
+  const stage = el('div', 'menu-slide-stage event-stage');
+  const cards = events.map((ev) => { const c = renderEventCard(ev); c.classList.add('event-slide'); stage.append(c); return c; });
+  const counter = el('p', 'menu-slider-count');
+  counter.setAttribute('aria-live', 'polite');
+  const mkBtn = (cls, label, name) => {
+    const b = el('button', 'slider-btn ' + cls);
+    b.type = 'button';
+    b.setAttribute('aria-label', label);
+    b.append(icon(name));
+    return b;
+  };
+  const prev = mkBtn('slider-prev', t('event.prev'), 'arrow-left');
+  const next = mkBtn('slider-next', t('event.next'), 'arrow-right');
+  let cur = 0;
+  function draw() {
+    cards.forEach((c, i) => { c.classList.toggle('is-current', i === cur); });
+    counter.textContent = t('event.of', { n: cur + 1, m: total });
+    prev.disabled = cur === 0;
+    next.disabled = cur === total - 1;
+    const ae = document.activeElement;
+    if (ae && ae.disabled && (ae === prev || ae === next)) (ae === next ? prev : next).focus();
+  }
+  function go(d) {
+    const i = cur + d;
+    if (i < 0 || i >= total) return;
+    cur = i; draw();
+  }
+  const row = el('div', 'menu-slider-row');
+  row.append(prev, stage, next);
+  wrap.append(row, counter);
+  draw();
+  prev.addEventListener('click', () => go(-1));
+  next.addEventListener('click', () => go(1));
+  wrap.addEventListener('keydown', (e) => {
+    if (e.target.closest && e.target.closest('a')) return;
+    if (e.key === 'ArrowLeft') { go(-1); e.preventDefault(); } else if (e.key === 'ArrowRight') { go(1); e.preventDefault(); }
+  });
+  let x0 = null, y0 = null;
+  stage.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  stage.addEventListener('touchend', (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  return wrap;
+}
+
 /* ---------- Events ---------- */
 async function loadEvents(mine) {
   let events;
@@ -84,9 +141,7 @@ async function loadEvents(mine) {
   const inner = el('div', 'event-section-inner');
   const h2 = el('h2', '', events.length === 1 ? t('event.one') : t('event.many'));
   h2.id = 'event-heading';
-  const list = el('div', 'event-list');
-  for (const ev of events) list.append(renderEventCard(ev));
-  inner.append(h2, list);
+  inner.append(h2, events.length === 1 ? renderEventCard(events[0]) : renderEventSlider(events));
   section.append(inner);
   document.getElementById('menu').before(section);
 
