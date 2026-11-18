@@ -3,7 +3,7 @@ import { getJSON, el, icon } from './dom.js';
 import { telHref } from './format.js';
 import { getLang, apiUrl, t, langHref } from './i18n.js';
 
-// Fixed Google Maps pin for the restaurant (D-58); does not depend on the address text.
+// Fixed Google Maps pin for the restaurant (D-59); does not depend on the address text.
 const MAP_URL = 'https://maps.app.goo.gl/EQuhsMqma6TcmRqs9';
 
 const sitePromises = {};

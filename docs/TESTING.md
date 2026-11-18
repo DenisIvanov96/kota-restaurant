@@ -63,6 +63,21 @@ Historical note: server code was identical to `0c81447` through `c376609` (`git 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
 
+## Contacts "Reserve a table" button -> /reservation (D-58) - T-58, 2026-11-18, HEAD `425d7ad` + uncommitted product change (narrow tier, D-54)
+
+Ports 3201/3206 free before, no leftover servers after. Only the suites below were run.
+
+| suite | HEAD | result |
+|---|---|---|
+| e2e `contact.mjs` (NP1 updated; new RB1-RB4) | 425d7ad | PASS 117/117 |
+| e2e `public.mjs` (C1, U5 updated; run in full) | 425d7ad | PASS 90/90 |
+| e2e `feedback1.mjs` (FRESH3 updated; run in full, 4 min) | 425d7ad | PASS 781/781 |
+
+- Stale expectations updated: `contact.mjs` NP1 (button now visible with `href=/reservation` when no phone is set), `public.mjs` C1 (phone-item and top bar stay `tel:`, `#contact-call` is `/reservation`) and U5 (`call === false`, i.e. not hidden), `feedback1.mjs` FRESH3 (`d.call === false`). `feedback1` RESN1 concerns `#res-call` on /reservation (still hidden without a phone) and is unchanged.
+- New `contact.mjs` RB1-RB4 (phone set and unset x BG/EN x 390/1280): label BG "Резервирай маса" / EN "Book a table", href, click lands on `/reservation` over http with no popup, no dialog and no non-http navigation or request, html lang and headings keep the chosen language, `#plan-svg` visible with 14 tables, no h-scroll, no console errors.
+- Observation (not a defect): in EN the rendered href is `/reservation?lang=en` (langHref), in BG `/reservation`. Tests accept exactly these two.
+- Not run: all other suites (D-54).
+
 ## Contact email (D-55) - T-54, 2026-11-18, product code `24c46d9` (narrow tier, D-54)
 
 Verdict: see the T-54 handoff. Ports 3201-3208 free before the run, no leftover servers after. Spec: `docs/ARCHITECTURE.md` "Contact email (D-55)".

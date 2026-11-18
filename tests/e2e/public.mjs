@@ -68,7 +68,7 @@ for (const vp of VIEWPORTS) {
       (await page.locator('.tag-unavail').count()) === 1 && (await page.locator('.dish:has-text("Палачинка") .dish-price').count()) === 0,
       (await txt(page, '.dish-price')).slice(0, 4).join(','));
     const tel = await page.getAttribute('#top-phone', 'href');
-    R.check(`C1[${tag}] phone: top bar + contact tel: link well-formed`, tel === 'tel:+359881234567' && (await page.getAttribute('#contact-call', 'href')) === 'tel:+359881234567', tel);
+    R.check(`C1[${tag}] phone: top bar + contact phone-item tel: link well-formed; #contact-call is the /reservation button, not a tel: link (D-58)`, tel === 'tel:+359881234567' && (await page.getAttribute('#contact-phone-item a', 'href')) === 'tel:+359881234567' && (await page.getAttribute('#contact-call', 'href')) === '/reservation', tel);
     R.check(`C2[${tag}] address + hours rendered in #location (D-37: moved out of #contact); #contact keeps the phone`, (await page.locator('#location').innerText()).includes('ул. Витоша 1') && (await page.locator('#location').innerText()).includes('10:00-22:00') && (await page.locator('#contact').innerText()).includes('+359 88 123 4567') && !(await page.locator('#contact').innerText()).includes('ул. Витоша 1'));
     // all internal anchors resolve
     const anchors = await page.$$eval('a[href^="#"], a[href^="/#"]', (as) => as.map((a) => a.getAttribute('href')));
@@ -144,7 +144,7 @@ for (const vp of VIEWPORTS) {
   await visit(page, '/');
   // D-34/D-37: with nothing set the top bar, Location (default address) and Contact (Instagram) stay; no-phone top bar links to /reservation
   const u5 = await page.evaluate(() => ({ bar: !!document.getElementById('top-bar') && getComputedStyle(document.getElementById('top-bar')).display !== 'none', label: getComputedStyle(document.getElementById('top-label')).display, txt: document.getElementById('top-phone').textContent, href: document.getElementById('top-phone').getAttribute('href'), loc: document.getElementById('location')?.innerText || '', navLoc: !!document.querySelector('a[href="/#location"]'), contactHidden: document.getElementById('contact')?.hidden, call: document.getElementById('contact-call')?.hidden, ig: !!document.querySelector('#contact a.ig-link') }));
-  R.check('U5 empty site info: top bar still shown as "Резервации" link to /reservation (label hidden), Location shows the default address (D-43: BG cleared and EN default present -> the EN default is shown on the BG site), Contact keeps Instagram, nav has Локация', u5.bar && u5.txt === 'Резервации' && u5.href === '/reservation' && u5.label === 'none' && (u5.loc.includes('ул. Ралевица 85, София') || u5.loc.includes('85 Ralevitsa St, Sofia')) && u5.navLoc && u5.contactHidden === false && u5.call === true && u5.ig, JSON.stringify(u5));
+  R.check('U5 empty site info: top bar still shown as "Резервации" link to /reservation (label hidden), Location shows the default address (D-43: BG cleared and EN default present -> the EN default is shown on the BG site), Contact keeps Instagram, reservation button stays visible (D-58), nav has Локация', u5.bar && u5.txt === 'Резервации' && u5.href === '/reservation' && u5.label === 'none' && (u5.loc.includes('ул. Ралевица 85, София') || u5.loc.includes('85 Ralevitsa St, Sofia')) && u5.navLoc && u5.contactHidden === false && u5.call === false && u5.ig, JSON.stringify(u5));
   await context.close();
 }
 

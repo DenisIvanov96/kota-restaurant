@@ -14,7 +14,7 @@ const ADDR_BG = 'ул. Витоша 1, София';
 const ADDR_EN = '1 Vitosha St, Sofia';
 const DEF_BG = 'ул. Ралевица 85, София';
 const DEF_EN = '85 Ralevitsa St, Sofia';
-const MAP = 'https://maps.app.goo.gl/EQuhsMqma6TcmRqs9'; // fixed pin (D-58)
+const MAP = 'https://maps.app.goo.gl/EQuhsMqma6TcmRqs9'; // fixed pin (D-59)
 const IG_DEFAULT = 'https://www.instagram.com/';
 const shots = shotDir();
 const step = async (id, fn) => { try { await fn(); } catch (e) { R.fail(id, String(e.message).split('\n').slice(0, 3).join(' ')); } };
@@ -363,7 +363,7 @@ await step('FRESH', async () => {
     await page.goto(srvB.url + `/?lang=${lang}`, { waitUntil: 'networkidle' }); await page.waitForTimeout(250);
     const d = await page.evaluate(() => ({ vis: document.getElementById('location').getBoundingClientRect().height > 0, addr: document.querySelector('#location .address-text')?.textContent, href: document.querySelector('#location a.map-link')?.getAttribute('href'), hours: document.querySelectorAll('#location dd.hours').length, bar: document.getElementById('top-phone').textContent.trim(), barHref: document.getElementById('top-phone').getAttribute('href'), contact: document.getElementById('contact').getBoundingClientRect().height > 0, call: document.getElementById('contact-call').hidden, ig: document.querySelectorAll('a.ig-link').length, navLoc: !!document.querySelector('#site-nav a[href*="#location"]') }));
     const a = lang === 'en' ? DEF_EN : DEF_BG;
-    R.check(`FRESH3[${lang} ${vp}] untouched DB: Location visible with default "${a}" + map link; no hours row; bar = Резервации link; Contact shows Instagram, no call button; nav has Location`, d.vis && d.addr === a && d.href === MAP && d.hours === 0 && d.bar === (lang === 'en' ? 'Reservations' : 'Резервации') && d.barHref.startsWith('/reservation') && d.contact && d.call && d.ig === 2 && d.navLoc, JSON.stringify(d));
+    R.check(`FRESH3[${lang} ${vp}] untouched DB: Location visible with default "${a}" + map link; no hours row; bar = Резервации link; Contact shows Instagram and the always-visible reservation button (D-58); nav has Location`, d.vis && d.addr === a && d.href === MAP && d.hours === 0 && d.bar === (lang === 'en' ? 'Reservations' : 'Резервации') && d.barHref.startsWith('/reservation') && d.contact && d.call === false && d.ig === 2 && d.navLoc, JSON.stringify(d));
     R.check(`FRESH4[${lang} ${vp}] clean console`, await clean(page, log));
     await context.close();
   }
