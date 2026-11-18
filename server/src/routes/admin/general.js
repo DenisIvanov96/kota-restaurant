@@ -14,6 +14,16 @@ export function isInstagramUrl(v) {
     && (u.hostname === 'instagram.com' || u.hostname === 'www.instagram.com');
 }
 
+/** Empty, or a plain address: one @, no spaces/control chars/markup, a dot in the domain (<= 254 chars). */
+const EMAIL_LOCAL = /^[\p{L}\p{N}!#$%&*+/=?^_{|}~-]+(\.[\p{L}\p{N}!#$%&*+/=?^_{|}~-]+)*$/u;
+const EMAIL_DOMAIN = /^[\p{L}\p{N}]([\p{L}\p{N}-]*[\p{L}\p{N}])?(\.[\p{L}\p{N}]([\p{L}\p{N}-]*[\p{L}\p{N}])?)+$/u;
+export function isEmail(v) {
+  if (v === '') return true;
+  if (v.length > 254) return false;
+  const parts = v.split('@');
+  return parts.length === 2 && EMAIL_LOCAL.test(parts[0]) && EMAIL_DOMAIN.test(parts[1]);
+}
+
 export function generalRoutes({ db, nowMs, files }) {
   const r = express.Router();
 
@@ -57,6 +67,7 @@ export function generalRoutes({ db, nowMs, files }) {
     const cur = siteSettings(db);
     const spec = {
       reservationPhone: { max: 30, re: /^[+0-9 ()-]*$/, msg: 'Само цифри и + ( ) - интервал, до 30 символа.' },
+      contactEmail: { max: 254, nullable: true, check: isEmail, msg: 'Въведете валиден имейл адрес (напр. име@домейн.bg, до 254 символа) или оставете празно.' },
       address: { max: 200 },
       openingHours: { max: 500 },
       addressEn: { max: 200 },
@@ -81,6 +92,7 @@ export function generalRoutes({ db, nowMs, files }) {
     }
     if (Object.keys(fields).length) throw validationError(fields);
     setSetting(db, 'reservation_phone', next.reservationPhone);
+    setSetting(db, 'contact_email', next.contactEmail ?? '');
     setSetting(db, 'address', next.address);
     setSetting(db, 'opening_hours', next.openingHours);
     setSetting(db, 'address_en', next.addressEn);

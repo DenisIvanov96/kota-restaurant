@@ -15,6 +15,7 @@ export function setSetting(db, key, value) {
 export function siteSettings(db) {
   return {
     reservationPhone: getSetting(db, 'reservation_phone') ?? '',
+    contactEmail: getSetting(db, 'contact_email') || null,
     address: getSetting(db, 'address') ?? '',
     openingHours: getSetting(db, 'opening_hours') ?? '',
     addressEn: getSetting(db, 'address_en') ?? '',
@@ -47,6 +48,7 @@ export function publicSiteSettings(db, lang) {
   const s = siteSettings(db);
   return {
     reservationPhone: s.reservationPhone,
+    email: s.contactEmail,
     address: pick(lang, s.address, s.addressEn),
     openingHours: pick(lang, s.openingHours, s.openingHoursEn),
     currencySymbol: s.currencySymbol,

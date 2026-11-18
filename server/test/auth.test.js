@@ -183,7 +183,7 @@ test('no registration route; unknown api routes are JSON 404 without stack trace
 test('settings: validation and round trip, public site mirrors it', async () => {
   const s = await loggedIn();
   try {
-    assert.deepEqual((await s.api.get('/api/admin/settings')).data, { reservationPhone: '', address: 'ул. Ралевица 85, София', openingHours: '', addressEn: '85 Ralevitsa St, Sofia', openingHoursEn: '', currencySymbol: '€', instagramUrl: '', aboutBg: null, aboutEn: null });
+    assert.deepEqual((await s.api.get('/api/admin/settings')).data, { reservationPhone: '', contactEmail: 'example@gmail.com', address: 'ул. Ралевица 85, София', openingHours: '', addressEn: '85 Ralevitsa St, Sofia', openingHoursEn: '', currencySymbol: '€', instagramUrl: '', aboutBg: null, aboutEn: null });
     const bad = await s.api.put('/api/admin/settings', { reservationPhone: 'call me <b>', address: 'x'.repeat(201), currencySymbol: '123456' });
     assert.equal(bad.status, 400);
     assert.deepEqual(Object.keys(bad.data.fields).sort(), ['address', 'currencySymbol', 'reservationPhone']);
@@ -191,7 +191,8 @@ test('settings: validation and round trip, public site mirrors it', async () => 
     assert.equal(ok.status, 200);
     const pub = await s.client().get('/api/public/site');
     const { addressEn, openingHoursEn, aboutBg, aboutEn, ...bgShape } = ok.data; // public site: resolved text + lang, no *En fields
-    assert.deepEqual(pub.data, { lang: 'bg', ...bgShape, about: null });
+    const { contactEmail, ...rest } = bgShape;
+    assert.deepEqual(pub.data, { lang: 'bg', ...rest, email: contactEmail, about: null });
     assert.equal(addressEn, '85 Ralevitsa St, Sofia');
     assert.equal(openingHoursEn, '');
     assert.equal(pub.data.reservationPhone, '+359 88 123-4567');
