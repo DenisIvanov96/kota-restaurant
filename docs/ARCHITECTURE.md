@@ -300,3 +300,10 @@ Owner request: a "Галерия / Gallery" button opening its own page with up 
 ### Admin UI (Bulgarian)
 - New sidebar/bottom-bar section **Галерия**: upload (multiple selection, sequential uploads with progress, client-side 50 MB and type check, counter "N / 25", upload disabled at 25), list with thumbnail/video preview, BG/EN caption fields, visible switch, up/down reorder, delete with confirmation.
 - **Настройки** gains a **Текст „За нас“** card with Български / English tabs (textarea, counter, save).
+
+## Contact email (D-55)
+- Setting `contact_email` (nullable, ≤ 254 chars, trimmed, must look like an email: one `@`, no spaces/control chars, dot in the domain; lower-casing not required). Migration 008 seeds it with `example@gmail.com` (placeholder until the owner changes it).
+- Admin `GET/PUT /api/admin/settings` gain `contactEmail` (string|null; empty/whitespace clears; invalid → 400 `validation` `fields.contactEmail`). PUT without the key leaves it unchanged.
+- Public `GET /api/public/site` gains `email` (string|null).
+- Public UI: home Contacts section gets an item "Имейл" / "Email" with a `mailto:` link (text = the address), placed after the phone (order: Телефон, Имейл, Социални мрежи); hidden when null. The privacy page's `#privacy-contact` also shows the email when set. Build the link with DOM APIs (`href = 'mailto:' + email`), never innerHTML.
+- Admin UI: Настройки → site information card gets an "Имейл" field (`type="email"`, autocomplete off) next to the phone, with inline validation error from the API.
