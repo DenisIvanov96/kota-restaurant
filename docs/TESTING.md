@@ -5,6 +5,12 @@ Tiers, skip-if-unchanged and non-negotiable security suites: see `CLAUDE.md` →
 
 | Suite | Last commit | Result |
 |---|---|---|
+| **T-59 (D-59 map pin, D-60 About photo, D-61 VAT / 14-day logs / SuperHosting.BG; D-54 narrow scope, only the rows below were run)** | c312cc5 | |
+| e2e plan (CO1/PV1/PV2 updated to D-61 text; PV2 now asserts no bracket placeholders) | c312cc5 | PASS 66/66 |
+| e2e about-photo (new, port 3209) | c312cc5 | PASS 30/30 |
+| e2e feedback1 (run in full: map/FRESH3 lines touched by 48cec09) | c312cc5 | PASS 781/781 |
+| e2e launch E3b (updated to "no placeholders", **edit not executed**; `node --check` only) | - | NOT RUN (outside D-54 scope; needed before go-live) |
+| ops/Caddyfile `roll_keep_for 336h` (`caddy validate`) | - | NOT RUN (`caddy` not installed) |
 | **T-57 (D-57 real floor plan 102-115 + company details; D-54 narrow scope, only the rows below were run)** | 3ed8ced | |
 | e2e plan (new `plan.mjs`, port 3208: 14 numbers inside own rects/no round/no windows, entrance on left wall between 110 and 113, bar below 114, legend 4, a11y list 14, caption, company line on home BG/EN incl. 3-line wrap at 390, privacy controller line + no `[Юридическо лице` placeholder, other placeholders unchanged; BG/EN x 390/768/1280; no h-scroll/console/CSP) | 3ed8ced | 66/66 |
 | e2e feedback1 (RES4/5/6/7, RESN1, FRESH5 updated to 14 tables/no round/no windows/4-item legend/new caption; new RES5b; IG7f key list + `email` (stale since T-52)) | 3ed8ced | **775/781: FAIL RES5b x6** (BUG-23, table 104 list says "long", drawn square) |
@@ -62,6 +68,16 @@ Historical note: server code was identical to `0c81447` through `c376609` (`git 
 
 Owned by the QA / Security Engineer. Results are recorded only for checks that were actually executed in the run named below.
 How to run everything: `tests/README.md`.
+
+## D-59 / D-60 / D-61 text and About photo - T-59, 2026-11-18, HEAD `c312cc5` (narrow tier, D-54)
+
+Ports 3201-3209 checked free before (no `ss`; harness start would have failed on EADDRINUSE), none left after. Run: `node tests/e2e/plan.mjs`, `node tests/e2e/about-photo.mjs`, `node tests/e2e/feedback1.mjs`.
+
+- `plan.mjs`: CO1/PV1 now expect the exact BG "ИН по ДДС: BG207469415" / EN "VAT No.: BG207469415" lines; PV2 asserts zero `[...]` placeholders on `/privacy` plus "Пазят се 14 дни"/"kept for 14 days" and "SuperHosting.BG (България)"/"(Bulgaria)". The `privacy.contact.none` fallback is not expected (the seed has phone and address). 66/66.
+- New `tests/e2e/about-photo.mjs` (BG/EN x 390/768/1280): company line visible in `.about-text` with VAT, no overlap with the photo (390/768: stacked; 1280: two columns), no horizontal scroll, `interior-*.webp` loaded (naturalWidth > 0), non-empty alt in the page language, one `a.map-link` = `https://maps.app.goo.gl/EQuhsMqma6TcmRqs9` with `target=_blank` and `rel="noopener noreferrer"`, no console/failed request/CSP errors. Screenshots in `$QA_SCRATCH/shots/about-photo-*.png`. 30/30.
+- `launch.mjs` E3b updated to the D-61 text (no placeholders, 14 days, SuperHosting.BG, VAT) but **not executed** (4 min suite outside the D-54 scope; syntax checked with `node --check` only). `i18n.mjs` ALLOWED_BG needs no change (substring "Амора Джелато ЕООД" still matches the company line). The E6d/E6e fallback checks in launch.mjs still match `privacy.contact.none`.
+- `ops/Caddyfile`: `roll_keep_for 336h` present at line 23 (grep only); syntax NOT validated, `caddy` is not installed.
+- Not run: everything else (D-54).
 
 ## Contacts "Reserve a table" button -> /reservation (D-58) - T-58, 2026-11-18, HEAD `425d7ad` + uncommitted product change (narrow tier, D-54)
 
