@@ -31,7 +31,7 @@ const probe = (page) => page.evaluate(() => {
     ig: ig && { href: ig.getAttribute('href'), abs: ig.href, aria: ig.getAttribute('aria-label'), rel: ig.getAttribute('rel'), target: ig.getAttribute('target'), svgHidden: ig.querySelector('svg').getAttribute('aria-hidden'), hasText: ig.textContent.trim() },
     igBox: box(ig), socBox: box(soc), phBox: box(ph), phoneItems: document.querySelectorAll('#contact-phone-item').length, socItems: document.querySelectorAll('#contact-social').length,
     order: kids.map((k) => k.id), phoneText: ph ? ph.textContent : null, phoneHref: ph ? ph.querySelector('a').getAttribute('href') : null,
-    rowIcons: row ? row.querySelectorAll('.ig-link, svg, a[href*=instagram]').length : -1, rowChildren: row ? [...row.children].map((c) => c.id || c.className) : [], callHidden: call ? call.hidden : null,
+    rowIcons: row ? row.querySelectorAll('.ig-link, svg, a[href*=instagram]').length : -1, rowChildren: row ? [...row.children].map((c) => c.id || c.className) : [], callHidden: call ? call.hidden : null, callVisible: !!call && call.getBoundingClientRect().width > 0 && getComputedStyle(call).display !== 'none', callHref: call ? call.getAttribute('href') : null,
     footer: [...document.querySelectorAll('footer a.ig-link')].map((a) => ({ href: a.getAttribute('href'), aria: a.getAttribute('aria-label'), rel: a.getAttribute('rel'), target: a.getAttribute('target') })),
     allIg: [...document.querySelectorAll('a.ig-link')].map((a) => (a.closest('footer') ? 'footer' : a.closest('#contact') ? 'contact' : 'other')),
     h1: document.querySelectorAll('h1').length, htmlLang: document.documentElement.lang,
@@ -103,8 +103,39 @@ await step('NP', async () => {
     const { page, context, log } = await newPage(browser, { width: vp.width, height: vp.height });
     await page.goto(`${srv.url}/?lang=${lang}`, { waitUntil: 'networkidle' }); await page.waitForSelector('#contact-social'); await page.waitForTimeout(300);
     const s = await probe(page);
-    R.check(`NP1[${lang} ${vp.name}] no phone: no phone item, social item still shown with icon (href configured), call button hidden, row has no icon, no h-scroll`, s.phoneItems === 0 && s.socVisible && !s.dlHidden && s.ig.abs === IG && s.callHidden === true && s.rowIcons === 0 && (await noHScroll(page)).ok && log.console.length === 0, JSON.stringify({ p: s.phoneItems, v: s.socVisible, ig: s.ig && s.ig.abs, call: s.callHidden }));
+    R.check(`NP1[${lang} ${vp.name}] no phone: no phone item, social item still shown with icon (href configured), reservation button STILL visible with href /reservation (+?lang=en in EN, D-58), row has no icon, no h-scroll`, s.phoneItems === 0 && s.socVisible && !s.dlHidden && s.ig.abs === IG && s.callHidden === false && s.callVisible && /^\/reservation(\?lang=en)?$/.test(s.callHref) && s.rowIcons === 0 && (await noHScroll(page)).ok && log.console.length === 0, JSON.stringify({ p: s.phoneItems, v: s.socVisible, ig: s.ig && s.ig.abs, call: s.callHidden, vis: s.callVisible, href: s.callHref }));
     await context.close();
+  }
+});
+
+// ---- D-58: reservation button opens /reservation (no tel: navigation), phone item itself stays tel: ----
+await step('RB', async () => {
+  const labels = { bg: 'Резервирай маса', en: 'Book a table' };
+  for (const phoneSet of [true, false]) {
+    await set({ reservationPhone: phoneSet ? PHONE : '' });
+    for (const lang of ['bg', 'en']) for (const vp of [VPS[0], VPS[2]]) {
+      const tag = `${lang} ${vp.name} phone=${phoneSet ? 'set' : 'unset'}`;
+      const { page, context, log } = await newPage(browser, { width: vp.width, height: vp.height, locale: lang === 'en' ? 'en-US' : 'bg-BG' });
+      const dialogs = []; const navs = []; const popups = []; const reqs = [];
+      page.on('dialog', (d) => { dialogs.push(d.type() + ':' + d.message()); d.dismiss().catch(() => {}); });
+      page.on('framenavigated', (f) => { if (f === page.mainFrame()) navs.push(f.url()); });
+      page.on('request', (r) => reqs.push(r.url()));
+      context.on('page', (p) => popups.push(p.url()));
+      await page.goto(`${srv.url}/?lang=${lang}`, { waitUntil: 'networkidle' }); await page.waitForSelector('#contact-call'); await page.waitForTimeout(300);
+      const pre = await page.evaluate(() => { const a = document.getElementById('contact-call'); const r = a.getBoundingClientRect(); return { txt: a.textContent.trim(), href: a.getAttribute('href'), vis: r.width > 0 && r.height > 0 && getComputedStyle(a).visibility !== 'hidden', tel: [...document.querySelectorAll('#contact a[href^="tel:"]')].map((x) => x.getAttribute('href')) }; });
+      const labelOk = lang === 'en' ? /[A-Za-z]/.test(pre.txt) && !/[А-Яа-я]/.test(pre.txt) : pre.txt === labels.bg;
+      R.check(`RB1[${tag}] button visible, label "${pre.txt}" in ${lang.toUpperCase()}, href /reservation (EN: /reservation?lang=en; not tel:); phone item ${phoneSet ? 'still a tel: link' : 'absent'}`, pre.vis && labelOk && pre.href === (lang === 'en' ? '/reservation?lang=en' : '/reservation') && (phoneSet ? pre.tel.join() === 'tel:+359881234567' : pre.tel.length === 0), JSON.stringify(pre));
+      await page.locator('#contact-call').scrollIntoViewIfNeeded();
+      await Promise.all([page.waitForURL(/\/reservation/, { timeout: 5000 }).catch(() => {}), page.locator('#contact-call').click()]);
+      await page.waitForSelector('#plan-svg', { timeout: 5000 }).catch(() => {}); await page.waitForTimeout(400);
+      const u = new URL(page.url());
+      const post = await page.evaluate(() => { const svg = document.getElementById('plan-svg'); const r = svg ? svg.getBoundingClientRect() : null; return { lang: document.documentElement.lang, planH1: document.querySelector('#plan-heading')?.textContent.trim(), h1: document.querySelector('h1')?.textContent.trim(), planVis: !!r && r.width > 0 && r.height > 0 && getComputedStyle(svg).display !== 'none', tables: document.querySelectorAll('#plan-tables li').length, stored: (() => { try { return localStorage.getItem('lang'); } catch { return null; } })() }; });
+      const cyr = (x) => /[А-Яа-я]/.test(x || '');
+      R.check(`RB2[${tag}] click navigates to /reservation over http (no tel: / protocol navigation, no popup, no dialog)`, u.pathname === '/reservation' && /^https?:$/.test(u.protocol) && navs.every((x) => /^https?:/.test(x)) && reqs.every((x) => /^https?:/.test(x)) && popups.length === 0 && dialogs.length === 0, JSON.stringify({ url: page.url(), navs, popups, dialogs }));
+      R.check(`RB3[${tag}] language kept: html lang=${lang}, headings in ${lang.toUpperCase()} ("${post.h1}" / "${post.planH1}")`, post.lang === lang && (lang === 'en' ? !cyr(post.h1) && !cyr(post.planH1) : cyr(post.h1) && cyr(post.planH1)), JSON.stringify({ post, url: page.url() }));
+      R.check(`RB4[${tag}] floor plan visible (svg rendered, 14 tables); no horizontal scroll; no console errors`, post.planVis && post.tables === 14 && (await noHScroll(page)).ok && log.console.length === 0 && log.pageErrors.length === 0 && log.failed.length === 0, JSON.stringify({ planVis: post.planVis, t: post.tables, c: log.console, f: log.failed }));
+      await context.close();
+    }
   }
 });
 
