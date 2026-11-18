@@ -476,7 +476,7 @@ export function menuView() {
   }
 
   // ---------------------------------------------------------------- file pages (D-46)
-  const MAX_PAGES = 10;
+  const MAX_PAGES = 15;
   const MAX_MB = 50;
   const PAGE_EXTS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
   const LANG_TITLE = { bg: 'Български страници', en: 'English pages' };

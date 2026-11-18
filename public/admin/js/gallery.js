@@ -19,7 +19,7 @@ export function galleryView() {
 
   let dead = false;
   let items = [];
-  let max = 25;
+  let max = 50;
   let queue = []; // { id, file, status: queued|uploading|done|error, pct, error, retryable, abort }
   let qid = 0;
   let running = false;
@@ -34,7 +34,7 @@ export function galleryView() {
     try {
       const d = await get('/api/admin/gallery');
       if (dead) return;
-      items = d.items; max = d.max || 25;
+      items = d.items; max = d.max || 50;
       renderAll();
     } catch (e) { if (!dead) { top.replaceChildren(loadError('Галерията не може да се зареди.', load)); reportError(e); } }
   }

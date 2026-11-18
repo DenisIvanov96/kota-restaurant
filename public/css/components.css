@@ -225,3 +225,7 @@
   .cat-title { break-after: avoid; page-break-after: avoid; }
   .dish { break-inside: avoid; page-break-inside: avoid; }
 }
+
+/* Daily menu with 2 pages (D-62) */
+.daily-pages { display: flex; flex-direction: column; gap: var(--s-6, 32px); }
+.daily-page-cap { margin: 0; text-align: center; font-weight: 600; }

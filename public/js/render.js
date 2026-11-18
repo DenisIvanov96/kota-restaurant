@@ -104,7 +104,7 @@ export function observeCategories(nav, cats) {
 /**
  * File viewer for the daily menu and file-mode regular menu (DESIGN A5.2 / A6).
  * file: { fileUrl, kind: 'image'|'pdf' }
- * opts: { frameClass: 'paper'|'menu-file', imageAlt, zoomLabel, pdf: { open, openShort } }
+ * opts: { frameClass: 'paper'|'menu-file', imageAlt, zoomLabel, pdf: { open, openShort }, gallery?: { items, index } }
  */
 export function renderFileViewer(file, opts) {
   const t = (k, v) => tr(k, v);
@@ -144,7 +144,9 @@ export function renderFileViewer(file, opts) {
     img.src = file.fileUrl;
     img.alt = opts.imageAlt;
     btn.append(img, el('span', 'zoom-hint', t('zoom.hint')));
-    btn.addEventListener('click', () => openLightbox(file.fileUrl, opts.imageAlt, btn));
+    btn.addEventListener('click', () => (opts.gallery
+      ? openLightbox(null, null, btn, { items: opts.gallery.items, index: opts.gallery.index })
+      : openLightbox(file.fileUrl, opts.imageAlt, btn)));
     frame.append(btn);
     const open = el('a', 'btn btn-ghost-dark', t('file.openTab'));
     open.href = file.fileUrl; open.target = '_blank'; open.rel = 'noopener';

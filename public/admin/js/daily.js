@@ -20,8 +20,16 @@ export function dailyView(ctx) {
   const w = { step: 1, date: '', done: null, sending: false, error: null, dateError: '' };
   const upl = createUpload({ exts: EXTS, maxMB: 50, onChange: () => { renderWizard(); }, onCancel: () => w.abort && w.abort() });
   const uplEn = createUpload({ exts: EXTS, maxMB: 50, onChange: () => { renderWizard(); }, onCancel: () => w.abort && w.abort() });
+  const upl2 = createUpload({ exts: EXTS, maxMB: 50, onChange: () => { renderWizard(); }, onCancel: () => w.abort && w.abort() });
+  const uplEn2w = createUpload({ exts: EXTS, maxMB: 50, onChange: () => { renderWizard(); }, onCancel: () => w.abort && w.abort() });
   const hasFile = () => !!(upl.file || uplEn.file);
-  const fileLines = () => [upl.file && `Български файл: ${upl.file.name} (${formatSize(upl.file.size)})`, uplEn.file && `English файл: ${uplEn.file.name} (${formatSize(uplEn.file.size)})`].filter(Boolean);
+  const fileLines = () => [upl.file && `Български файл: ${upl.file.name} (${formatSize(upl.file.size)})`, upl2.file && `Български файл, 2-ра страница: ${upl2.file.name} (${formatSize(upl2.file.size)})`,
+    uplEn.file && `English файл: ${uplEn.file.name} (${formatSize(uplEn.file.size)})`, uplEn2w.file && `English файл, 2-ра страница: ${uplEn2w.file.name} (${formatSize(uplEn2w.file.size)})`].filter(Boolean);
+  // a second page only makes sense with a first one
+  const syncSecond = () => { if (!upl.file && upl2.file) upl2.clear(); if (!uplEn.file && uplEn2w.file) uplEn2w.clear(); };
+  const second = (first, upl2x, id) => first.file
+    ? h('div', { class: 'a-field' }, h('span', { class: 'a-label', id, text: 'Втора страница (по избор)' }), upl2x.el)
+    : null;
 
   async function load(first) {
     if (first) { wizardHost.replaceChildren(skeleton(1)); listHost.replaceChildren(skeleton(2)); }
@@ -80,10 +88,11 @@ export function dailyView(ctx) {
   }
 
   function step1(p) {
+    syncSecond();
     p.append(h('h3', { text: 'Избери файлове' }),
       h('p', { class: 'a-help', text: 'Качете български файл, английски файл или и двата. Ако за даден език няма файл, клиентите виждат другия.' }),
-      h('section', { class: 'a-fileslang', 'aria-labelledby': 'dw-bg', lang: 'bg' }, h('h4', { id: 'dw-bg', text: 'Български файл' }), upl.el),
-      h('section', { class: 'a-fileslang', 'aria-labelledby': 'dw-en', lang: 'en' }, h('h4', { id: 'dw-en', text: 'English файл (по избор)' }), uplEn.el));
+      h('section', { class: 'a-fileslang', 'aria-labelledby': 'dw-bg', lang: 'bg' }, h('h4', { id: 'dw-bg', text: 'Български файл' }), upl.el, second(upl, upl2, 'dw-bg2')),
+      h('section', { class: 'a-fileslang', 'aria-labelledby': 'dw-en', lang: 'en' }, h('h4', { id: 'dw-en', text: 'English файл (по избор)' }), uplEn.el, second(uplEn, uplEn2w, 'dw-en2')));
     const next = btn({ label: 'Напред', variant: 'primary', onClick: () => { w.step = 2; renderWizard(); focusStep(); } });
     next.disabled = !hasFile();
     p.append(h('p', { class: 'a-help', text: 'Менютата от минали дни се изтриват автоматично при качване на ново меню.' }));
@@ -125,7 +134,9 @@ export function dailyView(ctx) {
     p.append(h('h3', { text: 'Преглед' }));
     if (hasFile()) {
       if (upl.file) p.append(filePreview(upl));
+      if (upl2.file) p.append(filePreview(upl2));
       if (uplEn.file) p.append(filePreview(uplEn));
+      if (uplEn2w.file) p.append(filePreview(uplEn2w));
       const dl = h('dl', { class: 'a-summary-list' },
         h('dt', { text: 'Файлове' }), h('dd', null, ...fileLines().map((t) => h('div', { text: t }))),
         h('dt', { text: 'Дата' }), h('dd', { text: formatDateLong(w.date) }),
@@ -185,7 +196,9 @@ export function dailyView(ctx) {
     const fd = new FormData();
     fd.append('date', w.date); fd.append('published', String(published));
     if (upl.file) fd.append('file', upl.file);
+    if (upl2.file && upl.file) fd.append('file2', upl2.file);
     if (uplEn.file) fd.append('fileEn', uplEn.file);
+    if (uplEn2w.file && uplEn.file) fd.append('fileEn2', uplEn2w.file);
     if (replace) fd.append('replace', 'true');
     let last = -1;
     const up = upload('POST', '/api/admin/daily-menus', fd, {
@@ -210,7 +223,12 @@ export function dailyView(ctx) {
         if (c === 'other') { w.step = 2; }
         renderWizard(); return;
       }
-      if (e.status === 413 || e.status === 415 || (e.status === 400 && e.fields && (e.fields.file || e.fields.fileEn))) { w.step = 1; renderWizard(); const msg = (e.fields && (e.fields.fileEn || e.fields.file)) || e.message; (e.fields && e.fields.fileEn && !e.fields.file ? uplEn : upl).setError(msg); return; }
+      if (e.status === 413 || e.status === 415 || (e.status === 400 && e.fields && (e.fields.file || e.fields.fileEn || e.fields.file2 || e.fields.fileEn2))) {
+        w.step = 1; renderWizard();
+        const f = e.fields || {};
+        const target = f.file ? upl : f.file2 ? upl2 : f.fileEn ? uplEn : f.fileEn2 ? uplEn2w : upl;
+        target.setError(f.file || f.file2 || f.fileEn || f.fileEn2 || e.message); return;
+      }
       if (e.status === 400 && e.fields && e.fields.date) { w.step = 2; w.dateError = e.fields.date; renderWizard(); w.dateError = ''; return; }
       w.error = e.code === 'network' ? 'Качването не успя. Проверете връзката и опитайте отново.' : e.message;
       renderWizard();
@@ -223,7 +241,7 @@ export function dailyView(ctx) {
     const msg = d.published ? `Менюто за ${formatDateLong(d.date)} е публикувано.` : `Менюто за ${formatDateLong(d.date)} е записано като чернова.`;
     box.append(alertBox('success', [h('strong', { text: msg }), d.published && d.today ? ' Клиентите вече го виждат.' : ''], { role: 'status' }));
     box.append(h('div', { class: 'a-actionrow' },
-      btn({ label: 'Качи ново меню', variant: 'secondary', onClick: () => { upl.clear(); uplEn.clear(); w.done = null; w.step = 1; w.date = today; renderWizard(); focusStep(); } }),
+      btn({ label: 'Качи ново меню', variant: 'secondary', onClick: () => { upl.clear(); uplEn.clear(); upl2.clear(); uplEn2w.clear(); w.done = null; w.step = 1; w.date = today; renderWizard(); focusStep(); } }),
       btn({ label: 'Виж менютата', variant: 'primary', onClick: () => { const t = listHost.querySelector('h2'); if (t) { t.tabIndex = -1; t.focus(); } } })));
     return box;
   }
@@ -241,7 +259,7 @@ export function dailyView(ctx) {
     const upcoming = menus.filter((m) => m.date > today).sort((a, b) => (a.date < b.date ? -1 : 1));
     if (!todays.some((m) => m.published)) {
       card.append(alertBox('warning', [h('strong', { text: 'За днес няма публикувано меню.' })]),
-        h('div', { class: 'a-actions' }, btn({ label: 'Качи меню', variant: 'secondary', onClick: () => { upl.clear(); uplEn.clear(); w.done = null; w.step = 1; w.date = today; renderWizard(); wizardHost.scrollIntoView(); focusStep(); } })));
+        h('div', { class: 'a-actions' }, btn({ label: 'Качи меню', variant: 'secondary', onClick: () => { upl.clear(); uplEn.clear(); upl2.clear(); uplEn2w.clear(); w.done = null; w.step = 1; w.date = today; renderWizard(); wizardHost.scrollIntoView(); focusStep(); } })));
     }
     const section = (title, items) => {
       if (!items.length) return;
@@ -270,13 +288,16 @@ export function dailyView(ctx) {
     const sw = makeSwitch({ label: `Публикувано за ${formatDateLong(m.date)}`, checked: m.published, onChange: async (next) => {
       try { const u = await patch(`/api/admin/daily-menus/${m.id}/published`, { published: next }); Object.assign(m, u); setTimeout(renderList, 0); toast(next ? 'Менюто е публикувано.' : 'Менюто е скрито.'); } catch (e) { reportError(e); throw e; }
     } });
+    const pg = (u2) => (u2 ? ' · 2 стр.' : '');
     const info = h('div', { class: 'a-menu__info' }, h('h4', { class: 'a-menu__date', text: capitalize(formatDateLong(m.date)) }),
-      m.fileUrl && h('p', { class: 'a-help' }, `БГ: ${kindLabel(m.kind)} · `, h('span', { class: 'a-trunc-inline', title: m.originalName, text: m.originalName }), ` · ${formatSize(m.sizeBytes)}`),
-      m.fileEnUrl && h('p', { class: 'a-help', lang: 'en' }, `EN: ${kindLabel(m.kindEn)} · `, h('span', { class: 'a-trunc-inline', title: m.originalNameEn, text: m.originalNameEn }), ` · ${formatSize(m.sizeBytesEn)}`),
+      m.fileUrl && h('p', { class: 'a-help' }, `БГ: ${kindLabel(m.kind)} · `, h('span', { class: 'a-trunc-inline', title: m.originalName, text: m.originalName }), ` · ${formatSize(m.sizeBytes)}${pg(m.file2)}`),
+      m.fileEnUrl && h('p', { class: 'a-help', lang: 'en' }, `EN: ${kindLabel(m.kindEn)} · `, h('span', { class: 'a-trunc-inline', title: m.originalNameEn, text: m.originalNameEn }), ` · ${formatSize(m.sizeBytesEn)}${pg(m.fileEn2)}`),
       badges, m.date === today && !m.published ? h('p', { class: 'a-warn-text', text: 'Клиентите не го виждат.' }) : null);
     const actions = h('div', { class: 'a-menu__act' },
       m.fileUrl && h('a', { href: m.fileUrl, target: '_blank', rel: 'noopener', class: 'a-btn a-btn--secondary', 'aria-label': m.fileEnUrl ? 'Преглед на българския файл' : undefined }, icon('eye'), h('span', { text: m.fileEnUrl ? 'Преглед БГ' : 'Преглед' })),
       m.fileEnUrl && h('a', { href: m.fileEnUrl, target: '_blank', rel: 'noopener', class: 'a-btn a-btn--secondary', 'aria-label': 'Преглед на английския файл' }, icon('eye'), h('span', { text: m.fileUrl ? 'Преглед EN' : 'Преглед' })),
+      m.file2 && m.file2.fileUrl && h('a', { href: m.file2.fileUrl, target: '_blank', rel: 'noopener', class: 'a-btn a-btn--secondary', 'aria-label': 'Преглед на втората страница (български)' }, icon('eye'), h('span', { text: 'БГ стр. 2' })),
+      m.fileEn2 && m.fileEn2.fileUrl && h('a', { href: m.fileEn2.fileUrl, target: '_blank', rel: 'noopener', class: 'a-btn a-btn--secondary', 'aria-label': 'Преглед на втората страница (английски)' }, icon('eye'), h('span', { text: 'EN стр. 2' })),
       btn({ label: 'Редактирай', variant: 'secondary', icon: 'pencil', onClick: () => editDialog(m) }),
       btn({ label: 'Изтрий', variant: 'ghost-danger', icon: 'trash', aria: `Изтрий менюто за ${formatDateLong(m.date)}`, onClick: async () => {
         const ok = await confirmDialog({
@@ -291,22 +312,41 @@ export function dailyView(ctx) {
 
   async function editDialog(m) {
     const dateF = dateField({ label: 'Дата', required: true, today, value: m.date });
-    const uplBg = createUpload({ exts: EXTS, maxMB: 50, onCancel: () => abort && abort() });
-    const uplEn2 = createUpload({ exts: EXTS, maxMB: 50, onChange: () => drawEn(), onCancel: () => abort && abort() });
     let abort = null;
-    let removeEn = false;
-    const enNote = h('div');
+    const mk = () => createUpload({ exts: EXTS, maxMB: 50, onChange: () => redraw(), onCancel: () => abort && abort() });
+    const uplBg = mk(), uplBg2 = mk(), uplEnX = mk(), uplEnX2 = mk();
+    const st = { removeBg: false, removeBg2: false, removeEn: false, removeEn2: false };
+    const bgBox = h('div', { class: 'a-field' });
     const enBox = h('div', { class: 'a-field' });
-    const drawEn = () => {
-      clear(enNote);
-      if (m.fileEnUrl && !uplEn2.file) {
-        if (removeEn) enNote.append(alertBox('info', 'Английският файл ще бъде премахнат при запазване.'), btn({ label: 'Върни английския файл', variant: 'ghost', onClick: () => { removeEn = false; drawEn(); } }));
-        else enNote.append(btn({ label: 'Премахни английския файл', variant: 'ghost-danger', onClick: () => { removeEn = true; drawEn(); } }));
+    // lang block: first file (replace/remove) + optional second slot (replace/remove)
+    function langBox(box, cfg) {
+      clear(box);
+      const { title, cur, curName, up1, up2, k1, k2, lang, label1 } = cfg;
+      box.append(h('span', { class: 'a-label', text: title }), h('p', { class: 'a-help', lang, text: cur ? `Текущ файл: ${curName}` : (lang === 'en' ? 'Няма качен английски файл.' : 'Няма качен български файл.') }));
+      if (cfg.removable && cur && !up1.file) {
+        if (st[k1]) box.append(alertBox('info', `${label1} ще бъде премахнат при запазване.`), btn({ label: `Върни ${label1.toLowerCase()}`, variant: 'ghost', onClick: () => { st[k1] = false; redraw(); } }));
+        else box.append(btn({ label: `Премахни ${label1.toLowerCase()}`, variant: 'ghost-danger', onClick: () => { st[k1] = true; redraw(); } }));
       }
-    };
-    enBox.append(h('span', { class: 'a-label', text: 'English файл (по избор)' }), h('p', { class: 'a-help', text: m.fileEnUrl ? `Текущ файл: ${m.originalNameEn}` : 'Няма качен английски файл.' }), enNote, uplEn2.el);
-    drawEn();
-    const bgBox = h('div', { class: 'a-field' }, h('span', { class: 'a-label', text: 'Български файл (нов, по избор)' }), h('p', { class: 'a-help', text: m.fileUrl ? `Текущ файл: ${m.originalName}` : 'Няма качен български файл.' }), uplBg.el);
+      box.append(up1.el);
+      const hasFirst = (cur && !st[k1]) || up1.file;
+      if (hasFirst) {
+        const sec = h('div', { class: 'a-field' }, h('span', { class: 'a-label', text: 'Втора страница (по избор)' }));
+        if (cfg.cur2) {
+          sec.append(h('p', { class: 'a-help', lang, text: `Текуща 2-ра страница: ${cfg.cur2Name}` }));
+          if (!up2.file) {
+            if (st[k2]) sec.append(alertBox('info', 'Втората страница ще бъде премахната при запазване.'), btn({ label: 'Върни втората страница', variant: 'ghost', onClick: () => { st[k2] = false; redraw(); } }));
+            else sec.append(btn({ label: 'Премахни втората страница', variant: 'ghost-danger', onClick: () => { st[k2] = true; redraw(); } }));
+          }
+        }
+        sec.append(up2.el);
+        box.append(sec);
+      } else if (up2.file) up2.clear();
+    }
+    function redraw() {
+      langBox(bgBox, { title: 'Български файл (нов, по избор)', cur: m.fileUrl, curName: m.originalName, cur2: m.file2 && m.file2.fileUrl, cur2Name: m.file2 && m.file2.originalName, up1: uplBg, up2: uplBg2, k1: 'removeBg', k2: 'removeBg2', lang: 'bg', label1: 'Българският файл', removable: false });
+      langBox(enBox, { title: 'English файл (по избор)', cur: m.fileEnUrl, curName: m.originalNameEn, cur2: m.fileEn2 && m.fileEn2.fileUrl, cur2Name: m.fileEn2 && m.fileEn2.originalName, up1: uplEnX, up2: uplEnX2, k1: 'removeEn', k2: 'removeEn2', lang: 'en', label1: 'Английският файл', removable: true });
+    }
+    redraw();
     const body = h('div', { class: 'a-form' }, dateF.el, bgBox, enBox);
     const r = await modal({
       title: 'Редактиране на меню', wide: true, body,
@@ -315,11 +355,15 @@ export function dailyView(ctx) {
         if (!dateF.value) { if (!dateF.validate()) dateF.setError('Изберете дата.'); dateF.input.focus(); return 'keep'; }
         const fd = new FormData();
         fd.append('date', dateF.value);
-        if (removeEn && !uplEn2.file && !m.fileUrl && !uplBg.file) { enNote.prepend(alertBox('error', 'Менюто трябва да има поне един файл.', { role: 'alert' })); return 'keep'; }
+        if (st.removeEn && !uplEnX.file && !m.fileUrl && !uplBg.file) { enBox.prepend(alertBox('error', 'Менюто трябва да има поне един файл.', { role: 'alert' })); return 'keep'; }
         if (uplBg.file) fd.append('file', uplBg.file);
-        if (uplEn2.file) fd.append('fileEn', uplEn2.file);
-        if (removeEn && !uplEn2.file) fd.append('removeFileEn', 'true');
-        const busy = [uplBg, uplEn2].filter((u) => u.file);
+        if (uplBg2.file) fd.append('file2', uplBg2.file);
+        else if (st.removeBg2) fd.append('removeFile2', 'true');
+        if (uplEnX.file) fd.append('fileEn', uplEnX.file);
+        else if (st.removeEn) { fd.append('removeFileEn', 'true'); if (m.fileEn2) fd.append('removeFileEn2', 'true'); }
+        if (uplEnX2.file) fd.append('fileEn2', uplEnX2.file);
+        else if (st.removeEn2 && !(st.removeEn && !uplEnX.file)) fd.append('removeFileEn2', 'true');
+        const busy = [uplBg, uplBg2, uplEnX, uplEnX2].filter((u) => u.file);
         busy.forEach((u) => u.showProgress(0));
         const up = upload('PUT', `/api/admin/daily-menus/${m.id}`, fd, { onProgress: (p) => busy.forEach((u) => u.showProgress(p)), onSent: () => busy.forEach((u) => u.showProcessing()) });
         abort = up.abort;
@@ -328,17 +372,21 @@ export function dailyView(ctx) {
           if (e.code === 'aborted') return 'keep';
           if (e.status === 409) { dateF.setError('На тази дата вече има меню.'); dateF.input.focus(); return 'keep'; }
           if (e.status === 400 && e.fields && e.fields.date) { dateF.setError(e.fields.date); return 'keep'; }
-          if ([400, 413, 415].includes(e.status) && e.fields && (e.fields.file || e.fields.fileEn)) { (e.fields.fileEn ? uplEn2 : uplBg).setError(e.fields.fileEn || e.fields.file); return 'keep'; }
+          const f = e.fields || {};
+          if ([400, 413, 415].includes(e.status) && (f.file || f.file2 || f.fileEn || f.fileEn2)) {
+            const t = f.file ? uplBg : f.file2 ? uplBg2 : f.fileEn ? uplEnX : uplEnX2;
+            t.setError(f.file || f.file2 || f.fileEn || f.fileEn2); return 'keep';
+          }
           if (e.status === 413 || e.status === 415) { uplBg.setError(e.message); return 'keep'; }
           throw e;
         }
         return undefined;
       } }],
     });
-    uplBg.clear(); uplEn2.clear();
+    [uplBg, uplBg2, uplEnX, uplEnX2].forEach((u) => u.clear());
     if (r === true) { toast('Менюто е обновено.'); load(); }
   }
 
   load(true);
-  return { el, destroy() { dead = true; upl.clear(); uplEn.clear(); } };
+  return { el, destroy() { dead = true; upl.clear(); uplEn.clear(); upl2.clear(); uplEn2w.clear(); } };
 }

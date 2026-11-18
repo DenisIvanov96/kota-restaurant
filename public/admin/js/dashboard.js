@@ -106,7 +106,7 @@ export function dashboardView(ctx) {
     if (d.gallery) {
       const g = d.gallery;
       grid.append(h('section', { class: 'a-card a-dash-card' }, h('h2', { text: 'Галерия' }),
-        h('p', { class: 'a-help', text: `Галерия: ${g.count} / 25, видими: ${g.visible}` }),
+        h('p', { class: 'a-help', text: `Галерия: ${g.count} / 50, видими: ${g.visible}` }),
         h('div', { class: 'a-actions' }, linkBtn('#/gallery', 'Управление на галерията'))));
     }
     frag.append(grid);

@@ -63,12 +63,25 @@ async function load() {
   }
   tagEl.hidden = false;
   const longDate = formatDateLong(menu.date);
-  view.replaceChildren(renderFileViewer({ fileUrl: menu.fileUrl, kind: menu.kind }, {
+  const files = Array.isArray(menu.files) && menu.files.length ? menu.files : [{ fileUrl: menu.fileUrl, kind: menu.kind }];
+  const total = files.length;
+  const base = {
     frameClass: 'paper',
     imageAlt: t('daily.alt', { date: longDate }),
     zoomLabel: t('daily.zoom'),
     pdf: { open: t('pdf.open'), openShort: t('pdf.open') },
-  }));
+  };
+  if (total === 1) { view.replaceChildren(renderFileViewer(files[0], base)); return; }
+  const items = files.map((f, i) => ({ f, i, src: f.fileUrl, alt: `${base.imageAlt} - ${t('page.of', { n: i + 1, m: total })}`, n: i + 1, m: total }));
+  const gallery = items.filter((x) => x.f.kind !== 'pdf');
+  const wrap = el('div', 'daily-pages');
+  items.forEach((x) => {
+    const idx = gallery.indexOf(x);
+    const viewer = renderFileViewer(x.f, { ...base, imageAlt: x.alt, zoomLabel: `${base.zoomLabel} (${t('page.of', { n: x.n, m: total })})`, gallery: idx >= 0 ? { items: gallery, index: idx } : null });
+    viewer.prepend(el('p', 'daily-page-cap', t('page.of', { n: x.n, m: total })));
+    wrap.append(viewer);
+  });
+  view.replaceChildren(wrap);
 }
 
 onLangChange(() => { load(); loadSite().then((s) => { applyTopBar(s); applyInstagram(s); localizeLinks(); }); });
