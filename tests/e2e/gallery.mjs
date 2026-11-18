@@ -51,8 +51,8 @@ await step('A', async () => {
   await page.waitForSelector('h1:has-text("Галерия")');
   R.check('AN2 #/gallery: document.title "Галерия — Kota1 админ", exactly one h1, focus on the h1', (await page.title()) === 'Галерия — Kota1 админ' && (await page.locator('h1').count()) === 1 && (await page.evaluate(() => document.activeElement && document.activeElement.tagName)) === 'H1', await page.title());
   await page.waitForSelector('.a-count');
-  R.check('AE1 empty state: counter "0 / 25", empty text, no list, upload enabled', (await page.locator('.a-count__n').textContent()) === '0 / 25' && (await page.getByText('Още няма качени снимки или видео.').count()) === 1 && (await page.getByRole('button', { name: 'Избери снимки или видео' }).isEnabled()));
-  R.check('AE1b dashboard card "Галерия: 0 / 25, видими: 0" + link', await (async () => { await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('h1:has-text("Табло")'); await page.waitForTimeout(400); return (await page.getByText('Галерия: 0 / 25, видими: 0').count()) === 1 && (await page.getByRole('link', { name: 'Управление на галерията' }).count()) === 1; })());
+  R.check('AE1 empty state: counter "0 / 50", empty text, no list, upload enabled', (await page.locator('.a-count__n').textContent()) === '0 / 50' && (await page.getByText('Още няма качени снимки или видео.').count()) === 1 && (await page.getByRole('button', { name: 'Избери снимки или видео' }).isEnabled()));
+  R.check('AE1b dashboard card "Галерия: 0 / 50, видими: 0" + link', await (async () => { await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('h1:has-text("Табло")'); await page.waitForTimeout(400); return (await page.getByText('Галерия: 0 / 50, видими: 0').count()) === 1 && (await page.getByRole('link', { name: 'Управление на галерията' }).count()) === 1; })());
   await goA(page, '#/gallery');
 
   // ---- upload: 2 images + 1 video + bad type + wrong-content file; client validation
@@ -68,7 +68,7 @@ await step('A', async () => {
   R.check('AU2 client-side rejection lists the unsupported files by name (.txt, .pdf) and uploads nothing for them', bad.length === 2 && bad.some((b) => b.includes('notes.txt') && b.includes('не се поддържа')) && bad.some((b) => b.includes('doc.pdf')), JSON.stringify(bad));
   let items = await adminList();
   R.check('AU3 server state: 3 items in upload order, kinds image,image,video', items.length === 3 && items.map((i) => i.kind).join() === 'image,image,video' && items.map((i) => i.position).join() === '1,2,3', JSON.stringify(items.map((i) => [i.kind, i.position])));
-  R.check('AU4 counter "3 / 25"; rows show kind badges "Снимка"/"Видео", size, visibility "Видимо"', (await page.locator('.a-count__n').textContent()) === '3 / 25' && (await page.locator('.a-gal').count()) === 3 && (await page.locator('.a-gal .a-badge', { hasText: 'Видео' }).count()) === 1 && (await page.locator('.a-gal .a-badge', { hasText: 'Снимка' }).count()) === 2 && (await page.locator('.a-gal .a-badge', { hasText: 'Видимо' }).count()) === 3);
+  R.check('AU4 counter "3 / 50"; rows show kind badges "Снимка"/"Видео", size, visibility "Видимо"', (await page.locator('.a-count__n').textContent()) === '3 / 50' && (await page.locator('.a-gal').count()) === 3 && (await page.locator('.a-gal .a-badge', { hasText: 'Видео' }).count()) === 1 && (await page.locator('.a-gal .a-badge', { hasText: 'Снимка' }).count()) === 2 && (await page.locator('.a-gal .a-badge', { hasText: 'Видимо' }).count()) === 3);
   R.check('AU5 video row has a <video> thumbnail (aria-hidden, muted) and an image row an <img alt="">; preview link opens a new tab with noopener', await page.evaluate(() => { const rows = [...document.querySelectorAll('.a-gal')]; const v = rows[2].querySelector('video'); const i = rows[0].querySelector('img'); const a = rows[0].querySelector('a.a-gal__open'); return !!v && v.muted && v.getAttribute('aria-hidden') === 'true' && !!i && i.getAttribute('alt') === '' && a.target === '_blank' && /noopener/.test(a.rel); }));
   await page.screenshot({ path: path.join(shots, 'gallery-admin-1280.png'), fullPage: true });
 
@@ -79,8 +79,8 @@ await step('A', async () => {
   R.check('AU6 415 error row: "Грешка: Този тип файл не се поддържа." with a close button; no item added; no tmp/uploads orphan', /Грешка: Този тип файл не се поддържа\./.test(row415) && (await adminList()).length === 3 && ls(dirA, 'uploads').length === 3 && ls(dirA, 'tmp').length === 0, row415);
   await page.locator('.a-qrow.is-error').getByRole('button', { name: /Затвори/ }).click();
   R.check('AU6b error row dismissed with its Затвори button', (await page.locator('.a-qrow.is-error').count()) === 0);
-  // ---- 413 / 409 rows (server answers mocked: the real 50 MB / 25-item paths are covered in the API tests)
-  for (const [code, body, expect, id] of [[413, { error: 'file_too_large', message: 'x', fields: { file: 'x' } }, /Грешка: Файлът е твърде голям\. Максимум 50 MB\./, 'AU7'], [409, { error: 'gallery_full', message: 'x' }, /Грешка: Галерията е пълна \(25\)\./, 'AU8']]) {
+  // ---- 413 / 409 rows (server answers mocked: the real 50 MB / 50-item paths are covered in the API tests)
+  for (const [code, body, expect, id] of [[413, { error: 'file_too_large', message: 'x', fields: { file: 'x' } }, /Грешка: Файлът е твърде голям\. Максимум 50 MB\./, 'AU7'], [409, { error: 'gallery_full', message: 'x' }, /Грешка: Галерията е пълна \(50\)\./, 'AU8']]) {
     await page.route('**/api/admin/gallery', (route) => (route.request().method() === 'POST' ? route.fulfill({ status: code, contentType: 'application/json', body: JSON.stringify(body) }) : route.continue()));
     await input.setInputFiles([{ name: `a${code}.png`, mimeType: 'image/png', buffer: png(5) }, { name: `b${code}.png`, mimeType: 'image/png', buffer: png(6) }]);
     await page.waitForSelector('.a-qrow.is-error', { timeout: 8000 });
@@ -162,36 +162,36 @@ await step('A', async () => {
   await dlg.getByRole('button', { name: 'Изтрий файла' }).click(); await page.waitForSelector('.a-toast:has-text("Файлът е изтрит.")');
   items = await adminList();
   R.check('AD4 confirmed delete: 2 items left, positions compacted 1..2, file removed from disk, /media 404, tmp empty, toast shown', items.length === 2 && items.map((i) => i.position).join() === '1,2' && !items.some((i) => i.id === doomed.id) && ls(dirA, 'uploads').length === diskBefore - 1 && ls(dirA, 'tmp').length === 0 && (await anonA.get(doomed.fileUrl.replace('/api/admin/media', '/media'))).status === 404, `files ${ls(dirA, 'uploads').length}`);
-  R.check('AD5 list re-rendered with 2 rows, counter "2 / 25", focus moved to a row heading', (await page.locator('.a-gal').count()) === 2 && (await page.locator('.a-count__n').textContent()) === '2 / 25' && (await page.evaluate(() => document.activeElement.tagName)) === 'H3');
+  R.check('AD5 list re-rendered with 2 rows, counter "2 / 50", focus moved to a row heading', (await page.locator('.a-gal').count()) === 2 && (await page.locator('.a-count__n').textContent()) === '2 / 50' && (await page.evaluate(() => document.activeElement.tagName)) === 'H3');
   R.check('AD6 confirm body quotes the caption', await (async () => { const pos = (await adminList()).find((x) => x.captionBg === 'Първа снимка').position; await page.getByRole('button', { name: `Изтрий № ${pos}` }).click(); await dlg.waitFor(); const t = await dlg.textContent(); await dlg.getByRole('button', { name: 'Отказ' }).click(); return /„Първа снимка“/.test(t); })());
   R.check('AA0 console errors / failed requests / CSP in the admin gallery flow', log.pageErrors.length === 0 && (await page.collectCsp()).length === 0 && log.console.filter((m) => !/status of (500|400|413|409|415)|Failed to load resource/.test(m)).length === 0, JSON.stringify({ c: log.console, p: log.pageErrors, f: log.failed }));
   await clearA();
 });
 
-// ---- 25 / 25 state in the UI + free-slot trimming
+// ---- 50 / 50 state in the UI + free-slot trimming
 await step('AF', async () => {
   await clearA();
-  for (let i = 0; i < 25; i++) await apiUpload(apiA, png(i + 10), `s${i}.png`, 'image/png');
+  for (let i = 0; i < 50; i++) await apiUpload(apiA, png(i + 10), `s${i}.png`, 'image/png');
   const { page, log } = await newPage(browser, { width: 390, height: 844 });
   await adminLogin(page); await goA(page, '#/gallery');
-  R.check('AF1 25 items: counter "25 / 25", warning "Достигнахте максимума от 25…" (role=status), upload button disabled', (await page.locator('.a-count__n').textContent()) === '25 / 25' && (await page.getByText('Достигнахте максимума от 25. Изтрийте нещо, за да качите ново.').count()) === 1 && (await page.getByRole('button', { name: 'Избери снимки или видео' }).isDisabled()) && (await page.locator('.a-alert[role=status], [role=status].a-alert').count()) >= 1);
+  R.check('AF1 50 items: counter "50 / 50", warning "Достигнахте максимума от 50…" (role=status), upload button disabled', (await page.locator('.a-count__n').textContent()) === '50 / 50' && (await page.getByText('Достигнахте максимума от 50. Изтрийте нещо, за да качите ново.').count()) === 1 && (await page.getByRole('button', { name: 'Избери снимки или видео' }).isDisabled()) && (await page.locator('.a-alert[role=status], [role=status].a-alert').count()) >= 1);
   const disabledOpacity = await page.getByRole('button', { name: 'Избери снимки или видео' }).evaluate((b) => getComputedStyle(b).opacity);
   R.check('AF2 disabled upload button looks disabled (opacity < 1) and the text explains why', parseFloat(disabledOpacity) < 1, disabledOpacity);
   let posts = 0; page.on('request', (r) => { if (r.method() === 'POST' && r.url().endsWith('/api/admin/gallery')) posts++; });
   // dropping files while full is ignored
   await page.locator('.a-upload').evaluate((dz) => { const dt = new DataTransfer(); dt.items.add(new File([new Uint8Array(10)], 'drop.png', { type: 'image/png' })); dz.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); });
   await page.waitForTimeout(400);
-  R.check('AF3 drop while full is ignored (no request, still 25)', posts === 0 && (await adminList()).length === 25);
-  R.check('AF4 25 rows, "down" disabled only on the last, "up" only on the first', (await page.locator('.a-gal').count()) === 25);
+  R.check('AF3 drop while full is ignored (no request, still 50)', posts === 0 && (await adminList()).length === 50);
+  R.check('AF4 50 rows, "down" disabled only on the last, "up" only on the first', (await page.locator('.a-gal').count()) === 50);
   await page.screenshot({ path: path.join(shots, 'gallery-admin-full-390.png') });
-  // delete 2 -> 23, then select 5 files -> only 2 are uploaded + warning
-  await apiA.del(`${G}/${(await adminList())[24].id}`); await apiA.del(`${G}/${(await adminList())[23].id}`);
+  // delete 2 -> 48, then select 5 files -> only 2 are uploaded + warning
+  await apiA.del(`${G}/${(await adminList())[49].id}`); await apiA.del(`${G}/${(await adminList())[48].id}`);
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForSelector('.a-count');
-  R.check('AF5 at 23: button enabled again, counter "23 / 25", warning gone', (await page.locator('.a-count__n').textContent()) === '23 / 25' && (await page.getByRole('button', { name: 'Избери снимки или видео' }).isEnabled()) && (await page.getByText('Достигнахте максимума').count()) === 0);
+  R.check('AF5 at 48: button enabled again, counter "48 / 50", warning gone', (await page.locator('.a-count__n').textContent()) === '48 / 50' && (await page.getByRole('button', { name: 'Избери снимки или видео' }).isEnabled()) && (await page.getByText('Достигнахте максимума').count()) === 0);
   await page.locator('input[type=file]').setInputFiles([1, 2, 3, 4, 5].map((n) => ({ name: `x${n}.png`, mimeType: 'image/png', buffer: png(200 + n) })));
   await page.waitForSelector('.a-toast:has-text("Качени са 2 файла.")', { timeout: 15000 });
-  R.check('AF6 5 files selected with 2 free slots: first 2 uploaded, warning "Качени са само 2 от 5 файла — достигнат е максимумът от 25.", total 25', (await adminList()).length === 25 && (await page.getByText('Качени са само 2 от 5 файла — достигнат е максимумът от 25.').count()) === 1 && posts === 2, `posts=${posts}`);
-  R.check('AF7 counter/warning after the batch show 25 / 25 and the button is disabled', (await page.locator('.a-count__n').textContent()) === '25 / 25' && (await page.getByRole('button', { name: 'Избери снимки или видео' }).isDisabled()));
+  R.check('AF6 5 files selected with 2 free slots: first 2 uploaded, warning "Качени са само 2 от 5 файла — достигнат е максимумът от 50.", total 50', (await adminList()).length === 50 && (await page.getByText('Качени са само 2 от 5 файла — достигнат е максимумът от 50.').count()) === 1 && posts === 2, `posts=${posts}`);
+  R.check('AF7 counter/warning after the batch show 50 / 50 and the button is disabled', (await page.locator('.a-count__n').textContent()) === '50 / 50' && (await page.getByRole('button', { name: 'Избери снимки или видео' }).isDisabled()));
   R.check('AF8 no page errors / CSP violations', log.pageErrors.length === 0 && (await page.collectCsp()).length === 0, JSON.stringify(log.pageErrors));
   await clearA();
 });

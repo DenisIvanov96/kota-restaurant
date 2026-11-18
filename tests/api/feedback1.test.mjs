@@ -95,7 +95,7 @@ describe('migration 004 repairs databases that already ran the old 003 (BUG-12)'
         assert.equal(before, pre, 'precondition: address_en after old 003');
         assert.equal((await site('bg')).address, bg); assert.equal((await site('en')).address, en);
         const chk = new DatabaseSync(path.join(dir, 'kota.db'));
-        assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), ['001_init.sql', '002_i18n.sql', '003_default_address.sql', '004_fix_default_address_en.sql', '005_separate_languages.sql', '006_menu_pages.sql', '007_gallery.sql', '008_contact_email.sql']);
+        assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), ['001_init.sql', '002_i18n.sql', '003_default_address.sql', '004_fix_default_address_en.sql', '005_separate_languages.sql', '006_menu_pages.sql', '007_gallery.sql', '008_contact_email.sql', '009_daily_second_page.sql']);
         chk.close();
       } finally { await srv.stop(); }
       const s2 = await startServer({ port: PORT, dataDir: dir, now: T0 }); // idempotent restart
@@ -110,13 +110,13 @@ describe('fresh database + instagramUrl setting contract', () => {
   test('F0 start', async () => { srv = await startServer({ port: PORT, dataDir: dir, now: T0 }); admin = new Client(srv.url); await admin.login(); anon = new Client(srv.url); });
   after(async () => { if (srv) await srv.stop(); });
 
-  test('F1 fresh DB: public + admin settings carry the default addresses; instagramUrl is ""; applied migrations are 001..008', async () => {
+  test('F1 fresh DB: public + admin settings carry the default addresses; instagramUrl is ""; applied migrations are 001..009', async () => {
     assert.equal((await anon.get('/api/public/site')).data.address, DEF_BG);
     assert.equal((await anon.get('/api/public/site?lang=en')).data.address, DEF_EN);
     const s = (await admin.get('/api/admin/settings')).data;
     assert.equal(s.address, DEF_BG); assert.equal(s.addressEn, DEF_EN); assert.equal(s.instagramUrl, '');
     const chk = new DatabaseSync(path.join(dir, 'kota.db'));
-    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), ['001_init.sql', '002_i18n.sql', '003_default_address.sql', '004_fix_default_address_en.sql', '005_separate_languages.sql', '006_menu_pages.sql', '007_gallery.sql', '008_contact_email.sql']);
+    assert.deepEqual(chk.prepare('SELECT name FROM schema_migrations ORDER BY name').all().map((r) => r.name), ['001_init.sql', '002_i18n.sql', '003_default_address.sql', '004_fix_default_address_en.sql', '005_separate_languages.sql', '006_menu_pages.sql', '007_gallery.sql', '008_contact_email.sql', '009_daily_second_page.sql']);
     chk.close();
   });
   test('F2 the owner can overwrite the default address and clear it; clearing gives "" (client shows the default)', async () => {

@@ -102,12 +102,12 @@ describe('50 MB uploads (D-44)', () => {
     // event without a title but with a 20 MB image -> 400 and no leftovers
     r = await admin.post('/api/admin/events', { form: mp({ title: '' }, [{ field: 'image', buf: sized(PNGH, 20 * MB), type: 'image/png', name: 'x.png' }]) });
     assert.equal(r.status, 400); assert.deepEqual(await tmpEmpty(), []); assert.deepEqual(up(), []);
-    // 11th page with a big file -> 409
+    // 16th page (limit 15, D-62) with a big file -> 409
     const small = makePng(10, 10);
     const ids = [];
-    for (let i = 0; i < 10; i++) { const p = await admin.post('/api/admin/menu/pages', { form: mp({ lang: 'en' }, [{ field: 'file', buf: small, type: 'image/png', name: `p${i}.png` }]) }); assert.equal(p.status, 201); ids.push(p.data.id); }
+    for (let i = 0; i < 15; i++) { const p = await admin.post('/api/admin/menu/pages', { form: mp({ lang: 'en' }, [{ field: 'file', buf: small, type: 'image/png', name: `p${i}.png` }]) }); assert.equal(p.status, 201); ids.push(p.data.id); }
     r = await admin.post('/api/admin/menu/pages', { form: mp({ lang: 'en' }, [{ field: 'file', buf: sized(PNGH, 20 * MB), type: 'image/png', name: 'x.png' }]) });
-    assert.equal(r.status, 409); assert.equal(r.data.error, 'too_many_pages'); assert.deepEqual(await tmpEmpty(), []); assert.equal(up().length, 10);
+    assert.equal(r.status, 409); assert.equal(r.data.error, 'too_many_pages'); assert.deepEqual(await tmpEmpty(), []); assert.equal(up().length, 15);
     for (const id of ids) assert.equal((await admin.del(`/api/admin/menu/pages/${id}`)).status, 204);
     assert.deepEqual(up(), []);
   });
@@ -174,25 +174,25 @@ describe('50 MB uploads (D-44)', () => {
   });
 });
 
-describe('concurrent page uploads (race on the 10-page limit)', () => {
+describe('concurrent page uploads (race on the 15-page limit)', () => {
   let dir; let srv; let admin;
   before(async () => { dir = tmpDir('uploadsrace'); createAdmin(dir); srv = await startServer({ port: PORT, dataDir: dir, now: T0 }); admin = new Client(srv.url); await admin.login(); });
   after(async () => { await srv.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
-  test('UP8 16 simultaneous POST /menu/pages for one language: exactly 10 succeed (201), the rest are 409 too_many_pages; positions are 1..10 without gaps/duplicates; no orphan files or temp files', async () => {
-    const reqs = Array.from({ length: 16 }, (_, i) => admin.post('/api/admin/menu/pages', { form: mp({ lang: 'bg' }, [{ field: 'file', buf: makePng(10 + i, 10), type: 'image/png', name: `r${i}.png` }]) }));
+  test('UP8 20 simultaneous POST /menu/pages for one language: exactly 15 succeed (201), the rest are 409 too_many_pages; positions are 1..15 without gaps/duplicates; no orphan files or temp files', async () => {
+    const reqs = Array.from({ length: 20 }, (_, i) => admin.post('/api/admin/menu/pages', { form: mp({ lang: 'bg' }, [{ field: 'file', buf: makePng(10 + i, 10), type: 'image/png', name: `r${i}.png` }]) }));
     const res = await Promise.all(reqs);
     const ok = res.filter((r) => r.status === 201); const bad = res.filter((r) => r.status !== 201);
-    assert.equal(ok.length, 10, res.map((r) => r.status).join());
+    assert.equal(ok.length, 15, res.map((r) => r.status).join());
     assert.ok(bad.every((r) => r.status === 409 && r.data.error === 'too_many_pages'), bad.map((r) => r.status).join());
     const items = (await admin.get('/api/admin/menu')).data.pages.bg.items;
-    assert.deepEqual(items.map((x) => x.position), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    assert.deepEqual(items.map((x) => x.position), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
     await sleep(500);
-    assert.equal(fs.readdirSync(path.join(dir, 'uploads')).length, 10); assert.deepEqual(fs.readdirSync(path.join(dir, 'tmp')), []);
+    assert.equal(fs.readdirSync(path.join(dir, 'uploads')).length, 15); assert.deepEqual(fs.readdirSync(path.join(dir, 'tmp')), []);
     // concurrent deletes + order never corrupt positions
     await Promise.all(items.slice(0, 4).map((x) => admin.del(`/api/admin/menu/pages/${x.id}`)));
     const left = (await admin.get('/api/admin/menu')).data.pages.bg.items;
-    assert.equal(left.length, 6); assert.deepEqual(left.map((x) => x.position), [1, 2, 3, 4, 5, 6]);
-    assert.equal(fs.readdirSync(path.join(dir, 'uploads')).length, 6);
+    assert.equal(left.length, 11); assert.deepEqual(left.map((x) => x.position), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    assert.equal(fs.readdirSync(path.join(dir, 'uploads')).length, 11);
   });
 });
 

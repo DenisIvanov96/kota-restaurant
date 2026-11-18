@@ -268,7 +268,10 @@ await step('C-REPLACE', async () => {
   await context.close();
 });
 
+// D-62: the edit dialog now also offers optional second-page slots, so the first-page inputs are addressed per language block (BG = 2nd .a-field, EN = 3rd) instead of by index.
+const dlgIn = (page, lang) => page.locator('dialog[open] .a-form > .a-field').nth(lang === 'bg' ? 1 : 2).locator('input[type=file]').first();
 await step('C-EDIT', async () => {
+  try {
   await go(admin, '#/daily-menu');
   await admin.waitForSelector('article.a-menu');
   await admin.getByRole('button', { name: 'Редактирай' }).first().click();
@@ -282,9 +285,8 @@ await step('C-EDIT', async () => {
   R.check('ED3 removing the ONLY file is blocked client-side with "Менюто трябва да има поне един файл." and nothing is sent', (await d.getByText('Менюто трябва да има поне един файл.').count()) === 1 && (await api.get('/api/admin/daily-menus')).data.menus[0].fileEnUrl !== null);
   await d.getByRole('button', { name: 'Върни английския файл' }).click();
   // add a BG file and replace the EN file in one save
-  const ins = d.locator('input[type=file]');
-  await ins.nth(0).setInputFiles(file('new-bg.png', 'image/png', RED));
-  await ins.nth(1).setInputFiles(file('new-en.png', 'image/png', BLUE));
+  await dlgIn(admin, 'bg').setInputFiles(file('new-bg.png', 'image/png', RED));
+  await dlgIn(admin, 'en').setInputFiles(file('new-en.png', 'image/png', BLUE));
   const before = (await api.get('/api/admin/daily-menus')).data.menus[0];
   await d.getByRole('button', { name: 'Запази' }).click();
   await admin.waitForTimeout(1200);
@@ -296,7 +298,7 @@ await step('C-EDIT', async () => {
   R.check('ED4 saving a new BG file + a replacement EN file through the dialog works (dialog closes, both updated, old EN file gone)', (await admin.locator('dialog[open]').count()) === 0 && after.originalName === 'new-bg.png' && after.originalNameEn === 'new-en.png' && after.fileEnUrl !== before.fileEnUrl && (await api.get(before.fileEnUrl)).status === 404, JSON.stringify({ n: after.originalName, e: after.originalNameEn, dlg: await admin.locator('dialog[open]').count() }));
   // replace only the EN file
   await admin.getByRole('button', { name: 'Редактирай' }).first().click(); await admin.waitForSelector('dialog[open]'); d = admin.locator('dialog[open]');
-  await d.locator('input[type=file]').nth(1).setInputFiles(file('en3.png', 'image/png', GREEN));
+  await dlgIn(admin, 'en').setInputFiles(file('en3.png', 'image/png', GREEN));
   const before2 = (await api.get('/api/admin/daily-menus')).data.menus[0];
   await d.getByRole('button', { name: 'Запази' }).click(); await admin.waitForTimeout(1000); await admin.reload({ waitUntil: 'networkidle' }); await admin.waitForSelector('article.a-menu');
   const after2 = (await api.get('/api/admin/daily-menus')).data.menus[0];
@@ -309,9 +311,10 @@ await step('C-EDIT', async () => {
   R.check('ED6 removing the EN file (BG exists) works: fileEnUrl null, row shows "Няма EN файл"', after3.fileEnUrl === null && after3.fileUrl && /Няма EN файл/.test(await admin.locator('article.a-menu').first().innerText()));
   // restore EN for later tests
   await admin.getByRole('button', { name: 'Редактирай' }).first().click(); await admin.waitForSelector('dialog[open]'); d = admin.locator('dialog[open]');
-  await d.locator('input[type=file]').nth(1).setInputFiles(file('en4.png', 'image/png', BLUE));
+  await dlgIn(admin, 'en').setInputFiles(file('en4.png', 'image/png', BLUE));
   await d.getByRole('button', { name: 'Запази' }).click(); await admin.waitForTimeout(1000); await admin.reload({ waitUntil: 'networkidle' }); await admin.waitForSelector('article.a-menu');
   R.check('ED7 EN file can be added again through the dialog', (await api.get('/api/admin/daily-menus')).data.menus[0].originalNameEn === 'en4.png');
+  } finally { while (await admin.locator('dialog[open]').count()) { await admin.keyboard.press('Escape'); await admin.waitForTimeout(250); } }
 });
 
 // ====================================================================================== D. real server error mapping (fake files pass the client extension check, the server rejects them)
@@ -349,10 +352,10 @@ await step('D-ERR-DAILY', async () => {
   await go(admin, '#/daily-menu'); await admin.waitForSelector('article.a-menu');
   await admin.getByRole('button', { name: 'Редактирай' }).first().click(); await admin.waitForSelector('dialog[open]');
   const d = admin.locator('dialog[open]');
-  await d.locator('input[type=file]').nth(1).setInputFiles(file('fake2.png', 'image/png', FAKE));
+  await dlgIn(admin, 'en').setInputFiles(file('fake2.png', 'image/png', FAKE)); // D-62: the dialog has 4 uploaders (BG, BG 2nd page, EN, EN 2nd page)
   await d.getByRole('button', { name: 'Запази' }).click(); await admin.waitForTimeout(1000);
   const where = await admin.evaluate(() => { const dlg = document.querySelector('dialog[open]'); if (!dlg) return 'DIALOG CLOSED'; const boxes = [...dlg.querySelectorAll('.a-upload')].map((u) => { const e = u.querySelector('.a-upload__err'); return e && !e.hidden ? e.innerText : null; }); return boxes; });
-  R.check('ERR-3 edit dialog: server rejection of a fake fileEn keeps the dialog open and shows the error under the ENGLISH uploader (second), not the Bulgarian one', Array.isArray(where) && where.length === 2 && where[0] === null && !!where[1], JSON.stringify(where) + ' toasts=' + JSON.stringify(await admin.locator('.a-toasts').allInnerTexts()));
+  R.check('ERR-3 edit dialog: server rejection of a fake fileEn keeps the dialog open and shows the error under the ENGLISH uploader (second), not the Bulgarian one', Array.isArray(where) && where.length === 4 && where[0] === null && where[1] === null && !!where[2] && where[3] === null, JSON.stringify(where) + ' toasts=' + JSON.stringify(await admin.locator('.a-toasts').allInnerTexts()));
   await d.getByRole('button', { name: 'Отказ' }).click().catch(() => {});
   await admin.keyboard.press('Escape');
   R.check('ERR-3b the menu is unchanged', (await api.get('/api/admin/daily-menus')).data.menus[0].originalNameEn === 'en4.png');
@@ -384,11 +387,11 @@ await step('D-413', async () => {
   for (const [id, status, fields, idx] of [['ERR-413c', 413, { fileEn: 'Файлът е твърде голям.' }, 1], ['ERR-413d', 413, null, 0], ['ERR-400e', 400, { fileEn: 'Невалидно качване на файл.' }, 1], ['ERR-415f', 415, { file: 'Позволени са само PDF, JPG, PNG и WebP файлове.' }, 0]]) {
     await admin.getByRole('button', { name: 'Редактирай' }).first().click(); await admin.waitForSelector('dialog[open]');
     const d = admin.locator('dialog[open]');
-    await d.locator('input[type=file]').nth(1).setInputFiles(file('big-en.png', 'image/png', BLUE));
+    await dlgIn(admin, 'en').setInputFiles(file('big-en.png', 'image/png', BLUE));
     await admin.route('**/api/admin/daily-menus/*', (route) => route.request().method() === 'PUT' ? route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ error: 'x', message: 'Файлът е твърде голям (макс. 5 MB).', ...(fields ? { fields } : {}) }) }) : route.continue());
     await d.getByRole('button', { name: 'Запази' }).click(); await admin.waitForTimeout(900);
     const w = await admin.evaluate(() => { const dlg = document.querySelector('dialog[open]'); if (!dlg) return 'DIALOG CLOSED'; return [...dlg.querySelectorAll('.a-upload')].map((u) => { const e = u.querySelector('.a-upload__err'); return e && !e.hidden ? e.innerText : null; }); });
-    R.check(`${id} daily edit dialog ${status}${fields ? ' with fields.' + Object.keys(fields)[0] : ' without fields'} (mocked): dialog stays open, error under uploader #${idx + 1} only, no unhandled error`, Array.isArray(w) && w.length === 2 && !!w[idx] && w[1 - idx] === null, JSON.stringify(w));
+    R.check(`${id} daily edit dialog ${status}${fields ? ' with fields.' + Object.keys(fields)[0] : ' without fields'} (mocked): dialog stays open, error under uploader #${idx + 1} only, no unhandled error`, Array.isArray(w) && w.length === 4 && !!w[idx * 2] && w.every((x, i) => i === idx * 2 || x === null), JSON.stringify(w)); // uploaders: [BG, BG 2nd, EN, EN 2nd] (D-62)
     await admin.unroute('**/api/admin/daily-menus/*');
     await d.getByRole('button', { name: 'Отказ' }).click().catch(() => {}); await admin.keyboard.press('Escape'); await admin.waitForTimeout(300);
   }
@@ -511,11 +514,11 @@ await step('F-FILES', async () => {
   const ptabs = admin.locator('[aria-label="Език на страниците"] [role=tab]');
   const pageInput = admin.locator('.a-upload--pages input[type=file]');
   const rows = () => admin.locator('.a-pagerow');
-  R.check('FL1 file tab has the page manager with language tabs Български / English; the BG tab shows "Български страници", counter "0 от 10 страници" and "Добави страници"', (await ptabs.count()) === 2 && (await admin.getByRole('heading', { name: 'Български страници' }).count()) === 1 && (await admin.locator('.a-pagecount').innerText()).includes('0 от 10') && (await admin.getByRole('button', { name: 'Добави страници' }).count()) === 1);
+  R.check('FL1 file tab has the page manager with language tabs Български / English; the BG tab shows "Български страници", counter "0 от 15 страници" and "Добави страници"', (await ptabs.count()) === 2 && (await admin.getByRole('heading', { name: 'Български страници' }).count()) === 1 && (await admin.locator('.a-pagecount').innerText()).includes('0 от 15') && (await admin.getByRole('button', { name: 'Добави страници' }).count()) === 1);
   await pageInput.setInputFiles(file('menu-bg.png', 'image/png', RED)); await admin.waitForSelector('.a-pagerow'); await admin.waitForTimeout(400);
-  R.check('FL2 selecting a file in the BG tab uploads it at once (no extra button): page 1 listed, counter "1 от 10"', (await rows().count()) === 1 && (await admin.locator('.a-pagecount').innerText()).includes('1 от 10') && (await rows().first().innerText()).includes('menu-bg.png'));
+  R.check('FL2 selecting a file in the BG tab uploads it at once (no extra button): page 1 listed, counter "1 от 15"', (await rows().count()) === 1 && (await admin.locator('.a-pagecount').innerText()).includes('1 от 15') && (await rows().first().innerText()).includes('menu-bg.png'));
   await ptabs.nth(1).click(); await admin.waitForTimeout(200);
-  R.check('FL3 EN tab: heading "English pages", empty (0 от 10), BG page not listed', (await admin.getByRole('heading', { name: 'English pages' }).count()) === 1 && (await rows().count()) === 0 && (await admin.locator('.a-pagecount').innerText()).includes('0 от 10'));
+  R.check('FL3 EN tab: heading "English pages", empty (0 от 15), BG page not listed', (await admin.getByRole('heading', { name: 'English pages' }).count()) === 1 && (await rows().count()) === 0 && (await admin.locator('.a-pagecount').innerText()).includes('0 от 15'));
   await pageInput.setInputFiles(file('menu-en.png', 'image/png', BLUE)); await admin.waitForSelector('.a-pagerow'); await admin.waitForTimeout(400);
   const pg = (await api.get('/api/admin/menu')).data.pages;
   R.check('FL4 uploads land in the right language (bg for the first, en for the second); each listed only in its own tab', pg.bg.items.length === 1 && pg.en.items.length === 1 && pg.bg.items[0].originalName === 'menu-bg.png' && pg.en.items[0].originalName === 'menu-en.png' && pg.bg.items[0].lang === 'bg' && pg.en.items[0].lang === 'en' && (await rows().first().innerText()).includes('menu-en.png'));
@@ -537,19 +540,21 @@ await step('F-FILES', async () => {
   R.check('FL8 "Премести страница 2 нагоре" reorders through the API: [menu-bg2.png, menu-bg.png]; the page list follows; the live region announces the move', ord.join() === 'menu-bg2.png,menu-bg.png' && (await rows().first().innerText()).includes('menu-bg2.png') && /преместена на позиция 1 от 2/.test(await admin.locator('#pages-live').innerText()), ord.join());
   // public in file mode
   const { context, page } = await newPage(browser, { width: 390, height: 844 });
-  await page.goto(base + '/', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-pages img');
-  const order = await page.locator('.menu-pages .menu-page-image img').count();
-  R.check('FL9 public БГ shows 2 pages in the admin order (GREEN, then RED); EN click switches to the single BLUE EN page without reload', order === 2 && isGreen(await pixel(page, '.menu-pages .menu-page-image img')) && await (async () => {
-    const second = await page.locator('.menu-pages .menu-page-image img').nth(1).evaluate((img) => new Promise((res) => { const go = () => { const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight; const x = c.getContext('2d'); x.drawImage(img, 0, 0); res([...x.getImageData(1, 1, 1, 1).data]); }; img.complete && img.naturalWidth ? go() : img.addEventListener('load', go); }));
+  await page.goto(base + '/', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-slide img');
+  const curPx = () => page.locator('.menu-slide img').evaluate((img) => new Promise((res) => { const go = () => { const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight; const x = c.getContext('2d'); x.drawImage(img, 0, 0); res([...x.getImageData(1, 1, 1, 1).data]); }; img.complete && img.naturalWidth ? go() : img.addEventListener('load', go); }));
+  const order = (await page.locator('.menu-slider-count').innerText()) === 'Страница 1 от 2' ? 2 : 0;
+  R.check('FL9 public БГ slider has 2 pages in the admin order (GREEN, then RED after "Следваща"); EN click switches to the single BLUE EN page (no arrows) without reload', order === 2 && isGreen(await pixel(page, '.menu-slide img')) && await (async () => {
+    await page.locator('.slider-next').click(); await page.waitForTimeout(150);
+    const second = await curPx();
     if (!isRed(second)) return false;
     await page.evaluate(() => { window.__marker = 'm'; }); await clickLang(page, 'en');
-    await page.waitForFunction(() => { const is = document.querySelectorAll('.menu-pages .menu-page-image img'); const i = is[0]; if (is.length !== 1 || !i || !i.complete || !i.naturalWidth) return false; const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); return c.getContext('2d').getImageData(1, 1, 1, 1).data[2] > 150; }, null, { timeout: 4000 });
-    return (await page.evaluate(() => window.__marker)) === 'm' && isBlue(await pixel(page, '.menu-pages .menu-page-image img'));
+    await page.waitForFunction(() => { const is = document.querySelectorAll('.menu-slide img'); const i = is[0]; if (is.length !== 1 || document.querySelector('.slider-btn') || !i || !i.complete || !i.naturalWidth) return false; const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); return c.getContext('2d').getImageData(1, 1, 1, 1).data[2] > 150; }, null, { timeout: 4000 });
+    return (await page.evaluate(() => window.__marker)) === 'm' && isBlue(await pixel(page, '.menu-slide img'));
   })());
   // unpublish EN through the API -> fallback in EN mode
   await api.put('/api/admin/menu/pages/published', { json: { lang: 'en', published: false } });
   await clickLang(page, 'bg'); await page.waitForTimeout(300); await clickLang(page, 'en'); await page.waitForTimeout(700);
-  R.check('FL10 EN unpublished -> EN visitor falls back to the BG pages (2 pages, GREEN first)', (await page.locator('.menu-pages .menu-page-image img').count()) === 2 && isGreen(await pixel(page, '.menu-pages .menu-page-image img')));
+  R.check('FL10 EN unpublished -> EN visitor falls back to the BG pages (slider "Page 1 of 2", GREEN first)', (await page.locator('.menu-slider-count').innerText()) === 'Page 1 of 2' && isGreen(await pixel(page, '.menu-slide img')));
   await context.close();
   // dashboard
   await api.put('/api/admin/menu/pages/published', { json: { lang: 'en', published: true } });

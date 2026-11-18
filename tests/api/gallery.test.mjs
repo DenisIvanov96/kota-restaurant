@@ -39,7 +39,7 @@ describe('gallery API (D-51..D-53)', () => {
 
   test('GA0 fresh database: migration 007 applied, empty admin + public gallery, About not set, dashboard counts 0', async () => {
     assert.ok(dbq('SELECT name FROM schema_migrations').some((r) => r.name === '007_gallery.sql'));
-    assert.deepEqual((await list()), { max: 25, items: [] });
+    assert.deepEqual((await list()), { max: 50, items: [] });
     assert.deepEqual((await anon.get('/api/public/gallery')).data, { items: [] });
     assert.equal((await anon.get('/api/public/site')).data.about, null);
     const s = (await admin.get('/api/admin/settings')).data; assert.equal(s.aboutBg, null); assert.equal(s.aboutEn, null);
@@ -179,25 +179,25 @@ describe('gallery API (D-51..D-53)', () => {
     assert.equal((await add(img, 'big.png', 'image/png')).status, 413); assert.deepEqual(await tmpEmpty(), []); assert.deepEqual(ls('uploads'), []);
   });
 
-  test('GA6 25-item cap: 25 accepted, 26th -> 409 gallery_full (nothing stored); race of 3 concurrent uploads at 24 -> exactly one wins; tmp empty', async () => {
-    for (let i = 0; i < 25; i++) { const r = await add(png(100 + i), `p${i}.png`, 'image/png'); assert.equal(r.status, 201, `item ${i + 1}: ${r.status} ${r.text().slice(0, 100)}`); assert.equal(r.data.position, i + 1); }
-    assert.equal((await list()).items.length, 25);
-    const r = await add(png(200), 'p26.png', 'image/png');
+  test('GA6 50-item cap (D-62): 50 accepted, 51st -> 409 gallery_full (nothing stored); race of 3 concurrent uploads at 49 -> exactly one wins; tmp empty', async () => {
+    for (let i = 0; i < 50; i++) { const r = await add(png(100 + i), `p${i}.png`, 'image/png'); assert.equal(r.status, 201, `item ${i + 1}: ${r.status} ${r.text().slice(0, 100)}`); assert.equal(r.data.position, i + 1); }
+    assert.equal((await list()).items.length, 50);
+    const r = await add(png(200), 'p51.png', 'image/png');
     assert.equal(r.status, 409); assert.equal(r.data.error, 'gallery_full');
     assert.equal((await add(MP4, 'v.mp4', 'video/mp4')).status, 409);
-    assert.equal(ls('uploads').length, 25, 'rejected 26th leaves no file'); assert.deepEqual(await tmpEmpty(), []);
-    assert.equal((await admin.get('/api/admin/dashboard')).data.gallery.count, 25);
+    assert.equal(ls('uploads').length, 50, 'rejected 51st leaves no file'); assert.deepEqual(await tmpEmpty(), []);
+    assert.equal((await admin.get('/api/admin/dashboard')).data.gallery.count, 50);
     // 409 versus 415: type check still reports its own error when full (either is acceptable, but never 2xx)
     assert.ok([409, 415].includes((await add(PDF, 'x.pdf', 'application/pdf')).status));
-    // race at 24
-    const items = (await list()).items; assert.equal((await admin.del(`${G}/${items[24].id}`)).status, 204);
+    // race at 49
+    const items = (await list()).items; assert.equal((await admin.del(`${G}/${items[49].id}`)).status, 204);
     const rs = await Promise.all([0, 1, 2, 3].map((i) => add(png(300 + i), `r${i}.png`, 'image/png')));
     const st = rs.map((x) => x.status).sort();
     assert.deepEqual(st, [201, 409, 409, 409], `race statuses ${st}`);
-    const l = (await list()).items; assert.equal(l.length, 25); assert.deepEqual(l.map((x) => x.position), Array.from({ length: 25 }, (_, i) => i + 1), 'positions 1..25 contiguous, no duplicates');
-    assert.equal(ls('uploads').length, 25, 'losers leave no file'); assert.equal(dbq('SELECT COUNT(*) AS n FROM files')[0].n, 25);
+    const l = (await list()).items; assert.equal(l.length, 50); assert.deepEqual(l.map((x) => x.position), Array.from({ length: 50 }, (_, i) => i + 1), 'positions 1..50 contiguous, no duplicates');
+    assert.equal(ls('uploads').length, 50, 'losers leave no file'); assert.equal(dbq('SELECT COUNT(*) AS n FROM files')[0].n, 50);
     assert.deepEqual(await tmpEmpty(), []);
-    // concurrency at 25 with videos
+    // concurrency at 50 with videos
     const rs2 = await Promise.all([0, 1].map(() => add(MP4, 'v.mp4', 'video/mp4'))); assert.deepEqual(rs2.map((x) => x.status), [409, 409]);
   });
 
@@ -205,7 +205,7 @@ describe('gallery API (D-51..D-53)', () => {
     const before = (await list()).items.map((x) => x.id);
     const rev = [...before].reverse();
     const r = await admin.put(`${G}/order`, { json: { ids: rev } });
-    assert.equal(r.status, 200); assert.deepEqual(r.data.items.map((x) => x.id), rev); assert.deepEqual(r.data.items.map((x) => x.position), before.map((_, i) => i + 1)); assert.equal(r.data.max, 25);
+    assert.equal(r.status, 200); assert.deepEqual(r.data.items.map((x) => x.id), rev); assert.deepEqual(r.data.items.map((x) => x.position), before.map((_, i) => i + 1)); assert.equal(r.data.max, 50);
     assert.deepEqual((await list()).items.map((x) => x.id), rev);
     assert.deepEqual((await anon.get('/api/public/gallery')).data.items.map((x) => x.id), rev, 'public order follows');
     const bad = [
@@ -246,7 +246,7 @@ describe('gallery API (D-51..D-53)', () => {
     assert.equal((await admin.patch(`${G}/${b.id}`, { raw: '{bad', headers: { 'content-type': 'application/json' } })).status, 400);
     // SQL-looking / script-looking caption is stored verbatim and nothing else breaks
     r = await admin.patch(`${G}/${b.id}`, { json: { captionBg: "'); DROP TABLE gallery_items;--" } }); assert.equal(r.status, 200);
-    assert.equal((await list()).items.length, 25);
+    assert.equal((await list()).items.length, 50);
   });
 
   test('GA9 hidden items: public list omits them, /media returns 404 (also with Range, HEAD, conditional), admin media still serves them; unhide restores; dashboard counts', async () => {
@@ -256,18 +256,18 @@ describe('gallery API (D-51..D-53)', () => {
     const url = pubBefore.find((x) => x.id === h.id).url;
     assert.equal((await anon.get(url)).status, 200);
     let r = await admin.patch(`${G}/${h.id}`, { json: { visible: false } }); assert.equal(r.status, 200); assert.equal(r.data.visible, false);
-    assert.equal((await anon.get('/api/public/gallery')).data.items.length, 24); assert.ok(!(await anon.get('/api/public/gallery')).data.items.some((x) => x.id === h.id));
+    assert.equal((await anon.get('/api/public/gallery')).data.items.length, 49); assert.ok(!(await anon.get('/api/public/gallery')).data.items.some((x) => x.id === h.id));
     for (const hd of [{}, { range: 'bytes=0-9' }, { range: 'bytes=0-' }, { range: 'bytes=5-1' }, { 'if-none-match': '*' }, { 'if-modified-since': 'Sat, 01 Jan 2000 00:00:00 GMT' }]) {
       const g = await anon.req('GET', url, { headers: hd }); assert.equal(g.status, 404, `GET hidden ${JSON.stringify(hd)} -> ${g.status}`); assert.equal(g.data?.error, 'not_found');
     }
     assert.equal((await anon.req('HEAD', url)).status, 404);
     assert.equal((await anon.req('GET', url, { cookie: admin.cookie })).status, 404, '/media is public: even an admin cookie gets 404 for hidden');
     assert.equal((await admin.get(h.fileUrl)).status, 200, 'admin media still serves a hidden item');
-    const d = (await admin.get('/api/admin/dashboard')).data.gallery; assert.deepEqual(d, { count: 25, visible: 24 });
+    const d = (await admin.get('/api/admin/dashboard')).data.gallery; assert.deepEqual(d, { count: 50, visible: 49 });
     assert.equal((await admin.get(G)).data.items.find((x) => x.id === h.id).visible, false);
     r = await admin.patch(`${G}/${h.id}`, { json: { visible: true } }); assert.equal(r.status, 200);
     assert.equal((await anon.get(url)).status, 200); assert.equal((await anon.req('GET', url, { headers: { range: 'bytes=0-9' } })).status, 206);
-    assert.equal((await anon.get('/api/public/gallery')).data.items.length, 25);
+    assert.equal((await anon.get('/api/public/gallery')).data.items.length, 50);
     // hidden videos too
     await admin.put(`${G}/order`, { json: { ids: items.map((x) => x.id) } });
   });

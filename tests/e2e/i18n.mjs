@@ -208,21 +208,21 @@ await step('FILES', async () => {
   const f = (await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: makePng(800, 1100, [90, 90, 160]), name: 'menu.png', type: 'image/png' }) })).data;
   await admin.put('/api/admin/menu/pages/published', { json: { lang: 'bg', published: true } });
   await admin.put('/api/admin/menu/mode', { json: { mode: 'file' } });
-  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-pages img'); await page.waitForTimeout(300);
+  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-slide img'); await page.waitForTimeout(300);
   const mt = await page.locator('#menu-content').textContent();
-  const zl = await page.locator('.menu-pages .zoom-btn').getAttribute('aria-label');
-  R.check('FM1 EN file-mode image page (served from the BG set by fallback): alt "Menu — page 1", zoom label "Enlarge page 1 of 1"; D-49: NO "Download menu" / "Download page 1" / download attribute; no Cyrillic UI', (await page.locator('.menu-pages img').getAttribute('alt')) === 'Menu — page 1' && zl === 'Enlarge page 1 of 1' && !/Download/i.test(mt) && (await page.locator('a[download]').count()) === 0 && (await uiCyrillic(page)).length === 0, JSON.stringify({ mt, zl, c: await cyrillic(page) }));
+  const zl = await page.locator('.menu-slide .zoom-btn').getAttribute('aria-label');
+  R.check('FM1 EN file-mode image page (served from the BG set by fallback): alt "Menu — page 1", zoom label "Enlarge page 1 of 1"; D-49: NO "Download menu" / "Download page 1" / download attribute; no Cyrillic UI', (await page.locator('.menu-slide img').getAttribute('alt')) === 'Menu — page 1' && zl === 'Enlarge page 1 of 1' && !/Download/i.test(mt) && (await page.locator('a[download]').count()) === 0 && (await uiCyrillic(page)).length === 0, JSON.stringify({ mt, zl, c: await cyrillic(page) }));
   await clickLang(page, 'bg'); await settle(page);
-  R.check('FM2 file-mode image page EN->BG: no "Изтегли…" text (D-49), alt "Меню — страница 1", zoom "Увеличи страница 1 от 1"', !(await page.locator('#menu-content').textContent()).includes('Изтегли') && (await page.locator('a[download]').count()) === 0 && (await page.locator('.menu-pages img').getAttribute('alt')) === 'Меню — страница 1' && (await page.locator('.menu-pages .zoom-btn').getAttribute('aria-label')) === 'Увеличи страница 1 от 1');
+  R.check('FM2 file-mode image page EN->BG: no "Изтегли…" text (D-49), alt "Меню — страница 1", zoom "Увеличи страница 1 от 1"', !(await page.locator('#menu-content').textContent()).includes('Изтегли') && (await page.locator('a[download]').count()) === 0 && (await page.locator('.menu-slide img').getAttribute('alt')) === 'Меню — страница 1' && (await page.locator('.menu-slide .zoom-btn').getAttribute('aria-label')) === 'Увеличи страница 1 от 1');
   // PDF as the only page (add the PDF, then delete the image page)
   const pdf = (await admin.post('/api/admin/menu/pages', { form: form({ lang: 'bg' }, { field: 'file', buf: PDF, name: 'menu.pdf', type: 'application/pdf' }) })).data;
   await admin.del(`/api/admin/menu/pages/${f.id}`);
-  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-page-pdf'); await page.waitForTimeout(300);
+  await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-slide .pdf-card'); await page.waitForTimeout(300);
   const pt = await page.locator('#menu-content').textContent();
-  R.check('FM3 EN file-mode PDF page (390): card "PDF — page 1", "Open menu (PDF)", NO "Download" (D-49), no download attribute; no Cyrillic; links target=_blank rel=noopener', pt.includes('PDF — page 1') && pt.includes('Open menu (PDF)') && !/Download/i.test(pt) && (await page.locator('a[download]').count()) === 0 && (await page.locator('.menu-page-pdf a[target=_blank]').evaluateAll((as) => as.length > 0 && as.every((a) => /noopener/.test(a.rel)))) && (await uiCyrillic(page)).length === 0, JSON.stringify({ pt, c: await cyrillic(page) }));
+  R.check('FM3 EN file-mode PDF page (390): card "PDF — page 1", "Open menu (PDF)", NO "Download" (D-49), no download attribute; no Cyrillic; links target=_blank rel=noopener', pt.includes('PDF — page 1') && pt.includes('Open menu (PDF)') && !/Download/i.test(pt) && (await page.locator('a[download]').count()) === 0 && (await page.locator('.menu-slide .pdf-card a[target=_blank]').evaluateAll((as) => as.length > 0 && as.every((a) => /noopener/.test(a.rel)))) && (await uiCyrillic(page)).length === 0, JSON.stringify({ pt, c: await cyrillic(page) }));
   await clickLang(page, 'bg'); await settle(page);
   R.check('FM4 PDF page EN->BG: "PDF — страница 1", "Отвори меню (PDF)"', (await page.locator('#menu-content').textContent()).includes('PDF — страница 1') && (await page.locator('#menu-content').textContent()).includes('Отвори меню (PDF)'));
-  await page.setViewportSize({ width: 1280, height: 800 }); await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-page-pdf'); await page.waitForTimeout(300);
+  await page.setViewportSize({ width: 1280, height: 800 }); await page.goto(base + '/?lang=en', { waitUntil: 'networkidle' }); await page.waitForSelector('.menu-slide .pdf-card'); await page.waitForTimeout(300);
   R.check('FM5 EN PDF page at 1280: no Cyrillic UI, no h-scroll', (await uiCyrillic(page)).length === 0 && (await noHScroll(page)).ok, JSON.stringify(await cyrillic(page)));
   void pdf;
   await page.setViewportSize({ width: 390, height: 844 });

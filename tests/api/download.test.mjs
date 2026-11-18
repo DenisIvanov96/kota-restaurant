@@ -244,19 +244,19 @@ describe('admin menu download (D-49)', () => {
   });
 });
 
-describe('admin menu download: 10 pages x 50 MB (500 MB ZIP) streams from disk without buffering', () => {
+describe('admin menu download: 15 pages (10 x 50 MB + 5 small, 500 MB ZIP) streams from disk without buffering', () => {
   let dir; let srv; let admin;
   before(async () => { dir = tmpDir('dlbig'); createAdmin(dir); srv = await startServer({ port: PORT, dataDir: dir, now: T0 }); admin = new Client(srv.url); await admin.login(); });
   after(async () => { await srv.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
-  test('DL12 10 x 50 MB pages: ZIP downloads (Content-Length exact), `unzip -t` passes, entry CRCs match, server peak RSS growth < 150 MB', async () => {
+  test('DL12 10 x 50 MB + 5 small pages (15 = D-62 limit): ZIP downloads (Content-Length exact), `unzip -t` passes, entry CRCs match, server peak RSS growth < 150 MB', async () => {
     const heads = makePng(5, 5);
     const outZip = path.join(SCRATCH, `dlbig-${process.pid}.zip`);
     try {
-      for (let i = 0; i < 10; i++) {
-        const b = Buffer.alloc(50 * MB, i + 1); heads.copy(b);
+      for (let i = 0; i < 15; i++) {
+        const b = i < 10 ? Buffer.alloc(50 * MB, i + 1) : Buffer.alloc(1024, i + 1); heads.copy(b);
         const r = await admin.post('/api/admin/menu/pages', { form: mp({ lang: 'bg' }, [{ field: 'file', buf: b, type: 'image/png', name: `p${i}.png` }]) }); assert.equal(r.status, 201, `page ${i} ${r.status}`);
       }
-      assert.equal((await admin.post('/api/admin/menu/pages', { form: mp({ lang: 'bg' }, [{ field: 'file', buf: heads, type: 'image/png', name: 'x.png' }]) })).status, 409, '11th page blocked');
+      assert.equal((await admin.post('/api/admin/menu/pages', { form: mp({ lang: 'bg' }, [{ field: 'file', buf: heads, type: 'image/png', name: 'x.png' }]) })).status, 409, '16th page blocked (limit 15, D-62)');
       // pages stay UNPUBLISHED and the menu stays in structured mode: the admin ZIP does not depend on either
       const hwm = () => Number(/VmHWM:\s+(\d+)/.exec(fs.readFileSync(`/proc/${srv.pid}/status`, 'utf8'))[1]) / 1024;
       const before = hwm(); const t0 = Date.now();
@@ -269,9 +269,9 @@ describe('admin menu download: 10 pages x 50 MB (500 MB ZIP) streams from disk w
       console.log(`# DL12 ${(n / MB).toFixed(0)} MB zip in ${ms} ms; server peak RSS ${before.toFixed(0)} -> ${after_.toFixed(0)} MB`);
       assert.equal(n, len); assert.equal(fs.statSync(outZip).size, len);
       const t = spawnSync('unzip', ['-t', outZip], { encoding: 'utf8', maxBuffer: 1 << 24 });
-      assert.equal(t.status, 0, t.stdout.slice(-300) + t.stderr); assert.match(t.stdout, /No errors detected/); assert.equal((t.stdout.match(/OK\n/g) || []).length, 10);
-      const py = spawnSync('python3', ['-I', '-c', 'import zipfile,sys;z=zipfile.ZipFile(sys.argv[1]);print(z.testzip());print(len(z.namelist()));print(z.namelist()[0],z.namelist()[9])', outZip], { encoding: 'utf8' });
-      assert.match(py.stdout, /^None\n10\nkota1-menu-bg-page-01\.png kota1-menu-bg-page-10\.png/);
+      assert.equal(t.status, 0, t.stdout.slice(-300) + t.stderr); assert.match(t.stdout, /No errors detected/); assert.equal((t.stdout.match(/OK\n/g) || []).length, 15);
+      const py = spawnSync('python3', ['-I', '-c', 'import zipfile,sys;z=zipfile.ZipFile(sys.argv[1]);print(z.testzip());print(len(z.namelist()));print(z.namelist()[0],z.namelist()[14])', outZip], { encoding: 'utf8' });
+      assert.match(py.stdout, /^None\n15\nkota1-menu-bg-page-01\.png kota1-menu-bg-page-15\.png/);
       assert.ok(after_ - before < 150, `RSS grew ${(after_ - before).toFixed(0)} MB`);
     } finally { fs.rmSync(outZip, { force: true }); }
   });

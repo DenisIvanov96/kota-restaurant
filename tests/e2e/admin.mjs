@@ -322,7 +322,7 @@ await step('M', async () => {
   // T-38/T-43 (D-46): page manager per language; "Добави страници" opens a multi-select input and uploads start on selection
   await page.locator('input[type=file]').first().setInputFiles(file('menu.png', 'image/png', makePng(300, 400, [10, 120, 200])));
   await page.waitForSelector('.a-pagerow'); await page.waitForTimeout(300);
-  R.check('MN12 menu page uploaded via the page manager (unpublished), public unchanged; counter "1 от 10"', (await api.get('/api/admin/menu')).data.pages.bg.items.length === 1 && (await anon.get('/api/public/menu')).data.file === null && (await page.locator('.a-pagecount').innerText()).includes('1 от 10'));
+  R.check('MN12 menu page uploaded via the page manager (unpublished), public unchanged; counter "1 от 10"', (await api.get('/api/admin/menu')).data.pages.bg.items.length === 1 && (await anon.get('/api/public/menu')).data.file === null && (await page.locator('.a-pagecount').innerText()).includes('1 от 15'));
   await page.getByRole('switch', { name: /Публикувани — Български страници/ }).click(); await page.waitForTimeout(600);
   R.check('MN12b publish switch on: flag true in the API (mode still structured so the public menu is still structured)', (await api.get('/api/admin/menu')).data.pages.bg.published === true && (await anon.get('/api/public/menu')).data.file === null);
   await page.getByRole('radio', { name: /Файл/ }).check({ force: true }).catch(async () => { await page.locator('label.a-radio:has-text("Файл")').click(); });
