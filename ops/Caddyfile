@@ -19,7 +19,9 @@ kota.example.com {
 	}
 
 	log {
-		output file /var/log/caddy/kota-access.log
+		output file /var/log/caddy/kota-access.log {
+			roll_keep_for 336h  # 14 days, as stated on the privacy page
+		}
 		format json
 	}
 }
