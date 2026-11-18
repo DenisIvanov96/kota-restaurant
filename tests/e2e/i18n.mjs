@@ -77,7 +77,7 @@ for (const vp of VPS) {
     await clickLang(page, 'en'); await settle(page);
     const en = await bodyText(page);
     R.check(`HS2[${tag}] / EN: no horizontal scroll`, (await noHScroll(page)).ok, JSON.stringify(await noHScroll(page)));
-    R.check(`RT1[${tag}] / BG->EN: UI strings english (nav, hero, headings, contact labels), content english`, ['Menu', 'Daily Special', 'Reservation', 'Location', 'About', 'Contact', 'Opening hours', 'Jazz night', 'Live music', 'Salads', 'Shopska salad', 'Vitosha St 1, Sofia', 'Skip to content', 'For reservations:'].every((s) => en.includes(s)) && en.includes('Fresh food'), en.slice(0, 300).replace(/\n/g, '|'));
+    R.check(`RT1[${tag}] / BG->EN: UI strings english (nav, hero, headings, contact labels), content english`, ['Menu', 'Daily Specials', 'Reservation', 'Location', 'About', 'Contact', 'Opening hours', 'Jazz night', 'Live music', 'Salads', 'Shopska salad', 'Vitosha St 1, Sofia', 'Skip to content', 'For reservations:'].every((s) => en.includes(s)) && en.includes('Fresh food'), en.slice(0, 300).replace(/\n/g, '|'));
     R.check(`RT2[${tag}] / EN: <html lang=en>, title, meta description, aria-pressed, URL ?lang=en, localStorage`, (await lang(page)) === 'en' && (await page.title()) === 'Kota1 Restaurant' && /fresh food and a warm welcome/i.test(await page.locator('meta[name=description]').getAttribute('content')) && (await page.locator('.lang-btn[data-lang=en]').getAttribute('aria-pressed')) === 'true' && (await search(page)) === '?lang=en' && (await page.evaluate(() => localStorage.getItem('kota_lang'))) === 'en', JSON.stringify({ t: await page.title(), s: await search(page) }));
     const cy = await uiCyrillic(page);
     R.check(`CY1[${tag}] / EN: no Cyrillic UI strings (text, aria-label, alt, title, meta) outside the deliberate BG-fallback content`, cy.length === 0, JSON.stringify(cy));
@@ -90,7 +90,7 @@ for (const vp of VPS) {
     const d0 = await bodyText(page);
     await clickLang(page, 'en'); await settle(page);
     const d1 = await bodyText(page);
-    R.check(`DM1[${tag}] /daily-menu BG->EN: english h1, tag, date "Monday, 15 June 2026", buttons; <html lang=en>; title`, /Daily Special/.test(await page.locator('h1').textContent()) && d1.includes('Monday, 15 June 2026') && d1.includes('Today only') && d1.includes('Open in new tab') && d1.includes('Tap to enlarge') && (await lang(page)) === 'en' && (await page.title()).startsWith('Daily Special'), d1.replace(/\n/g, '|').slice(0, 300));
+    R.check(`DM1[${tag}] /daily-menu BG->EN: english h1, tag, date "Monday, 15 June 2026", buttons; <html lang=en>; title`, /Daily Specials/.test(await page.locator('h1').textContent()) && d1.includes('Monday, 15 June 2026') && d1.includes('Today only') && d1.includes('Open in new tab') && d1.includes('Tap to enlarge') && (await lang(page)) === 'en' && (await page.title()).startsWith('Daily Specials'), d1.replace(/\n/g, '|').slice(0, 300));
     R.check(`DM2[${tag}] /daily-menu EN: image alt english, no Cyrillic UI strings, no h-scroll`, (await page.locator('.viewer img').getAttribute('alt')) === 'Daily menu for Monday, 15 June 2026' && (await uiCyrillic(page, [])).length === 0 && (await noHScroll(page)).ok, JSON.stringify(await cyrillic(page)));
     await clickLang(page, 'bg'); await settle(page);
     R.check(`DM3[${tag}] /daily-menu EN->BG: identical to initial BG render`, (await bodyText(page)) === d0 && (await lang(page)) === 'bg' && (await search(page)) === '');
@@ -115,9 +115,9 @@ await step('PS', async () => {
   const hrefs = await page.locator('a[href]').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   const internal = hrefs.filter((h) => h === '/' || h.startsWith('/#') || h.startsWith('/daily-menu') || h.startsWith('/?'));
   R.check('LK1 EN: every internal page link (/, /#x, /daily-menu) carries lang=en; tel:/external untouched', internal.length >= 8 && internal.every((h) => /[?&]lang=en/.test(h)) && hrefs.some((h) => h.startsWith('tel:') && !h.includes('lang')), JSON.stringify(internal));
-  await page.getByRole('link', { name: 'Daily Special' }).last().click().catch(() => {});
+  await page.getByRole('link', { name: 'Daily Specials' }).last().click().catch(() => {});
   await page.waitForLoadState('networkidle'); await page.waitForTimeout(300);
-  R.check('PERS1 EN: nav link to /daily-menu keeps EN (URL ?lang=en, page english)', page.url().includes('/daily-menu?lang=en') && (await lang(page)) === 'en' && /Daily Special/.test(await page.locator('h1').textContent()), page.url());
+  R.check('PERS1 EN: nav link to /daily-menu keeps EN (URL ?lang=en, page english)', page.url().includes('/daily-menu?lang=en') && (await lang(page)) === 'en' && /Daily Specials/.test(await page.locator('h1').textContent()), page.url());
   // storage persistence, URL without param
   await page.goto(base + '/daily-menu', { waitUntil: 'networkidle' });
   R.check('PERS2 EN chosen earlier, open /daily-menu with no param: stays EN (localStorage), URL normalised to ?lang=en', (await lang(page)) === 'en' && (await search(page)) === '?lang=en', await search(page));
@@ -127,7 +127,7 @@ await step('PS', async () => {
   await page.goto(base + '/?lang=bg', { waitUntil: 'networkidle' }); await page.waitForSelector('.dish');
   R.check('URL1 storage=en but ?lang=bg => BG page, storage updated to bg', (await lang(page)) === 'bg' && (await page.locator('#menu-heading').textContent()) === 'Меню' && (await page.evaluate(() => localStorage.getItem('kota_lang'))) === 'bg');
   await page.goto(base + '/daily-menu?lang=en', { waitUntil: 'networkidle' });
-  R.check('URL2 storage=bg but /daily-menu?lang=en => EN', (await lang(page)) === 'en' && /Daily Special/.test(await page.locator('h1').textContent()));
+  R.check('URL2 storage=bg but /daily-menu?lang=en => EN', (await lang(page)) === 'en' && /Daily Specials/.test(await page.locator('h1').textContent()));
   await page.goto(base + '/?lang=fr', { waitUntil: 'networkidle' }); await page.waitForSelector('.dish');
   R.check('URL3 invalid ?lang=fr ignored: falls back to stored language (en), content loads, no 400 request', (await lang(page)) === 'en' && log.http4xx.length === 0 && (await page.locator('.dish').count()) > 0, JSON.stringify({ l: await lang(page), h: log.http4xx }));
   await page.goto(base + '/?lang=EN%3Cscript%3E', { waitUntil: 'networkidle' });
@@ -151,7 +151,7 @@ await step('LS', async () => {
   await clickLang(page, 'en'); await settle(page);
   R.check('LS3 switch BG->EN works without storage; nav link keeps ?lang=en', (await lang(page)) === 'en' && (await page.locator('.nav-daily a').getAttribute('href')).includes('lang=en'));
   await page.goto(base + '/daily-menu?lang=en', { waitUntil: 'networkidle' }); await page.waitForTimeout(300);
-  R.check('LS4 /daily-menu?lang=en works without storage', (await lang(page)) === 'en' && /Daily Special/.test(await page.locator('h1').textContent()));
+  R.check('LS4 /daily-menu?lang=en works without storage', (await lang(page)) === 'en' && /Daily Specials/.test(await page.locator('h1').textContent()));
   R.check('LS5 no page errors / console errors with storage blocked', await cleanLog(page, log), await logEv(page, log));
   await context.close();
   // Storage that throws on setItem only (quota / private mode)

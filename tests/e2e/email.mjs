@@ -90,6 +90,15 @@ await step('B6', async () => { // in-place language switch must not duplicate or
   await c.context.close();
 });
 
+await step('B7', async () => { // D-56: at >= 768 phone, email, social share one row, in that order
+  for (const lang of ['bg', 'en']) for (const vp of [VPS[1], VPS[2]]) {
+    const c = await visit(vp, '/', lang); await c.page.waitForSelector('#contact-email-item');
+    const h = await homeProbe(c.page); const [p, e, so] = h.boxes;
+    R.check(`B7[${lang} ${vp.name}] one row: phone, email, social left to right, same top, inside viewport`, h.boxes.length === 3 && Math.abs(e.t - p.t) < 8 && Math.abs(so.t - p.t) < 8 && e.l >= p.r - 1 && so.l >= e.r - 1 && so.r <= h.iw + 1, JSON.stringify(h.boxes));
+    await c.context.close();
+  }
+});
+
 // ============ C. long address, 390/768/1280, BG/EN, home + privacy ============
 await step('C', async () => {
   const LONG = 'l'.repeat(150) + '@' + 'm'.repeat(100) + '.bg'; // 254 chars, the maximum, no break opportunities
@@ -99,6 +108,8 @@ await step('C', async () => {
     let c = await visit(vp, '/', lang); await c.page.waitForSelector('#contact-email-item');
     const h = await homeProbe(c.page); const sh = await noHScroll(c.page);
     R.check(`C1[${lang} ${vp.name}] home, 254-char email: no horizontal scroll, link inside viewport, items do not overlap`, sh.ok && h.aRect.l >= -1 && h.aRect.r <= h.iw + 1 && h.text === LONG && h.boxes.every((a, i) => h.boxes.every((b, j) => i >= j || a.r <= b.l + 1 || b.r <= a.l + 1 || a.b <= b.t + 1 || b.b <= a.t + 1)), JSON.stringify({ sh, aRect: h.aRect, boxes: h.boxes }));
+    const rowInfo = await c.page.evaluate(() => { const a = document.querySelector('#contact-email-item a'); const dd = a.parentElement; const rows = [...document.getElementById('contact-list').children].filter((k) => k.getBoundingClientRect().height > 0).map((k) => Math.round(k.getBoundingClientRect().top)); return { clipped: a.getBoundingClientRect().right > dd.getBoundingClientRect().right + 1 || dd.scrollWidth > dd.clientWidth + 1, rows }; });
+    R.check(`C3[${lang} ${vp.name}] long email wraps inside its own cell (not clipped, not pushing the viewport); ${vp.width >= 768 ? 'D-56: with 3 items in one row they stay in one row' : 'stacked'}`, !rowInfo.clipped && (vp.width < 768 || new Set(rowInfo.rows.map((r) => Math.abs(r - rowInfo.rows[0]) < 8)).size === 1), JSON.stringify(rowInfo));
     await c.page.locator('#contact').screenshot({ path: path.join(shots, `email-long-home-${lang}-${vp.name}.png`) });
     await c.context.close();
     c = await visit(vp, '/privacy', lang);
