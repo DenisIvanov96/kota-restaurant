@@ -157,24 +157,48 @@ export function renderFileViewer(file, opts) {
 }
 
 /**
- * Multi-page file menu (D-46). file: { pages:[{fileUrl,mimeType,kind,width?,height?}] } or the old
- * single shape { fileUrl, kind } (treated as one page). Images stack full width with a shared lightbox
- * gallery; PDFs become cards with an open link.
+ * Multi-page file menu as a slider (D-46, D-63). file: { pages:[{fileUrl,mimeType,kind,width?,height?}] } or the old
+ * single shape { fileUrl, kind } (one page). One page at a time in a fixed-ratio frame; prev/next buttons (disabled at
+ * the ends), counter, arrow keys, swipe; click opens the lightbox on that page. Neighbours are preloaded, the rest lazy.
  * opts: { pdf: { open } }
  */
 export function renderMenuPages(file, opts = {}) {
   const t = (k, v) => tr(k, v);
   const pages = Array.isArray(file.pages) ? file.pages : [{ fileUrl: file.fileUrl, mimeType: file.mimeType, kind: file.kind }];
   const total = pages.length;
-  const wrap = el('div', 'menu-pages');
+  const wrap = el('div', 'menu-slider');
   const gallery = [];
   const galleryIdx = new Map();
   pages.forEach((p, i) => {
     if (p.kind !== 'pdf') { galleryIdx.set(i, gallery.length); gallery.push({ src: p.fileUrl, alt: t('menu.pageAlt', { n: i + 1 }), n: i + 1, m: total }); }
   });
-  pages.forEach((p, i) => {
-    const n = i + 1;
-    const fig = el('figure', 'menu-page ' + (p.kind === 'pdf' ? 'menu-page-pdf' : 'menu-page-image'));
+  const stage = el('div', 'menu-slide-stage');
+  const slide = el('figure', 'menu-slide');
+  stage.append(slide);
+  let cur = 0;
+  const preloaded = new Set();
+  const preload = (i) => {
+    const p = pages[i];
+    if (!p || p.kind === 'pdf' || preloaded.has(i)) return;
+    preloaded.add(i);
+    const im = new Image(); im.decoding = 'async'; im.src = p.fileUrl;
+  };
+  const counter = el('p', 'menu-slider-count');
+  counter.setAttribute('aria-live', 'polite');
+  const mkBtn = (cls, label, name) => {
+    const b = el('button', 'slider-btn ' + cls);
+    b.type = 'button';
+    b.setAttribute('aria-label', label);
+    b.append(icon(name));
+    return b;
+  };
+  const prev = mkBtn('slider-prev', t('lb.prev'), 'arrow-left');
+  const next = mkBtn('slider-next', t('lb.next'), 'arrow-right');
+
+  function draw() {
+    const p = pages[cur];
+    const n = cur + 1;
+    slide.replaceChildren();
     if (p.kind === 'pdf') {
       const card = el('div', 'pdf-card');
       card.append(icon('file-pdf'));
@@ -184,7 +208,7 @@ export function renderMenuPages(file, opts = {}) {
       open.href = p.fileUrl; open.target = '_blank'; open.rel = 'noopener';
       actions.append(open);
       card.append(actions);
-      fig.append(card);
+      slide.append(card);
     } else {
       const btn = el('button', 'zoom-btn');
       btn.type = 'button';
@@ -192,17 +216,46 @@ export function renderMenuPages(file, opts = {}) {
       const img = el('img');
       img.src = p.fileUrl;
       img.alt = t('menu.pageAlt', { n });
-      img.loading = 'lazy';
       img.decoding = 'async';
-      if (p.width > 0 && p.height > 0) { img.width = p.width; img.height = p.height; }
       btn.append(img);
-      btn.addEventListener('click', () => openLightbox(null, null, btn, { items: gallery, index: galleryIdx.get(i) }));
-      fig.append(btn);
+      btn.addEventListener('click', () => openLightbox(null, null, btn, { items: gallery, index: galleryIdx.get(cur) }));
+      slide.append(btn);
     }
-    const cap = el('figcaption', 'menu-page-cap');
-    if (total > 1) cap.append(document.createTextNode(t('page.of', { n, m: total })));
-    if (cap.childNodes.length) fig.append(cap);
-    wrap.append(fig);
+    preloaded.add(cur);
+    preload(cur - 1); preload(cur + 1);
+    if (total > 1) {
+      counter.textContent = t('page.of', { n, m: total });
+      prev.disabled = cur === 0;
+      next.disabled = cur === total - 1;
+    }
+  }
+  function go(d) {
+    const i = cur + d;
+    if (i < 0 || i >= total) return;
+    cur = i; draw();
+  }
+  draw();
+  if (total === 1) { wrap.append(stage); return wrap; }
+
+  const row = el('div', 'menu-slider-row');
+  row.append(prev, stage, next);
+  wrap.append(row, counter);
+  wrap.tabIndex = 0;
+  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('aria-roledescription', 'carousel');
+  prev.addEventListener('click', () => go(-1));
+  next.addEventListener('click', () => go(1));
+  wrap.addEventListener('keydown', (e) => {
+    if (e.target.closest && e.target.closest('a')) return;
+    if (e.key === 'ArrowLeft') { go(-1); e.preventDefault(); } else if (e.key === 'ArrowRight') { go(1); e.preventDefault(); }
   });
+  let x0 = null, y0 = null;
+  stage.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  stage.addEventListener('touchend', (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
+  }, { passive: true });
   return wrap;
 }
