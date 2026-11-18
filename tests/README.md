@@ -30,6 +30,8 @@ node --disable-warning=ExperimentalWarning tests/e2e/contact.mjs  # T-46 Contact
 node --disable-warning=ExperimentalWarning tests/e2e/gallery.mjs  # T-50 gallery + editable About: admin upload/reorder/visibility/delete/25-25, public grid, video lightbox, nav on 6 pages, XSS, a11y (ports 3201-3203, 3202; needs ffmpeg)
 node --disable-warning=ExperimentalWarning tests/e2e/bug19.mjs    # T-50 BUG-19/BUG-21 anchors: same-page nav, cross-page nav and direct /#section load land below the sticky bar (port 3201)
 BASE_DIR=<extracted git archive of cdcd451, node_modules symlinked> node --disable-warning=ExperimentalWarning tests/e2e/bug22.mjs  # T-51 BUG-22 header fit 768-959, 960+ unchanged vs BASE_DIR, same-page smooth scroll, admin 'Виж на сайта' (ports 3201-3204)
+node --disable-warning=ExperimentalWarning tests/e2e/slider.mjs   # T-62 home menu slider with 1/2/15 real pages (arrows, keyboard, swipe, lightbox at current page, eager loading, equal height 2 vs 15, 390/768/1280) + admin limits 15 pages / 50 gallery items (port 3202)
+node --disable-warning=ExperimentalWarning tests/e2e/daily2.mjs   # T-62 daily menu second page: admin wizard/edit, "2 стр.", XSS; public /daily-menu 1 image / 2 images / image+PDF, BG+EN, 390+1280, lightbox counter (port 3201)
 node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch polish: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link + injection (ports 3201-3203, ~4 min)
 ```
 
@@ -43,7 +45,8 @@ node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch 
 - `api/feedback1.test.mjs` - migration 003 matrix + 004 repair matrix, instagramUrl contract, /reservation route (port 3206).
 - `api/langs.test.mjs` - T-35 (port 3204): per-language event images, daily-menu files, menu files; bidirectional fallback; /media visibility of EN files (disabled/expired/not-today/in_use); imageEn/fileEn upload validation (fake types, oversize, unknown field, no orphans); auth/CSRF on changed routes; migration 005 on a 001..004 database; T-43: menu pages replace menu files (LF1-LF3).
 - `api/uploads.test.mjs` (3201), `api/cleanup.test.mjs` (3202), `api/download.test.mjs` (3203, T-46: admin-only ZIP, public route 404; needs `unzip` and `python3`), `api/migration006.test.mjs` (3204) - T-43: 50 MB uploads + tmp dir, D-45 daily cleanup, ZIP download, migration 006. They create up to 500 MB of files under `QA_SCRATCH` (removed when the suite ends).
-- `api/gallery.test.mjs` (3205) - T-50: gallery admin/public API, type spoofing, 50 MB, 25-item cap + race, order, hidden /media, Range 206/416, About text, XSS, restart.
+- `api/daily2.test.mjs` (3207) - T-62 (D-62): daily menu second pages (4 files), /media visibility, PUT end-state rules, spoofed/oversize second files, auth/CSRF, cleanup of 4 files.
+- `api/gallery.test.mjs` (3205) - T-50: gallery admin/public API, type spoofing, 50 MB, 50-item cap (D-62) + race, order, hidden /media, Range 206/416, About text, XSS, restart.
 - `e2e/pages.mjs` - T-43, see Run.
 - `e2e/langs.mjs` - T-35, see Run.
 - `e2e/feedback1.mjs`, `e2e/admin-dates.mjs` - see Run.
