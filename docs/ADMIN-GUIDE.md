@@ -94,7 +94,7 @@ Customers see one page at a time on the home page and flip with the ◀ ▶ arro
 
 ## 4a. Gallery (Галерия)
 - Upload up to **50** photos or videos (JPG, PNG, WebP, MP4, MOV, WebM), up to 50 MB each.
-- Put them in order with the arrows and publish or hide each item. Customers see published items on the **Галерия** page.
+- Use **Избери снимки или видео** (or drag files onto the box). Each item has an optional caption and a **Показвай в галерията** switch; customers see only shown items on the **Галерия** page. Remove an item with **Изтрий**.
 
 ## 5. Settings (Настройки)
 - **Site information:**
