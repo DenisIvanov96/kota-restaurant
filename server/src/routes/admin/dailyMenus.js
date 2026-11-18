@@ -8,11 +8,16 @@ import { HttpError, validationError, notFound, parseBool, parseId, has } from '.
 
 export function dailyMenuRoutes({ db, nowMs, files }) {
   const r = express.Router();
-  const upload = files.uploadFields(['file', 'fileEn']);
+  const upload = files.uploadFields(['file', 'file2', 'fileEn', 'fileEn2']);
   const cleanup = (exceptId) => purgePastDailyMenus({ db, files, nowMs }, exceptId);
   const SELECT = `SELECT d.*, f.stored_name, f.mime_type, f.original_name, f.size_bytes,
-      fe.stored_name AS stored_name_en, fe.mime_type AS mime_type_en, fe.original_name AS original_name_en, fe.size_bytes AS size_bytes_en
-    FROM daily_menus d LEFT JOIN files f ON f.id = d.file_id LEFT JOIN files fe ON fe.id = d.file_en_id`;
+      fe.stored_name AS stored_name_en, fe.mime_type AS mime_type_en, fe.original_name AS original_name_en, fe.size_bytes AS size_bytes_en,
+      f2.stored_name AS stored_name_2, f2.mime_type AS mime_type_2, f2.original_name AS original_name_2, f2.size_bytes AS size_bytes_2,
+      fe2.stored_name AS stored_name_en2, fe2.mime_type AS mime_type_en2, fe2.original_name AS original_name_en2, fe2.size_bytes AS size_bytes_en2
+    FROM daily_menus d LEFT JOIN files f ON f.id = d.file_id LEFT JOIN files fe ON fe.id = d.file_en_id
+      LEFT JOIN files f2 ON f2.id = d.file2_id LEFT JOIN files fe2 ON fe2.id = d.file2_en_id`;
+  // second pages: an object with the same fields as the first file, or null
+  const second = (name, mime, orig, size) => (name ? { fileUrl: fileUrlAdmin(name), mimeType: mime, kind: kindOf(mime), originalName: orig, sizeBytes: size } : null);
   // fileUrl & co. are null for an English-only menu (no Bulgarian file).
   const toObj = (d) => ({
     id: d.id, date: d.menu_date,
@@ -20,6 +25,8 @@ export function dailyMenuRoutes({ db, nowMs, files }) {
     originalName: d.original_name ?? null, sizeBytes: d.size_bytes ?? null,
     fileEnUrl: d.stored_name_en ? fileUrlAdmin(d.stored_name_en) : null, mimeTypeEn: d.mime_type_en ?? null,
     kindEn: d.mime_type_en ? kindOf(d.mime_type_en) : null, originalNameEn: d.original_name_en ?? null, sizeBytesEn: d.size_bytes_en ?? null,
+    file2: second(d.stored_name_2, d.mime_type_2, d.original_name_2, d.size_bytes_2),
+    fileEn2: second(d.stored_name_en2, d.mime_type_en2, d.original_name_en2, d.size_bytes_en2),
     published: !!d.published,
     createdAt: loc(d.created_at), updatedAt: loc(d.updated_at),
   });
@@ -28,7 +35,11 @@ export function dailyMenuRoutes({ db, nowMs, files }) {
   const conflict = (existingId) => new HttpError(409, 'date_exists', 'За тази дата вече има дневно меню.', { existingId });
 
   const withUploads = (req, fn) => files.withUpload(req.uploads.file, DOC_TYPES, 'file',
-    (sBg) => files.withUpload(req.uploads.fileEn, DOC_TYPES, 'fileEn', (sEn) => fn(sBg, sEn)));
+    (sBg) => files.withUpload(req.uploads.file2, DOC_TYPES, 'file2',
+      (sBg2) => files.withUpload(req.uploads.fileEn, DOC_TYPES, 'fileEn',
+        (sEn) => files.withUpload(req.uploads.fileEn2, DOC_TYPES, 'fileEn2', (sEn2) => fn(sBg, sBg2, sEn, sEn2)))));
+  const rowId = (staged) => (staged ? files.insertRow(staged) : null);
+  const anyUpload = (req) => !!(req.uploads.file || req.uploads.file2 || req.uploads.fileEn || req.uploads.fileEn2);
 
   r.get('/', (req, res) => {
     // today + upcoming only; past dates are deleted automatically (D-45)
@@ -46,24 +57,29 @@ export function dailyMenuRoutes({ db, nowMs, files }) {
       if (published === undefined) fields.published = 'Стойност true или false.';
     }
     if (!req.uploads.file && !req.uploads.fileEn) fields.file = 'Изберете поне един файл (български или английски).';
+    if (req.uploads.file2 && !req.uploads.file) fields.file2 = 'Втората страница изисква първа (български) страница.';
+    if (req.uploads.fileEn2 && !req.uploads.fileEn) fields.fileEn2 = 'Втората страница изисква първа (английска) страница.';
     if (Object.keys(fields).length) throw validationError(fields);
     const existing = dateTaken(b.date);
     const replace = parseBool(b.replace) === true;
     if (existing && !replace) throw conflict(existing.id);
     const oldNames = [];
-    const id = await withUploads(req, (sBg, sEn) => tx(db, () => {
-      const fid = sBg ? files.insertRow(sBg) : null;
-      const fidEn = sEn ? files.insertRow(sEn) : null;
+    const id = await withUploads(req, (sBg, sBg2, sEn, sEn2) => tx(db, () => {
+      const fid = rowId(sBg);
+      const fid2 = rowId(sBg2);
+      const fidEn = rowId(sEn);
+      const fidEn2 = rowId(sEn2);
       const now = nowMs();
       if (existing) {
         // replace = the date's menu becomes exactly what was submitted; files of the old menu are removed
-        const old = db.prepare('SELECT file_id, file_en_id FROM daily_menus WHERE id = ?').get(existing.id);
-        db.prepare('UPDATE daily_menus SET file_id = ?, file_en_id = ?, published = ?, updated_at = ? WHERE id = ?').run(fid, fidEn, published ? 1 : 0, now, existing.id);
-        for (const o of [old.file_id, old.file_en_id]) if (o) oldNames.push(files.deleteRow(o));
+        const old = db.prepare('SELECT file_id, file_en_id, file2_id, file2_en_id FROM daily_menus WHERE id = ?').get(existing.id);
+        db.prepare('UPDATE daily_menus SET file_id = ?, file_en_id = ?, file2_id = ?, file2_en_id = ?, published = ?, updated_at = ? WHERE id = ?')
+          .run(fid, fidEn, fid2, fidEn2, published ? 1 : 0, now, existing.id);
+        for (const o of [old.file_id, old.file_en_id, old.file2_id, old.file2_en_id]) if (o) oldNames.push(files.deleteRow(o));
         return existing.id;
       }
-      return Number(db.prepare('INSERT INTO daily_menus(menu_date, file_id, file_en_id, published, created_at, updated_at) VALUES (?,?,?,?,?,?)')
-        .run(b.date, fid, fidEn, published ? 1 : 0, now, now).lastInsertRowid);
+      return Number(db.prepare('INSERT INTO daily_menus(menu_date, file_id, file_en_id, file2_id, file2_en_id, published, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)')
+        .run(b.date, fid, fidEn, fid2, fidEn2, published ? 1 : 0, now, now).lastInsertRowid);
     }));
     for (const n of oldNames) if (n) await files.unlink(n);
     await cleanup(id);
@@ -84,23 +100,33 @@ export function dailyMenuRoutes({ db, nowMs, files }) {
       if (p === undefined) fields.published = 'Стойност true или false.'; else published = p;
     }
     const removeFileEn = parseBool(b.removeFileEn) === true;
-    if (!fields.date && !req.uploads.file && !(ex.file_id) && !req.uploads.fileEn && removeFileEn) {
-      fields.fileEn = 'Менюто трябва да има поне един файл.';
-    }
+    const removeFile2 = parseBool(b.removeFile2) === true;
+    const removeFileEn2 = parseBool(b.removeFileEn2) === true;
+    // end state of each language (an uploaded field wins over a remove flag)
+    const hasFirst = !!(req.uploads.file || ex.file_id);
+    const hasFirstEn = !!(req.uploads.fileEn || (ex.file_en_id && !removeFileEn));
+    const hasSecond = !!(req.uploads.file2 || (ex.file2_id && !removeFile2));
+    const hasSecondEn = !!(req.uploads.fileEn2 || (ex.file2_en_id && !removeFileEn2));
+    if (!hasFirst && !hasFirstEn) fields.fileEn = 'Менюто трябва да има поне един файл.';
+    if (hasSecond && !hasFirst) fields.file2 = 'Втората страница изисква първа (българска) страница.';
+    if (hasSecondEn && !hasFirstEn) fields.fileEn2 = 'Втората страница изисква първа (английска) страница.';
     if (Object.keys(fields).length) throw validationError(fields);
     const taken = dateTaken(date, id);
     if (taken) throw conflict(taken.id);
     const oldNames = [];
-    await withUploads(req, (sBg, sEn) => tx(db, () => {
+    await withUploads(req, (sBg, sBg2, sEn, sEn2) => tx(db, () => {
       const fid = sBg ? files.insertRow(sBg) : ex.file_id;
+      const fid2 = sBg2 ? files.insertRow(sBg2) : (removeFile2 ? null : ex.file2_id);
       const fidEn = sEn ? files.insertRow(sEn) : (removeFileEn ? null : ex.file_en_id);
-      db.prepare('UPDATE daily_menus SET menu_date = ?, file_id = ?, file_en_id = ?, published = ?, updated_at = ? WHERE id = ?')
-        .run(date, fid, fidEn, published ? 1 : 0, nowMs(), id);
-      if (ex.file_id && fid !== ex.file_id) oldNames.push(files.deleteRow(ex.file_id));
-      if (ex.file_en_id && fidEn !== ex.file_en_id) oldNames.push(files.deleteRow(ex.file_en_id));
+      const fidEn2 = sEn2 ? files.insertRow(sEn2) : (removeFileEn2 ? null : ex.file2_en_id);
+      db.prepare('UPDATE daily_menus SET menu_date = ?, file_id = ?, file_en_id = ?, file2_id = ?, file2_en_id = ?, published = ?, updated_at = ? WHERE id = ?')
+        .run(date, fid, fidEn, fid2, fidEn2, published ? 1 : 0, nowMs(), id);
+      for (const [oldId, newId] of [[ex.file_id, fid], [ex.file_en_id, fidEn], [ex.file2_id, fid2], [ex.file2_en_id, fidEn2]]) {
+        if (oldId && newId !== oldId) oldNames.push(files.deleteRow(oldId));
+      }
     }));
     for (const n of oldNames) if (n) await files.unlink(n);
-    if (req.uploads.file || req.uploads.fileEn) await cleanup(id);
+    if (anyUpload(req)) await cleanup(id);
     res.json(toObj(byId(id)));
   });
 
@@ -119,7 +145,7 @@ export function dailyMenuRoutes({ db, nowMs, files }) {
     if (!ex) throw notFound('Менюто не е намерено.');
     const olds = tx(db, () => {
       db.prepare('DELETE FROM daily_menus WHERE id = ?').run(id);
-      return [ex.file_id, ex.file_en_id].filter(Boolean).map((fid) => files.deleteRow(fid));
+      return [ex.file_id, ex.file_en_id, ex.file2_id, ex.file2_en_id].filter(Boolean).map((fid) => files.deleteRow(fid));
     });
     for (const n of olds) if (n) await files.unlink(n);
     res.status(204).end();

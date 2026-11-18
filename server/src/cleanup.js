@@ -9,11 +9,11 @@ import { tx } from './db.js';
  */
 export async function purgePastDailyMenus({ db, files, nowMs }, exceptId = 0) {
   try {
-    const rows = db.prepare('SELECT id, file_id, file_en_id FROM daily_menus WHERE menu_date < ? AND id <> ?').all(today(nowMs()), exceptId);
+    const rows = db.prepare('SELECT id, file_id, file_en_id, file2_id, file2_en_id FROM daily_menus WHERE menu_date < ? AND id <> ?').all(today(nowMs()), exceptId);
     for (const d of rows) {
       const names = tx(db, () => {
         db.prepare('DELETE FROM daily_menus WHERE id = ?').run(d.id);
-        return [d.file_id, d.file_en_id].filter(Boolean).map((fid) => files.deleteRow(fid));
+        return [d.file_id, d.file_en_id, d.file2_id, d.file2_en_id].filter(Boolean).map((fid) => files.deleteRow(fid));
       });
       for (const n of names) if (n) await files.unlink(n).catch(() => {});
     }

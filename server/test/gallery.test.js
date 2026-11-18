@@ -55,7 +55,7 @@ test('migration 007 applied: table + about settings exist; gallery starts empty'
   const s = await loggedIn();
   try {
     assert.equal(s.db.prepare("SELECT COUNT(*) n FROM schema_migrations WHERE name = '007_gallery.sql'").get().n, 1);
-    assert.deepEqual(await list(s), { max: 25, items: [] });
+    assert.deepEqual(await list(s), { max: 50, items: [] });
     assert.deepEqual((await pub(s)).data, { items: [] });
     assert.equal(s.db.prepare("SELECT COUNT(*) n FROM settings WHERE key IN ('about_bg','about_en')").get().n, 2);
   } finally { await s.close(); }
@@ -108,7 +108,7 @@ test('upload: JPG PNG WebP MP4 MOV WebM accepted with stored mime/kind; response
       assert.equal(m.status, 200); assert.equal(m.headers.get('content-type'), mime);
     }
     const l = await list(s);
-    assert.equal(l.max, 25); assert.deepEqual(l.items.map((x) => x.position), [1, 2, 3, 4, 5, 6]);
+    assert.equal(l.max, 50); assert.deepEqual(l.items.map((x) => x.position), [1, 2, 3, 4, 5, 6]);
     assert.deepEqual(l.items.map((x) => x.kind), ['image', 'image', 'image', 'video', 'video', 'video']);
     assert.equal(s.uploads().length, 6);
   } finally { await s.close(); }
@@ -203,50 +203,49 @@ test('size: exactly 50 MB accepted, 50 MB + 1 byte -> 413 file_too_large; fixtur
   assert.equal(fs.existsSync(dir), false);
 });
 
-test('limit: 25 items OK, the 26th -> 409 gallery_full (nothing stored); delete frees a slot', async () => {
+test('limit: 50 items OK, the 51st -> 409 gallery_full (nothing stored); delete frees a slot', async () => {
   const s = await loggedIn();
   try {
     const ids = [];
-    for (let i = 0; i < 25; i++) { const r = await add(s, i % 2 ? MP4F : PNGF); assert.equal(r.status, 201, `#${i + 1}`); ids.push(r.data.id); }
+    for (let i = 0; i < 50; i++) { const r = await add(s, i % 2 ? MP4F : PNGF); assert.equal(r.status, 201, `#${i + 1}`); ids.push(r.data.id); }
     const r = await add(s, PNGF);
     assert.equal(r.status, 409); assert.equal(r.data.error, 'gallery_full');
     // a bad file at the limit is also refused with 409 before anything is stored
     assert.equal((await add(s, F(Buffer.from('x'), 'a.txt', 'text/plain'))).status, 409);
-    assert.equal(s.uploads().length, 25);
-    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM files').get().n, 25);
+    assert.equal(s.uploads().length, 50);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM files').get().n, 50);
     assert.ok(await tmpEmpty(s));
     assert.equal((await s.api.del(`/api/admin/gallery/${ids[10]}`)).status, 204);
     const again = await add(s, WEBMF);
-    assert.equal(again.status, 201); assert.equal(again.data.position, 25);
-    assert.deepEqual((await list(s)).items.map((x) => x.position), Array.from({ length: 25 }, (_, i) => i + 1));
+    assert.equal(again.status, 201); assert.equal(again.data.position, 50);
+    assert.deepEqual((await list(s)).items.map((x) => x.position), Array.from({ length: 50 }, (_, i) => i + 1));
   } finally { await s.close(); }
 });
 
-test('limit is race-safe: 30 concurrent uploads -> exactly 25 created, 5 x 409, no orphan files or rows', async () => {
+test('limit is race-safe: concurrent uploads on the last free slots -> exactly 50 in total, the rest 409, no orphan files or rows', async () => {
   const s = await loggedIn();
   try {
-    const res = await Promise.all(Array.from({ length: 30 }, (_, i) => add(s, i % 3 === 0 ? MP4F : PNGF)));
-    const codes = res.map((r) => r.status);
-    assert.equal(codes.filter((c) => c === 201).length, 25, JSON.stringify(codes));
+    // 45 stored, then 10 at once -> 5 created, 5 x 409
+    for (let i = 0; i < 45; i++) assert.equal((await add(s)).status, 201);
+    const wave = await Promise.all(Array.from({ length: 10 }, (_, i) => add(s, i % 3 === 0 ? MP4F : PNGF)));
+    const codes = wave.map((r) => r.status);
+    assert.equal(codes.filter((c) => c === 201).length, 5, JSON.stringify(codes));
     assert.equal(codes.filter((c) => c === 409).length, 5, JSON.stringify(codes));
-    assert.ok(res.filter((r) => r.status === 409).every((r) => r.data.error === 'gallery_full'));
+    assert.ok(wave.filter((r) => r.status === 409).every((r) => r.data.error === 'gallery_full'));
     const l = await list(s);
-    assert.equal(l.items.length, 25);
-    assert.deepEqual(l.items.map((x) => x.position), Array.from({ length: 25 }, (_, i) => i + 1));
-    assert.equal(new Set(l.items.map((x) => x.id)).size, 25);
-    assert.equal(s.uploads().length, 25);
-    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM files').get().n, 25);
+    assert.equal(l.items.length, 50);
+    assert.deepEqual(l.items.map((x) => x.position), Array.from({ length: 50 }, (_, i) => i + 1));
+    assert.equal(new Set(l.items.map((x) => x.id)).size, 50);
+    assert.equal(s.uploads().length, 50);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM files').get().n, 50);
     assert.ok(await tmpEmpty(s));
-    // second wave starting from 20 items: 10 concurrent -> 5 created
-    const s2 = await loggedIn();
-    try {
-      for (let i = 0; i < 20; i++) assert.equal((await add(s2)).status, 201);
-      const wave = await Promise.all(Array.from({ length: 10 }, () => add(s2, MP4F)));
-      assert.equal(wave.filter((r) => r.status === 201).length, 5);
-      assert.equal(wave.filter((r) => r.status === 409).length, 5);
-      assert.equal(s2.uploads().length, 25);
-      assert.equal(s2.db.prepare('SELECT COUNT(*) n FROM gallery_items').get().n, 25);
-    } finally { await s2.close(); }
+    // exactly one free slot (49 stored) and 8 racers -> one winner
+    assert.equal((await s.api.del(`/api/admin/gallery/${l.items[0].id}`)).status, 204);
+    const last = await Promise.all(Array.from({ length: 8 }, () => add(s, PNGF)));
+    assert.equal(last.filter((r) => r.status === 201).length, 1);
+    assert.equal(last.filter((r) => r.status === 409).length, 7);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM gallery_items').get().n, 50);
+    assert.equal(s.uploads().length, 50);
   } finally { await s.close(); }
 });
 
@@ -256,7 +255,7 @@ test('order: full permutation required (400 otherwise), positions renumbered, pu
     const [a, b, c] = [await add(s, PNGF, { captionBg: 'A' }), await add(s, MP4F, { captionBg: 'B' }), await add(s, JPGF, { captionBg: 'C' })];
     const [ia, ib, ic] = [a.data.id, b.data.id, c.data.id];
     const r = await s.api.put('/api/admin/gallery/order', { ids: [ic, ia, ib] });
-    assert.equal(r.status, 200); assert.equal(r.data.max, 25);
+    assert.equal(r.status, 200); assert.equal(r.data.max, 50);
     assert.deepEqual(r.data.items.map((x) => [x.id, x.position]), [[ic, 1], [ia, 2], [ib, 3]]);
     for (const ids of [[ia, ib], [ia, ia, ib], [ia, ib, ic, 999], [ia, ib, 999], [], 'x', [1.5, 2, 3], [String(ia), String(ib), String(ic)], null, undefined, { 0: ia }]) {
       const bad = await s.api.put('/api/admin/gallery/order', { ids }); assert.equal(bad.status, 400, JSON.stringify(ids)); assert.ok(bad.data.fields.ids);

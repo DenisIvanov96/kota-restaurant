@@ -115,7 +115,7 @@ export const fileUrlAdmin = (stored) => `/api/admin/media/${stored}`;
 // ----- regular menu pages (file mode, D-46) -----
 const flagKey = (lang) => `menu_pages_published_${lang}`;
 const stampKey = (lang) => `menu_pages_updated_${lang}`;
-export const MAX_MENU_PAGES = 10;
+export const MAX_MENU_PAGES = 15;
 
 export const pagesFlag = (db, lang) => getSetting(db, flagKey(lang)) === '1';
 export const setPagesFlag = (db, lang, on) => setSetting(db, flagKey(lang), on ? '1' : '0');
@@ -154,7 +154,7 @@ export function publicMenuPages(db, lang) {
 }
 
 // ----- gallery (D-51) -----
-export const MAX_GALLERY_ITEMS = 25;
+export const MAX_GALLERY_ITEMS = 50;
 
 export function galleryRows(db) {
   return db.prepare(`SELECT g.*, f.stored_name, f.mime_type, f.size_bytes FROM gallery_items g JOIN files f ON f.id = g.file_id
@@ -168,7 +168,7 @@ export function isPubliclyVisible(db, storedName, now) {
   const ev = db.prepare(`SELECT 1 FROM events WHERE (image_file_id = ? OR image_en_file_id = ?) AND enabled = 1
       AND (starts_at IS NULL OR starts_at <= ?) AND (expires_at IS NULL OR expires_at > ?)`).get(f.id, f.id, now, now);
   if (ev) return true;
-  if (db.prepare('SELECT 1 FROM daily_menus WHERE (file_id = ? OR file_en_id = ?) AND published = 1 AND menu_date = ?').get(f.id, f.id, today(now))) return true;
+  if (db.prepare('SELECT 1 FROM daily_menus WHERE (file_id = ? OR file_en_id = ? OR file2_id = ? OR file2_en_id = ?) AND published = 1 AND menu_date = ?').get(f.id, f.id, f.id, f.id, today(now))) return true;
   if (db.prepare('SELECT 1 FROM gallery_items WHERE file_id = ? AND visible = 1').get(f.id)) return true;
   if (getSetting(db, 'menu_mode') === 'file') {
     const page = db.prepare('SELECT lang FROM menu_files WHERE file_id = ?').get(f.id);

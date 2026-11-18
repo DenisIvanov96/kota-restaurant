@@ -49,19 +49,19 @@ test('add pages: 201 object, appended positions, per-language sets, default lang
   } finally { await s.close(); }
 });
 
-test('limit: 10 pages per language, 11th -> 409 too_many_pages (nothing stored); other language unaffected; delete frees a slot', async () => {
+test('limit: 15 pages per language, 16th -> 409 too_many_pages (nothing stored); other language unaffected; delete frees a slot', async () => {
   const s = await loggedIn();
   try {
     const ids = [];
-    for (let i = 0; i < 10; i++) { const r = await add(s, 'bg'); assert.equal(r.status, 201); ids.push(r.data.id); }
+    for (let i = 0; i < 15; i++) { const r = await add(s, 'bg'); assert.equal(r.status, 201); ids.push(r.data.id); }
     const r = await add(s, 'bg');
     assert.equal(r.status, 409); assert.equal(r.data.error, 'too_many_pages');
-    assert.equal(s.uploads().length, 10);
-    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM files').get().n, 10);
+    assert.equal(s.uploads().length, 15);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM files').get().n, 15);
     assert.equal((await add(s, 'en')).status, 201);
     assert.equal((await s.api.del(`/api/admin/menu/pages/${ids[3]}`)).status, 204);
     assert.equal((await add(s, 'bg')).status, 201);
-    assert.deepEqual((await adminPages(s)).bg.items.map((x) => x.position), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    assert.deepEqual((await adminPages(s)).bg.items.map((x) => x.position), Array.from({ length: 15 }, (_, i) => i + 1));
   } finally { await s.close(); }
 });
 

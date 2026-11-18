@@ -190,6 +190,8 @@ export function createFiles({ db, dataDir, nowMs }) {
         UNION SELECT image_en_file_id FROM events WHERE image_en_file_id IS NOT NULL
         UNION SELECT file_id FROM daily_menus WHERE file_id IS NOT NULL
         UNION SELECT file_en_id FROM daily_menus WHERE file_en_id IS NOT NULL
+        UNION SELECT file2_id FROM daily_menus WHERE file2_id IS NOT NULL
+        UNION SELECT file2_en_id FROM daily_menus WHERE file2_en_id IS NOT NULL
         UNION SELECT file_id FROM menu_files
         UNION SELECT file_id FROM gallery_items)`).all();
       for (const r of rows) {

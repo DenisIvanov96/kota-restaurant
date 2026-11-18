@@ -45,13 +45,18 @@ export function publicApi({ db, nowMs, files }) {
   r.get('/daily-menu', (req, res) => {
     const t = today(nowMs());
     const d = db.prepare('SELECT * FROM daily_menus WHERE menu_date = ? AND published = 1').get(t);
-    const fid = d ? pickAny(req.lang, d.file_id, d.file_en_id) : null;
-    const f = fid ? db.prepare('SELECT stored_name, mime_type FROM files WHERE id = ?').get(fid) : null;
-    const row = f ? { ...d, ...f } : null;
+    // The language is chosen per menu (requested one if it has a first file, else the other), then both of ITS pages are used: no mixing.
+    let pages = [];
+    if (d) {
+      const [first, second] = req.lang === 'en' ? [[d.file_en_id, d.file2_en_id], [d.file_id, d.file2_id]] : [[d.file_id, d.file2_id], [d.file_en_id, d.file2_en_id]];
+      pages = (first[0] ? first : second).filter(Boolean);
+    }
+    const rows = pages.map((fid) => db.prepare('SELECT stored_name, mime_type FROM files WHERE id = ?').get(fid)).filter(Boolean);
+    const toFile = (f) => ({ fileUrl: fileUrlPublic(f.stored_name), mimeType: f.mime_type, kind: kindOf(f.mime_type) });
     res.json({
       lang: req.lang,
       today: t,
-      menu: row ? { date: row.menu_date, fileUrl: fileUrlPublic(row.stored_name), mimeType: row.mime_type, kind: kindOf(row.mime_type), updatedAt: loc(row.updated_at) } : null,
+      menu: rows.length ? { date: d.menu_date, ...toFile(rows[0]), files: rows.map(toFile), updatedAt: loc(d.updated_at) } : null,
     });
   });
 
