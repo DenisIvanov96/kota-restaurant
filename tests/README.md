@@ -31,6 +31,7 @@ node --disable-warning=ExperimentalWarning tests/e2e/gallery.mjs  # T-50 gallery
 node --disable-warning=ExperimentalWarning tests/e2e/bug19.mjs    # T-50 BUG-19/BUG-21 anchors: same-page nav, cross-page nav and direct /#section load land below the sticky bar (port 3201)
 BASE_DIR=<extracted git archive of cdcd451, node_modules symlinked> node --disable-warning=ExperimentalWarning tests/e2e/bug22.mjs  # T-51 BUG-22 header fit 768-959, 960+ unchanged vs BASE_DIR, same-page smooth scroll, admin 'Виж на сайта' (ports 3201-3204)
 node --disable-warning=ExperimentalWarning tests/e2e/slider.mjs   # T-62 home menu slider with 1/2/15 real pages (arrows, keyboard, swipe, lightbox at current page, eager loading, equal height 2 vs 15, 390/768/1280) + admin limits 15 pages / 50 gallery items (port 3202)
+node --disable-warning=ExperimentalWarning tests/e2e/lightbox-focus.mjs  # T-64 lightbox focus containment on the home slider and /daily-menu at 390/1280: Tab/Shift+Tab, Enter on next/prev to the disabled end, Escape/close restore focus (port 3203)
 node --disable-warning=ExperimentalWarning tests/e2e/daily2.mjs   # T-62 daily menu second page: admin wizard/edit, "2 стр.", XSS; public /daily-menu 1 image / 2 images / image+PDF, BG+EN, 390+1280, lightbox counter (port 3201)
 node --disable-warning=ExperimentalWarning tests/e2e/launch.mjs   # T-25 launch polish: fonts/CSP/404/SITE_URL/OG/favicons/privacy/map link + injection (ports 3201-3203, ~4 min)
 ```

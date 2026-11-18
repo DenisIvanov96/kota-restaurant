@@ -146,6 +146,81 @@ await step('AD3', async () => {
   } finally { while (await admin.locator('dialog[open]').count()) { await admin.keyboard.press('Escape'); await admin.waitForTimeout(250); } }
 });
 
+await step('AD5', async () => {
+  // T-64 (BUG-26 retest): re-entrancy of the wizard / edit dialog redraw when the first page is removed while a second page exists
+  while (await admin.locator('dialog[open]').count()) { await admin.keyboard.press('Escape'); await admin.waitForTimeout(250); }
+  await wipe();
+  // --- wizard, EN-first variant
+  await go(admin, '#/'); await go(admin, '#/daily-menu'); await admin.waitForSelector('h3:has-text("Избери файлове")');
+  const bgSec = admin.locator('section.a-fileslang[lang=bg]'); const enSec = admin.locator('section.a-fileslang[lang=en]');
+  await enSec.locator('input[type=file]').first().setInputFiles(F('en-a.png', pg(0)));
+  await enSec.locator('input[type=file]').nth(1).setInputFiles(F('en-b.png', pg(1)));
+  const enClear = enSec.getByRole('button', { name: /Премахни|Изчисти|Махни/ });
+  R.check('AD5a EN first + EN second chosen: EN block has 2 file inputs and >= 2 remove controls', (await enSec.locator('input[type=file]').count()) === 2 && (await enClear.count()) >= 2, String(await enClear.count()));
+  await enClear.first().click(); await admin.waitForTimeout(300);
+  const inputsAfter = await admin.locator('.a-step input[type=file]').count();
+  R.check('AD5b wizard EN-first: removing the EN first file drops the EN second slot, Next disabled, BOTH blocks still offer a file chooser (2 inputs: 1 BG + 1 EN)', (await enSec.getByText('Втора страница (по избор)').count()) === 0 && (await admin.getByRole('button', { name: 'Напред' }).isDisabled()) && inputsAfter === 2 && (await enSec.locator('input[type=file]').count()) === 1 && (await bgSec.locator('input[type=file]').count()) === 1, `inputs=${inputsAfter}`);
+  // no dead end: the uploaders still work after the removal
+  await enSec.locator('input[type=file]').first().setInputFiles(F('en-c.png', pg(2)));
+  await bgSec.locator('input[type=file]').first().setInputFiles(F('bg-c.png', pg(3)));
+  R.check('AD5c after the removal both uploaders accept files again (EN second slot reappears, BG second slot appears, Next enabled)', (await enSec.getByText('Втора страница (по избор)').count()) === 1 && (await bgSec.getByText('Втора страница (по избор)').count()) === 1 && (await admin.getByRole('button', { name: 'Напред' }).isEnabled()));
+  // BG variant again, removing the BG first file when BOTH languages have two files (the other language must be untouched)
+  await enSec.locator('input[type=file]').nth(1).setInputFiles(F('en-d.png', pg(4)));
+  await bgSec.locator('input[type=file]').nth(1).setInputFiles(F('bg-d.png', pg(5)));
+  await bgSec.getByRole('button', { name: /Премахни|Изчисти|Махни/ }).first().click(); await admin.waitForTimeout(300);
+  R.check('AD5d removing the BG first file with 2+2 files chosen: BG block back to 1 input, EN block keeps its 2 files and the "en-d.png" name', (await bgSec.locator('input[type=file]').count()) === 1 && (await enSec.locator('input[type=file]').count()) === 2 && (await enSec.innerText()).includes('en-d.png') && (await admin.locator('.a-step input[type=file]').count()) === 3);
+  await go(admin, '#/'); await go(admin, '#/daily-menu'); await admin.waitForSelector('h3:has-text("Избери файлове")');
+
+  // --- edit dialog variants
+  await wipe();
+  const openEdit = async (id) => { await admin.reload({ waitUntil: 'networkidle' }); await admin.waitForSelector('article.a-menu'); await admin.locator('article.a-menu').first().getByRole('button', { name: 'Редактирай' }).click(); await admin.waitForSelector('dialog[open] h2:has-text("Редактиране на меню")'); const d = admin.locator('dialog[open]'); return { d, bg: d.locator('.a-form > .a-field').nth(1), en: d.locator('.a-form > .a-field').nth(2) }; };
+  const closeDlg = async () => { while (await admin.locator('dialog[open]').count()) { await admin.keyboard.press('Escape'); await admin.waitForTimeout(250); } };
+  const nIn = (box) => box.locator('input[type=file]').count();
+  // E1: existing EN first + second; choose a replacement second page, then REMOVE the EN first
+  let m = await mk(TODAY, 'true', [A('file', 0, 'b1.png'), A('fileEn', 1, 'e1.png'), A('fileEn2', 2, 'e2.png')]);
+  let o = await openEdit();
+  await o.en.locator('input[type=file]').nth(1).setInputFiles(F('e2-new.png', pg(3)));
+  R.check('AD5e dialog: replacement EN second page chosen (name shown), EN block has 2 inputs', (await o.en.innerText()).includes('e2-new.png') && (await nIn(o.en)) === 2);
+  R.check('AD5f BUG-24 wording: the EN first-file buttons read "Премахни английския файл" (not "...Английският...")', (await o.en.getByRole('button', { name: 'Премахни английския файл' }).count()) === 1, JSON.stringify(await o.en.getByRole('button').allInnerTexts()));
+  await o.en.getByRole('button', { name: 'Премахни английския файл' }).click(); await admin.waitForTimeout(300);
+  R.check('AD5g dialog: removing the EN first file while a replacement second page is chosen keeps the first-file uploader (1 input, no second slot), shows the info + "Върни английския файл" (BUG-24 wording); BG block intact (2 inputs)', (await nIn(o.en)) === 1 && (await o.en.getByText('Втора страница (по избор)').count()) === 0 && (await o.en.getByText('Английският файл ще бъде премахнат при запазване.').count()) === 1 && (await o.en.getByRole('button', { name: 'Върни английския файл' }).count()) === 1 && (await nIn(o.bg)) === 2, `en inputs=${await nIn(o.en)} bg=${await nIn(o.bg)} | ${(await o.en.innerText()).replace(/\n/g, '|')}`);
+  await o.en.getByRole('button', { name: 'Върни английския файл' }).click(); await admin.waitForTimeout(300);
+  R.check('AD5h undo ("Върни английския файл") restores the second-page slot (2 inputs) and the "Премахни английския файл" button; dialog still usable', (await nIn(o.en)) === 2 && (await o.en.getByRole('button', { name: 'Премахни английския файл' }).count()) === 1);
+  // no dead end: choose a new EN first file after removing
+  await o.en.getByRole('button', { name: 'Премахни английския файл' }).click(); await admin.waitForTimeout(200);
+  await o.en.locator('input[type=file]').first().setInputFiles(F('e1-new.png', pg(4))); await admin.waitForTimeout(300);
+  R.check('AD5i after removing, choosing a replacement EN first file works (name shown, second slot returns, "ще бъде премахнат" info gone)', (await o.en.innerText()).includes('e1-new.png') && (await o.en.getByText('Втора страница (по избор)').count()) === 1 && (await o.en.getByText('Английският файл ще бъде премахнат при запазване.').count()) === 0);
+  await o.d.getByRole('button', { name: 'Запази' }).click(); await admin.waitForSelector('.a-toast:has-text("Менюто е обновено.")'); await admin.waitForTimeout(400);
+  let cur = (await api.get(D)).data.menus.find((x) => x.id === m.id);
+  R.check('AD5j saved: EN first replaced by e1-new.png; the chosen e2-new.png is not lost-and-not-broken (server accepts, no 400)', cur.originalNameEn === 'e1-new.png' && (cur.fileEn2?.originalName === 'e2-new.png' || cur.fileEn2?.originalName === 'e2.png' || cur.fileEn2 === null), JSON.stringify([cur.originalNameEn, cur.fileEn2?.originalName]));
+  await closeDlg();
+  // E2: menu without EN: choose EN first + EN second in the dialog, then remove the new EN first via the uploader
+  await wipe();
+  m = await mk(TODAY, 'true', [A('file', 0, 'b1.png'), A('file2', 1, 'b2.png')]);
+  o = await openEdit();
+  await o.en.locator('input[type=file]').first().setInputFiles(F('x1.png', pg(2)));
+  await o.en.locator('input[type=file]').nth(1).setInputFiles(F('x2.png', pg(3)));
+  R.check('AD5k dialog, no EN yet: EN first + second chosen -> 2 inputs, both names shown', (await nIn(o.en)) === 2 && (await o.en.innerText()).includes('x1.png') && (await o.en.innerText()).includes('x2.png'));
+  await o.en.getByRole('button', { name: /Премахни|Изчисти|Махни/ }).first().click(); await admin.waitForTimeout(300);
+  R.check('AD5l dialog: removing the new EN first file (second chosen) leaves a working EN uploader (1 input, no second slot) and an intact BG block (2 inputs) - no dead end', (await nIn(o.en)) === 1 && (await o.en.getByText('Втора страница (по избор)').count()) === 0 && (await nIn(o.bg)) === 2, `en=${await nIn(o.en)} bg=${await nIn(o.bg)} | ${(await o.en.innerText()).replace(/\n/g, '|')}`);
+  await o.en.locator('input[type=file]').first().setInputFiles(F('x3.png', pg(4))); await admin.waitForTimeout(250);
+  R.check('AD5m the EN uploader still accepts a file afterwards', (await o.en.innerText()).includes('x3.png') && (await nIn(o.en)) === 2);
+  await closeDlg();
+  // E3: BG existing first + second; choose replacement second, then replace the first and remove the replacement first
+  await wipe();
+  m = await mk(TODAY, 'true', [A('file', 0, 'b1.png'), A('file2', 1, 'b2.png')]);
+  o = await openEdit();
+  await o.bg.locator('input[type=file]').nth(1).setInputFiles(F('b2-new.png', pg(2)));
+  await o.bg.locator('input[type=file]').first().setInputFiles(F('b1-new.png', pg(3))); await admin.waitForTimeout(250);
+  await o.bg.getByRole('button', { name: /Премахни|Изчисти|Махни/ }).first().click(); await admin.waitForTimeout(300);
+  R.check('AD5n dialog BG: replacement second + replacement first chosen, then the replacement first removed: both BG uploaders remain (2 inputs), current file b1.png shown, second slot still there', (await nIn(o.bg)) === 2 && (await o.bg.innerText()).includes('Текущ файл: b1.png') && (await o.bg.getByText('Втора страница (по избор)').count()) === 1, `bg=${await nIn(o.bg)} | ${(await o.bg.innerText()).replace(/\n/g, '|').slice(0, 300)}`);
+  await o.d.getByRole('button', { name: 'Запази' }).click(); await admin.waitForSelector('.a-toast:has-text("Менюто е обновено.")'); await admin.waitForTimeout(400);
+  cur = (await api.get(D)).data.menus.find((x) => x.id === m.id);
+  R.check('AD5o saved: BG first unchanged (b1.png), second replaced (b2-new.png)', cur.originalName === 'b1.png' && cur.file2?.originalName === 'b2-new.png', JSON.stringify([cur.originalName, cur.file2?.originalName]));
+  await closeDlg();
+  R.check('AD5-LOG no page errors / CSP violations / failed requests during AD5', alog.pageErrors.length === 0 && alog.failed.length === 0, JSON.stringify([alog.pageErrors, alog.failed].map((a) => a.slice(0, 3))));
+});
+
 await step('AD4', async () => {
   // XSS: names are text everywhere in the admin. Client-side raw markup name in the wizard (Playwright allows any file name), server-stored entity-looking name in the dialog.
   await wipe();

@@ -122,6 +122,13 @@ await step('S15-390', async () => {
   await p.keyboard.press('ArrowLeft'); await p.waitForTimeout(150);
   R.check('SL14b keyboard only: after reaching page 15 with Enter on "next", ArrowLeft still goes back to page 14 (arrow keys keep working after the focused button became disabled)', (await cnt(p)) === L.bg.cap(14, 15), `${await cnt(p)} focus=${await p.evaluate(() => document.activeElement.tagName + '.' + document.activeElement.className)}`);
   await p.locator('.slider-prev').click().catch(() => {});
+  // T-64 (BUG-25 retest, other direction): keyboard on "prev" down to page 1; focus must move to a slider control, not <body>
+  await p.locator('.slider-prev').focus();
+  for (let i = 0; i < 20 && (await p.locator('.slider-prev').isEnabled()); i++) await p.keyboard.press('Enter');
+  const startFocus = await p.evaluate(() => ({ tag: document.activeElement.tagName, cls: document.activeElement.className, inSlider: !!document.activeElement.closest('.menu-slider') }));
+  R.check('SL14c keyboard only: Enter on "prev" down to page 1 -> prev disabled, focus not dropped to <body> (stays inside the slider)', (await cnt(p)) === L.bg.cap(1, 15) && (await p.locator('.slider-prev').isDisabled()) && startFocus.inSlider && startFocus.tag !== 'BODY', `counter=${await cnt(p)} focus=${JSON.stringify(startFocus)}`);
+  await p.keyboard.press('ArrowRight'); await p.waitForTimeout(150);
+  R.check('SL14d after reaching page 1 with Enter on "prev", ArrowRight still advances to page 2', (await cnt(p)) === L.bg.cap(2, 15), await cnt(p));
 
   // ---- swipe (synthetic touch events on the stage)
   while (await p.locator('.slider-prev').isEnabled()) await p.locator('.slider-prev').click();
