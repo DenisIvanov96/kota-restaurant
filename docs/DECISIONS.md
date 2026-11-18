@@ -56,3 +56,4 @@
 | D-52 | 2026-11-17 | "За нас" removed from the navigation; the About section stays on the home page; its text is editable per language in admin Settings (fallback BG↔EN, else built-in default) | Owner request | User |
 | D-53 | 2026-11-17 | Video served by our own server via `/media` with Range support (no YouTube/third-party embeds → no cookies/consent banner needed) | GDPR, simplicity | PM |
 | D-54 | 2026-11-17 | Testing scope: QA tests only changed parts + directly connected parts; no full-site regression per change; full regression once before production release or on owner request (replaces the shared-code/architecture full-regression trigger) | Owner instruction | User |
+| D-55 | 2026-11-18 | Map link points to the owner's fixed Google Maps pin `https://maps.app.goo.gl/EQuhsMqma6TcmRqs9` instead of an address search | Owner request; exact pin instead of text search | User |
