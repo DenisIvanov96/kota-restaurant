@@ -650,3 +650,12 @@ Notes (not defects):
 - Chromium logs "Failed to load resource" for the intentional 404 document and for the logged-out admin `GET /api/admin/me` 401; `launch.mjs` allows exactly these two.
 - On the admin login screen only Source Sans 3 Cyrillic is requested (no Oswald Cyrillic text on that screen); the test accounts for it.
 - Not run: real-network checks (real Google Maps page, real social-network crawlers), Lighthouse, screen reader.
+
+## D-54 floor-plan grid alignment - T-68, 2026-11-20, HEAD `a06d48f` (narrow tier)
+
+| Suite | Commit | Result |
+|---|---|---|
+| plan | a06d48f | PASS 66/66 (`node tests/e2e/plan.mjs`, port 3208; it asserts order/shape/relations only, no exact coordinates, so no expectation changed) |
+| plan-grid (new `tests/e2e/plan-grid.mjs`, port 3209: G1 no table overlap and >= 6 units gap, G2 inside floor and >= 6 above bar, G3 no overlap with door/swing arc/"Вход" label, G4 numbers centred in rects, G5 square 104/113/114/115 and others long, G6 three columns and top-down order, G7 visible/no h-scroll/no console errors; 390/768/1280) | a06d48f | PASS 24/24 |
+
+Screenshots: `/tmp/kota-qa/shots/plan-grid-{390,768,1280}.png`. Not run: other suites (outside the D-54 scope; only `reservation.html` SVG coordinates changed).
